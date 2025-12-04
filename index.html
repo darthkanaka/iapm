@@ -5,15 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Project Management System</title>
   
-  <!-- React -->
-  <script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
+  <!-- Load React + Lucide via ES modules with proper bundling, then Babel -->
+  <script type="module">
+    // Use esm.sh which properly handles React as a peer dependency
+    import React from 'https://esm.sh/react@18.2.0';
+    import ReactDOM from 'https://esm.sh/react-dom@18.2.0';
+    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+    import * as LucideReact from 'https://esm.sh/lucide-react@0.263.1?deps=react@18.2.0';
 
-  <!-- Lucide Icons - MUST load before Babel (Babel's AMD detection breaks lucide UMD) -->
-  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+    // Expose to global scope for Babel scripts
+    window.React = React;
+    window.ReactDOM = ReactDOM;
+    window.ReactDOM.createRoot = createRoot;
+    window.lucideReact = LucideReact;
 
-  <!-- Babel for JSX transformation -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    // Now load and run Babel after React is available
+    const babelScript = document.createElement('script');
+    babelScript.src = 'https://unpkg.com/@babel/standalone/babel.min.js';
+    babelScript.onload = () => {
+      // Babel will auto-transform text/babel scripts on load
+      Babel.transformScriptTags();
+    };
+    document.head.appendChild(babelScript);
+  </script>
   
   <style>
     * {
