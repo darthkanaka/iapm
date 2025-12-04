@@ -7812,7 +7812,9 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
     }
 
     // Report visible date to parent (calculate center day of visible area)
-    if (onVisibleDateChange && e.target === scrollRef.current && DAY_WIDTH > 0) {
+    // Handle both grid scroll and header scroll as horizontal navigation sources
+    const isHorizontalScroll = e.target === scrollRef.current || e.target === headerScrollRef.current;
+    if (onVisibleDateChange && isHorizontalScroll && DAY_WIDTH > 0) {
       const scrollLeft = e.target.scrollLeft;
       const centerOffset = scrollLeft + (containerWidth / 2);
       const centerDayIndex = Math.floor(centerOffset / DAY_WIDTH);
