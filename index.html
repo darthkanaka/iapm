@@ -2305,14 +2305,13 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     const localEvent = {
       id: newEvent.id,
       title: newEvent.title,
-      description: newEvent.description,
-      startTime: newEvent.start_time,
-      endTime: newEvent.end_time,
+      description: newEvent.notes,
+      startTime: new Date(newEvent.start_time),
+      endTime: newEvent.end_time ? new Date(newEvent.end_time) : null,
       allDay: newEvent.all_day,
       location: newEvent.location,
       projectId: newEvent.project_id,
       clientId: newEvent.client_id,
-      color: newEvent.color,
       isCompleted: newEvent.is_completed,
       attendees: event.attendees || []
     };
