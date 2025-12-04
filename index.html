@@ -7646,7 +7646,7 @@ function TimelineDatePicker({ onSelect, onClose, currentTime }) {
 }
 
 // ==================== WEEKLY CALENDAR VIEW ====================
-function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, targetDate, scrollTrigger, onEventClick, onTaskClick, toggleTaskComplete }) {
+function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, targetDate, scrollTrigger, onEventClick, onTaskClick, toggleTaskComplete, onVisibleDateChange }) {
   const scrollRef = React.useRef(null);
   const timeScrollRef = React.useRef(null);
   const headerScrollRef = React.useRef(null);
@@ -7809,6 +7809,16 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
     }
     if (scrollRef.current && e.target === headerScrollRef.current) {
       scrollRef.current.scrollLeft = e.target.scrollLeft;
+    }
+
+    // Report visible date to parent (calculate center day of visible area)
+    if (onVisibleDateChange && e.target === scrollRef.current && DAY_WIDTH > 0) {
+      const scrollLeft = e.target.scrollLeft;
+      const centerOffset = scrollLeft + (containerWidth / 2);
+      const centerDayIndex = Math.floor(centerOffset / DAY_WIDTH);
+      if (centerDayIndex >= 0 && centerDayIndex < allDays.length) {
+        onVisibleDateChange(allDays[centerDayIndex]);
+      }
     }
   };
   
@@ -8488,19 +8498,21 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const scrollToNow = () => {
     const now = new Date();
     setTargetDate(now);
+    setVisibleDate(now);
     setScrollTrigger(prev => prev + 1);
     if (viewMode === 'day' && scrollContainerRef.current) {
       const scrollPos = Math.max(0, nowPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
     }
   };
-  
+
   const scrollToDate = (date) => {
     const newTarget = new Date(date);
     newTarget.setHours(8, 0, 0, 0);
     setTargetDate(newTarget);
+    setVisibleDate(newTarget);
     setScrollTrigger(prev => prev + 1);
-    
+
     if (viewMode === 'day' && scrollContainerRef.current) {
       const targetPosition = getPosition(newTarget);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
@@ -9748,8 +9760,19 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           </button>
         </div>
         <div className="tl-toggle">
-          <button className={`tl-toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>6-Hour</button>
-          <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => setViewMode('week')}>7-Day</button>
+          <button className={`tl-toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => {
+            if (viewMode !== 'day') {
+              setTargetDate(visibleDate);
+              setViewMode('day');
+            }
+          }}>6-Hour</button>
+          <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => {
+            if (viewMode !== 'week') {
+              setTargetDate(visibleDate);
+              setScrollTrigger(prev => prev + 1);
+              setViewMode('week');
+            }
+          }}>7-Day</button>
         </div>
       </div>
       
@@ -10030,6 +10053,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           onEventClick={onEventClick}
           onTaskClick={onTaskClick}
           toggleTaskComplete={toggleTaskComplete}
+          onVisibleDateChange={setVisibleDate}
         />
       )}
     </div>
