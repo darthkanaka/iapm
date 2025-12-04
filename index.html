@@ -6659,10 +6659,10 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
               >
                 Cancel
               </button>
-              <button 
-                className="task-modal-btn task-modal-btn-primary" 
+              <button
+                className="task-modal-btn task-modal-btn-primary"
                 onClick={handleSubmit}
-                disabled={!title.trim() || !clientId || !dueDate}
+                disabled={!title.trim() || !clientId}
               >
                 {isExistingTask ? 'Save Changes' : 'Create Task'}
               </button>
@@ -9983,6 +9983,7 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   // Get lists for a specific date
   const getListsForDate = (date) => {
     return (lists || []).filter(l => {
+      if (!l.dueDate) return false; // Skip lists without due dates
       const listDate = new Date(l.dueDate);
       return listDate.getFullYear() === date.getFullYear() &&
              listDate.getMonth() === date.getMonth() &&
@@ -12505,7 +12506,17 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           align-items: center;
           gap: 8px;
         }
-        
+
+        .cv-subsection-title {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #52525b;
+          margin-bottom: 8px;
+          margin-top: 4px;
+        }
+
         .cv-add-btn {
           padding: 4px 10px;
           border-radius: 5px;
@@ -13953,72 +13964,138 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   <Plus size={14} /> Add Task
                 </button>
               </div>
-              
+
               {pendingTasks.length === 0 && completedTasks.length === 0 && (
                 <div className="cv-empty">No tasks yet. Create one above!</div>
               )}
-              
-              {/* Pending tasks */}
-              {pendingTasks.length > 0 && (
-                <div className="cv-tasks-list">
-                  {pendingTasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)).map(task => {
-                    const project = client.projects.find(p => p.id === task.projectId);
-                    const color = project?.color || client.color;
-                    const assignee = teamMembers.find(m => m.id === task.assignedTo);
-                    const taskDueDate = new Date(task.dueDate);
-                    const isOverdue = taskDueDate < new Date();
-                    const statusBadge = getTaskStatusBadge(task);
-                    
-                    return (
-                      <div 
-                        key={task.id} 
-                        className="cv-task" 
-                        style={{ borderColor: color, cursor: 'pointer' }}
-                        onClick={() => onTaskClick && onTaskClick(task)}
-                      >
-                        <div 
-                          className="cv-task-check"
-                          style={{ borderColor: color, color }}
-                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                        />
-                        <div className="cv-task-info">
-                          <div className="cv-task-title">{task.title}</div>
-                          <div className="cv-task-meta">
-                            <span style={{ color: isOverdue ? '#ef4444' : undefined }}>
-                              {isOverdue ? 'Overdue: ' : 'Due '}
-                              {taskDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                            {project && (
-                              <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
-                                {project.name}
-                              </span>
-                            )}
-                            {!project && (
-                              <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
-                                {client.isInternal ? 'General' : 'Client-level'}
-                              </span>
-                            )}
-                            {assignee && <span>→ {assignee.name}</span>}
-                          </div>
-                        </div>
-                        {statusBadge && (
-                          <div 
-                            className="cv-task-status-badge"
-                            style={{ background: statusBadge.bgColor, color: statusBadge.color }}
+
+              {/* Timely Tasks - tasks with due dates */}
+              {(() => {
+                const timelyTasks = pendingTasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                if (timelyTasks.length === 0) return null;
+                return (
+                  <>
+                    <div className="cv-subsection-title">Timely Tasks</div>
+                    <div className="cv-tasks-list">
+                      {timelyTasks.map(task => {
+                        const project = client.projects.find(p => p.id === task.projectId);
+                        const color = project?.color || client.color;
+                        const assignee = teamMembers.find(m => m.id === task.assignedTo);
+                        const taskDueDate = new Date(task.dueDate);
+                        const isOverdue = taskDueDate < new Date();
+                        const statusBadge = getTaskStatusBadge(task);
+
+                        return (
+                          <div
+                            key={task.id}
+                            className="cv-task"
+                            style={{ borderColor: color, cursor: 'pointer' }}
+                            onClick={() => onTaskClick && onTaskClick(task)}
                           >
-                            {statusBadge.label}
+                            <div
+                              className="cv-task-check"
+                              style={{ borderColor: color, color }}
+                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                            />
+                            <div className="cv-task-info">
+                              <div className="cv-task-title">{task.title}</div>
+                              <div className="cv-task-meta">
+                                <span style={{ color: isOverdue ? '#ef4444' : undefined }}>
+                                  {isOverdue ? 'Overdue: ' : 'Due '}
+                                  {taskDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                                {project && (
+                                  <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
+                                    {project.name}
+                                  </span>
+                                )}
+                                {!project && (
+                                  <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
+                                    {client.isInternal ? 'General' : 'Client-level'}
+                                  </span>
+                                )}
+                                {assignee && <span>→ {assignee.name}</span>}
+                              </div>
+                            </div>
+                            {statusBadge && (
+                              <div
+                                className="cv-task-status-badge"
+                                style={{ background: statusBadge.bgColor, color: statusBadge.color }}
+                              >
+                                {statusBadge.label}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* Floating Tasks - tasks without due dates */}
+              {(() => {
+                const floatingTasks = pendingTasks.filter(t => !t.dueDate);
+                if (floatingTasks.length === 0) return null;
+                return (
+                  <>
+                    <div className="cv-subsection-title" style={{ marginTop: 16 }}>Floating Tasks</div>
+                    <div className="cv-tasks-list">
+                      {floatingTasks.map(task => {
+                        const project = client.projects.find(p => p.id === task.projectId);
+                        const color = project?.color || client.color;
+                        const assignee = teamMembers.find(m => m.id === task.assignedTo);
+                        const statusBadge = getTaskStatusBadge(task);
+
+                        return (
+                          <div
+                            key={task.id}
+                            className="cv-task"
+                            style={{ borderColor: color, cursor: 'pointer' }}
+                            onClick={() => onTaskClick && onTaskClick(task)}
+                          >
+                            <div
+                              className="cv-task-check"
+                              style={{ borderColor: color, color }}
+                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                            />
+                            <div className="cv-task-info">
+                              <div className="cv-task-title">{task.title}</div>
+                              <div className="cv-task-meta">
+                                <span style={{ color: '#71717a' }}>No due date</span>
+                                {project && (
+                                  <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
+                                    {project.name}
+                                  </span>
+                                )}
+                                {!project && (
+                                  <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
+                                    {client.isInternal ? 'General' : 'Client-level'}
+                                  </span>
+                                )}
+                                {assignee && <span>→ {assignee.name}</span>}
+                              </div>
+                            </div>
+                            {statusBadge && (
+                              <div
+                                className="cv-task-status-badge"
+                                style={{ background: statusBadge.bgColor, color: statusBadge.color }}
+                              >
+                                {statusBadge.label}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+
               {/* Completed tasks - collapsible */}
               {completedTasks.length > 0 && (
                 <div className="cv-collapsible-section">
-                  <div 
+                  <div
                     className="cv-collapsible-header"
                     onClick={() => setShowCompletedTasks(!showCompletedTasks)}
                   >
@@ -14034,15 +14111,15 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                         const project = client.projects.find(p => p.id === task.projectId);
                         const color = project?.color || client.color;
                         const assignee = teamMembers.find(m => m.id === task.assignedTo);
-                        
+
                         return (
-                          <div 
-                            key={task.id} 
-                            className="cv-task completed" 
+                          <div
+                            key={task.id}
+                            className="cv-task completed"
                             style={{ borderColor: color, cursor: 'pointer' }}
                             onClick={() => onTaskClick && onTaskClick(task)}
                           >
-                            <div 
+                            <div
                               className="cv-task-check checked"
                               style={{ borderColor: color, color, background: color }}
                               onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
@@ -14052,6 +14129,14 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                             <div className="cv-task-info">
                               <div className="cv-task-title">{task.title}</div>
                               <div className="cv-task-meta">
+                                {task.dueDate && (
+                                  <span style={{ color: '#71717a' }}>
+                                    {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                                {!task.dueDate && (
+                                  <span style={{ color: '#52525b' }}>No due date</span>
+                                )}
                                 {project && (
                                   <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
                                     {project.name}
