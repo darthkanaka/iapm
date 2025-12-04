@@ -7646,11 +7646,12 @@ function TimelineDatePicker({ onSelect, onClose, currentTime }) {
 }
 
 // ==================== WEEKLY CALENDAR VIEW ====================
-function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, targetDate, scrollTrigger, onEventClick, onTaskClick, toggleTaskComplete, onVisibleDateChange }) {
+function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, targetDate, scrollTrigger, onEventClick, onTaskClick, toggleTaskComplete, visibleDateRef }) {
   const scrollRef = React.useRef(null);
   const timeScrollRef = React.useRef(null);
   const headerScrollRef = React.useRef(null);
   const containerRef = React.useRef(null);
+  const scrollingRef = React.useRef(null); // Track which element is scrolling to prevent feedback
   const [containerHeight, setContainerHeight] = React.useState(600);
   const [containerWidth, setContainerWidth] = React.useState(800);
   
@@ -7788,34 +7789,47 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
     headerScrollRef.current.scrollLeft = horizontalScroll;
   }, [scrollTrigger, targetDate, containerWidth]); // allDays removed - recalculated but content stable
   
-  // Sync scroll between components
+  // Sync scroll between components with feedback loop prevention
   const handleScroll = (e) => {
-    // Vertical sync between time column and grid
-    if (timeScrollRef.current && e.target === scrollRef.current) {
-      timeScrollRef.current.scrollTop = e.target.scrollTop;
-    }
-    if (scrollRef.current && e.target === timeScrollRef.current) {
-      scrollRef.current.scrollTop = e.target.scrollTop;
-    }
-    // Horizontal sync between header and grid
-    if (headerScrollRef.current && e.target === scrollRef.current) {
-      headerScrollRef.current.scrollLeft = e.target.scrollLeft;
-    }
-    if (scrollRef.current && e.target === headerScrollRef.current) {
-      scrollRef.current.scrollLeft = e.target.scrollLeft;
+    const source = e.target;
+
+    // If we're currently syncing from another source, ignore this event
+    if (scrollingRef.current && scrollingRef.current !== source) {
+      return;
     }
 
-    // Report visible date to parent (calculate center day of visible area)
-    // Handle both grid scroll and header scroll as horizontal navigation sources
-    const isHorizontalScroll = e.target === scrollRef.current || e.target === headerScrollRef.current;
-    if (onVisibleDateChange && isHorizontalScroll && DAY_WIDTH > 0) {
-      const scrollLeft = e.target.scrollLeft;
+    // Mark this element as the scroll source
+    scrollingRef.current = source;
+
+    // Vertical sync between time column and grid
+    if (source === scrollRef.current && timeScrollRef.current) {
+      timeScrollRef.current.scrollTop = source.scrollTop;
+    } else if (source === timeScrollRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = source.scrollTop;
+    }
+
+    // Horizontal sync between header and grid
+    if (source === scrollRef.current && headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = source.scrollLeft;
+    } else if (source === headerScrollRef.current && scrollRef.current) {
+      scrollRef.current.scrollLeft = source.scrollLeft;
+    }
+
+    // Update visible date ref for parent to read when switching views
+    if (visibleDateRef && DAY_WIDTH > 0 && scrollRef.current) {
+      const scrollLeft = scrollRef.current.scrollLeft;
       const centerOffset = scrollLeft + (containerWidth / 2);
       const centerDayIndex = Math.floor(centerOffset / DAY_WIDTH);
       if (centerDayIndex >= 0 && centerDayIndex < allDays.length) {
-        onVisibleDateChange(allDays[centerDayIndex]);
+        visibleDateRef.current = allDays[centerDayIndex];
       }
     }
+
+    // Clear scroll source after a short delay to allow sync to complete
+    clearTimeout(scrollingRef.scrollTimeout);
+    scrollingRef.scrollTimeout = setTimeout(() => {
+      scrollingRef.current = null;
+    }, 50);
   };
   
   // Get events for a specific day
@@ -10055,7 +10069,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           onEventClick={onEventClick}
           onTaskClick={onTaskClick}
           toggleTaskComplete={toggleTaskComplete}
-          onVisibleDateChange={(date) => { weekVisibleDateRef.current = date; }}
+          visibleDateRef={weekVisibleDateRef}
         />
       )}
     </div>
