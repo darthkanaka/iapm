@@ -2263,8 +2263,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       location: event.location || null,
       project_id: event.projectId || null,
       is_completed: event.isCompleted || false,
-      created_by: currentUser?.id || null,
-      visibility: event.visibility || null
+      created_by: currentUser?.id,
+      visibility: event.visibility || {},
+      type: event.type || 'meeting'
     };
 
     console.log('Adding event to Supabase:', dbEvent);
