@@ -1920,6 +1920,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     const tasksChannel = supabase
       .channel('tasks-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+        console.log('[Realtime] Task change:', payload.eventType, payload.new?.id || payload.old?.id);
         if (payload.eventType === 'INSERT') {
           setTasks(prev => [...prev, transformTask(payload.new)]);
         } else if (payload.eventType === 'UPDATE') {
@@ -1928,12 +1929,15 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setTasks(prev => prev.filter(t => t.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Tasks subscription status:', status);
+      });
 
     // Subscribe to events
     const eventsChannel = supabase
       .channel('events-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, async (payload) => {
+        console.log('[Realtime] Event change:', payload.eventType, payload.new?.id || payload.old?.id);
         if (payload.eventType === 'INSERT') {
           // Fetch attendees for new event
           const { data: attendees } = await supabase
@@ -1954,7 +1958,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setEvents(prev => prev.filter(e => e.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Events subscription status:', status);
+      });
 
     // Subscribe to event_attendees for attendee changes
     const attendeesChannel = supabase
