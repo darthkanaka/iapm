@@ -10879,31 +10879,77 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
 
 // ==================== LIST VIEW ====================
 function ListView({ clients, internal, events, tasks, lists, teamMembers, currentUserId, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress }) {
-  // Filter state
+  // Filter state with localStorage persistence
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [showEvents, setShowEvents] = React.useState(true);
-  const [showTasks, setShowTasks] = React.useState(true);
-  const [showLists, setShowLists] = React.useState(true);
-  const [showCompleted, setShowCompleted] = React.useState(false);
-  const [showPastEvents, setShowPastEvents] = React.useState(false);
-  const [myItemsOnly, setMyItemsOnly] = React.useState(false);
-  const [selectedClients, setSelectedClients] = React.useState(() => {
-    const initial = { personal: true, team: true };
-    clients.forEach(c => { initial[c.id] = true; });
-    return initial;
+  const [showEvents, setShowEvents] = React.useState(() => {
+    const saved = localStorage.getItem('listview_showEvents');
+    return saved !== null ? JSON.parse(saved) : true;
   });
-  const [selectedProjects, setSelectedProjects] = React.useState(() => {
-    const initial = {};
-    internal.personal.projects.forEach(p => { initial[p.id] = true; });
-    internal.team.projects.forEach(p => { initial[p.id] = true; });
-    clients.forEach(c => {
-      c.projects.forEach(p => { initial[p.id] = true; });
-    });
-    return initial;
+  const [showTasks, setShowTasks] = React.useState(() => {
+    const saved = localStorage.getItem('listview_showTasks');
+    return saved !== null ? JSON.parse(saved) : true;
   });
+  const [showLists, setShowLists] = React.useState(() => {
+    const saved = localStorage.getItem('listview_showLists');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showCompleted, setShowCompleted] = React.useState(() => {
+    const saved = localStorage.getItem('listview_showCompleted');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [showPastEvents, setShowPastEvents] = React.useState(() => {
+    const saved = localStorage.getItem('listview_showPastEvents');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [myItemsOnly, setMyItemsOnly] = React.useState(() => {
+    const saved = localStorage.getItem('listview_myItemsOnly');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [selectedClients, setSelectedClients] = React.useState({});
+  const [selectedProjects, setSelectedProjects] = React.useState({});
   const [expandedClients, setExpandedClients] = React.useState({});
   const [collapsedDays, setCollapsedDays] = React.useState({});
-  
+  const [filtersInitialized, setFiltersInitialized] = React.useState(false);
+
+  // Initialize filters when data loads - default to ALL selected
+  React.useEffect(() => {
+    if (!internal.personal || !internal.team || filtersInitialized) return;
+
+    const newClients = { [internal.personal.id]: true, [internal.team.id]: true };
+    const newProjects = {};
+
+    internal.personal.projects?.forEach(p => { newProjects[p.id] = true; });
+    internal.team.projects?.forEach(p => { newProjects[p.id] = true; });
+    clients.forEach(c => {
+      newClients[c.id] = true;
+      c.projects?.forEach(p => { newProjects[p.id] = true; });
+    });
+
+    setSelectedClients(newClients);
+    setSelectedProjects(newProjects);
+    setFiltersInitialized(true);
+  }, [internal.personal, internal.team, clients, filtersInitialized]);
+
+  // Persist filter settings to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('listview_showEvents', JSON.stringify(showEvents));
+  }, [showEvents]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_showTasks', JSON.stringify(showTasks));
+  }, [showTasks]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_showLists', JSON.stringify(showLists));
+  }, [showLists]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_showCompleted', JSON.stringify(showCompleted));
+  }, [showCompleted]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_showPastEvents', JSON.stringify(showPastEvents));
+  }, [showPastEvents]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_myItemsOnly', JSON.stringify(myItemsOnly));
+  }, [myItemsOnly]);
+
   // Combine all spaces
   const allSpaces = [
     { ...internal.personal, isInternal: true },
