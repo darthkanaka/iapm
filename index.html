@@ -9,17 +9,11 @@
   <script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
 
+  <!-- Lucide Icons - MUST load before Babel (Babel's AMD detection breaks lucide UMD) -->
+  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+
   <!-- Babel for JSX transformation -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Lucide Icons - loaded after React is guaranteed to be on window -->
-  <script>
-    // Verify React is loaded before loading lucide-react
-    if (typeof React === 'undefined' || typeof React.forwardRef !== 'function') {
-      console.error('React not loaded properly');
-    }
-  </script>
-  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
   
   <style>
     * {
