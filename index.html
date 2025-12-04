@@ -2356,6 +2356,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   };
 
   const updateEvent = async (eventId, updates) => {
+    console.log('updateEvent called:', eventId, updates);
+
     const dbUpdates = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.notes = updates.description;
@@ -2369,11 +2371,16 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
     if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
 
+    console.log('dbUpdates to send:', dbUpdates);
+
     if (Object.keys(dbUpdates).length > 0) {
+      console.log('Sending update to Supabase...');
       const { error } = await window.supabase
         .from('events')
         .update(dbUpdates)
         .eq('id', eventId);
+
+      console.log('Supabase update result, error:', error);
 
       if (error) {
         console.error('Error updating event:', error);
