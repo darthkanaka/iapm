@@ -13819,10 +13819,125 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   )}
                 </div>
               </div>
+
+              {/* Upcoming Events Section */}
+              <div className="cv-section" style={{ marginBottom: 16 }}>
+                <div className="cv-section-header" style={{ marginBottom: 8 }}>
+                  <div className="cv-section-title">
+                    Upcoming Events ({upcomingEvents.length})
+                  </div>
+                  <button className="cv-add-btn" onClick={() => openAddEventModal()}>
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+
+                <div className="cv-events-list">
+                  {upcomingEvents.slice(0, 5).map(event => {
+                    const project = client.projects.find(p => p.id === event.projectId);
+                    const color = project?.color || client.color;
+                    return (
+                      <div
+                        key={event.id}
+                        className="cv-event"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => onEventClick && onEventClick(event)}
+                      >
+                        <div className="cv-event-color" style={{ background: color }} />
+                        <div className="cv-event-info">
+                          <div className="cv-event-title">{event.title}</div>
+                          <div className="cv-event-meta">
+                            <span>{event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            <span>{formatTime(event.startTime)}</span>
+                            {project && (
+                              <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
+                                {project.name}
+                              </span>
+                            )}
+                            {!project && (
+                              <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
+                                {client.isInternal ? 'General' : 'Client-level'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {upcomingEvents.length === 0 && (
+                    <div className="cv-empty">No upcoming events</div>
+                  )}
+                  {upcomingEvents.length > 5 && (
+                    <div className="cv-show-more">+{upcomingEvents.length - 5} more events</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Lists Section */}
+              <div className="cv-section">
+                <div className="cv-section-header" style={{ marginBottom: 8 }}>
+                  <div className="cv-section-title">
+                    Lists ({allClientLists.length})
+                  </div>
+                  <button className="cv-add-btn" onClick={() => {/* TODO: Add list modal */}}>
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+
+                <div className="cv-lists-list">
+                  {allClientLists.slice(0, 5).map(list => {
+                    const project = client.projects.find(p => p.id === list.projectId);
+                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                    const percent = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
+                    const isComplete = progress.total > 0 && progress.completed === progress.total;
+                    return (
+                      <div
+                        key={list.id}
+                        className="cv-list-card"
+                        onClick={() => onListClick && onListClick(list)}
+                      >
+                        <span className="cv-list-icon">📋</span>
+                        <div className="cv-list-info">
+                          <div className="cv-list-title">{list.title}</div>
+                          <div className="cv-list-meta">
+                            {list.dueDate && (
+                              <span>Due {new Date(list.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            )}
+                            {project && (
+                              <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
+                                {project.name}
+                              </span>
+                            )}
+                            {!project && (
+                              <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
+                                {client.isInternal ? 'General' : 'Client-level'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="cv-list-progress-wrapper">
+                          <div className="cv-list-progress-bar">
+                            <div
+                              className={`cv-list-progress-fill ${isComplete ? 'complete' : ''}`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <span className="cv-list-count">{progress.completed}/{progress.total}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {allClientLists.length === 0 && (
+                    <div className="cv-empty">No lists</div>
+                  )}
+                  {allClientLists.length > 5 && (
+                    <div className="cv-show-more">+{allClientLists.length - 5} more lists</div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
-        
+
         {activeTab === 'projects' && (
           <>
             <div className="cv-section-header" style={{ marginBottom: 16 }}>
