@@ -5966,22 +5966,23 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
           }
           .task-modal {
             background: #18181b;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
             width: 440px;
             max-width: 95vw;
             max-height: 90vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
           }
           .task-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
           }
           .task-modal-header-left {
             display: flex;
@@ -5989,64 +5990,72 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             gap: 12px;
           }
           .task-modal-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
-            color: #f4f4f5;
+            color: #e4e4e7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           .task-modal-edit-btn {
-            background: rgba(255, 255, 255, 0.05);
+            background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #a1a1aa;
             cursor: pointer;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 13px;
+            padding: 5px 10px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.15s;
+            gap: 5px;
+            transition: all 0.1s ease;
           }
           .task-modal-edit-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #f4f4f5;
           }
           .task-modal-close {
-            background: none;
-            border: none;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #71717a;
             cursor: pointer;
-            padding: 4px;
-            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .task-modal-close:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #f4f4f5;
           }
           .task-modal-body {
-            padding: 20px 24px;
+            padding: 16px 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             overflow-y: auto;
           }
           .task-modal-field {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
           }
           .task-modal-label {
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 10px;
+            font-weight: 600;
             color: #a1a1aa;
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
           .task-modal-value {
-            font-size: 15px;
+            font-size: 14px;
             color: #f4f4f5;
             line-height: 1.5;
           }
@@ -6057,52 +6066,56 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
           .task-modal-value.notes {
             white-space: pre-wrap;
             background: rgba(255, 255, 255, 0.03);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 10px 12px;
+            border-radius: 2px;
+            font-size: 13px;
           }
           .task-modal-value.overdue {
             color: #f87171;
           }
           .task-modal-badges {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
           }
           .task-modal-badge {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             color: white;
             border: none;
             cursor: pointer;
-            transition: opacity 0.15s;
+            transition: opacity 0.1s ease;
           }
           .task-modal-badge:hover {
-            opacity: 0.8;
+            opacity: 0.85;
           }
           .task-modal-badge.assignee {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #a1a1aa;
             cursor: default;
           }
           .task-modal-status-row {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
           }
           .task-modal-checkbox {
-            width: 22px;
-            height: 22px;
-            border-radius: 6px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
             background: transparent;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             flex-shrink: 0;
           }
           .task-modal-checkbox:hover {
@@ -6113,7 +6126,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             border-color: #22c55e;
           }
           .task-modal-status-text {
-            font-size: 14px;
+            font-size: 13px;
             color: #a1a1aa;
           }
           .task-modal-status-text.completed {
@@ -6126,22 +6139,22 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
+            padding: 9px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .task-modal-status-trigger:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.2);
           }
           .task-modal-status-icon {
-            font-size: 16px;
+            font-size: 14px;
           }
           .task-modal-status-label {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
           }
           .task-modal-status-arrow {
@@ -6150,13 +6163,13 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
           }
           .task-modal-status-dropdown {
             position: absolute;
-            top: calc(100% + 4px);
+            top: calc(100% + 2px);
             left: 0;
             right: 0;
             background: #1c1c1f;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
             z-index: 100;
             overflow: hidden;
           }
@@ -6169,33 +6182,34 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
+            padding: 9px 12px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background 0.1s ease;
           }
           .task-modal-status-option:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.06);
           }
           .task-modal-status-option.selected {
-            background: rgba(99, 102, 241, 0.15);
+            background: rgba(99, 102, 241, 0.12);
           }
           .task-modal-status-option-icon {
-            font-size: 16px;
+            font-size: 14px;
           }
           .task-modal-status-option-label {
-            font-size: 14px;
+            font-size: 13px;
             color: #e4e4e7;
           }
           .task-modal-blocked-input {
             margin-top: 8px;
             width: 100%;
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.08);
             border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 6px;
+            border-radius: 2px;
             padding: 8px 10px;
             color: #f4f4f5;
-            font-size: 13px;
+            font-size: 12px;
             outline: none;
+            transition: border-color 0.1s ease;
           }
           .task-modal-blocked-input:focus {
             border-color: rgba(239, 68, 68, 0.5);
@@ -6209,92 +6223,100 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
           .task-modal-blocked-display {
             margin-top: 8px;
             padding: 8px 10px;
-            background: rgba(239, 68, 68, 0.1);
-            border-radius: 6px;
-            font-size: 13px;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 2px;
+            font-size: 12px;
             color: #fca5a5;
           }
           .task-modal-input {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 9px 12px;
             color: #f4f4f5;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
-            transition: border-color 0.15s;
+            transition: border-color 0.1s ease;
           }
           .task-modal-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .task-modal-input::placeholder {
             color: #52525b;
           }
           .task-modal-select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 9px 12px;
             color: #f4f4f5;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             cursor: pointer;
+            transition: border-color 0.1s ease;
           }
           .task-modal-select:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .task-modal-row {
             display: flex;
-            gap: 12px;
+            gap: 10px;
           }
           .task-modal-row > * {
             flex: 1;
           }
           .task-modal-textarea {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 9px 12px;
             color: #f4f4f5;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             resize: vertical;
             min-height: 80px;
             font-family: inherit;
+            transition: border-color 0.1s ease;
           }
           .task-modal-textarea:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .task-modal-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
           }
           .task-modal-footer-left {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .task-modal-footer-right {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .task-modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 12px;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             border: none;
           }
           .task-modal-btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #a1a1aa;
           }
           .task-modal-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #f4f4f5;
           }
           .task-modal-btn-primary {
@@ -6302,7 +6324,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             color: white;
           }
           .task-modal-btn-primary:hover {
-            background: #4f46e5;
+            background: #5558e3;
           }
           .task-modal-btn-primary:disabled {
             background: #3f3f46;
@@ -6310,13 +6332,13 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             cursor: not-allowed;
           }
           .task-modal-btn-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: transparent;
             color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
           }
           .task-modal-btn-danger:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
           }
         `}</style>
         
