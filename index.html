@@ -4631,8 +4631,12 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
       const end = new Date(event.endTime);
       const startH = start.getHours();
       const endH = end.getHours();
+      // Use local date values (not toISOString which converts to UTC)
+      const year = start.getFullYear();
+      const month = String(start.getMonth() + 1).padStart(2, '0');
+      const day = String(start.getDate()).padStart(2, '0');
       return {
-        date: start.toISOString().slice(0, 10),
+        date: `${year}-${month}-${day}`,
         startHour: startH === 0 ? 12 : startH > 12 ? startH - 12 : startH,
         startMinute: Math.round(start.getMinutes() / 15) * 15 % 60,
         startAmpm: startH < 12 ? 'AM' : 'PM',
