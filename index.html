@@ -7726,29 +7726,23 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
     };
   }, []);
   
-  // Scroll to a specific date
+  // Scroll to a specific date (centered)
   const scrollToTargetDate = (date, smooth = true) => {
     if (!scrollRef.current || !headerScrollRef.current || containerWidth <= 0 || DAY_WIDTH <= 0) {
       return;
     }
-    
+
     // Find the target day in allDays
     const targetDayIndex = allDays.findIndex(d => d.toDateString() === date.toDateString());
-    let targetWeekSundayIndex;
-    
+
     if (targetDayIndex === -1) {
-      // If date not found, find closest Sunday before the date
-      const targetSunday = new Date(date);
-      targetSunday.setDate(targetSunday.getDate() - targetSunday.getDay());
-      const closestIndex = allDays.findIndex(d => d.toDateString() === targetSunday.toDateString());
-      targetWeekSundayIndex = closestIndex >= 0 ? closestIndex : 0;
-    } else {
-      // Find Sunday of target week
-      targetWeekSundayIndex = targetDayIndex - date.getDay();
+      // If date not found, try to find closest day
+      return;
     }
-    
-    const horizontalScroll = Math.max(0, targetWeekSundayIndex * DAY_WIDTH);
-    
+
+    // Center the target day (subtract 3 to put it in middle of 7-day view)
+    const horizontalScroll = Math.max(0, (targetDayIndex - 3) * DAY_WIDTH);
+
     // Use instant scroll for reliability
     scrollRef.current.scrollLeft = horizontalScroll;
     headerScrollRef.current.scrollLeft = horizontalScroll;
@@ -7771,19 +7765,12 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
 
     // Find the target day in allDays
     const targetDayIndex = allDays.findIndex(d => d.toDateString() === targetDate.toDateString());
-    let targetWeekSundayIndex;
 
-    if (targetDayIndex === -1) {
-      const targetSunday = new Date(targetDate);
-      targetSunday.setDate(targetSunday.getDate() - targetSunday.getDay());
-      const closestIndex = allDays.findIndex(d => d.toDateString() === targetSunday.toDateString());
-      targetWeekSundayIndex = closestIndex >= 0 ? closestIndex : 0;
-    } else {
-      targetWeekSundayIndex = targetDayIndex - targetDate.getDay();
-    }
+    if (targetDayIndex === -1) return;
 
+    // Center the target day (subtract 3 to put it in middle of 7-day view)
     const dayWidth = containerWidth / 7;
-    const horizontalScroll = Math.max(0, targetWeekSundayIndex * dayWidth);
+    const horizontalScroll = Math.max(0, (targetDayIndex - 3) * dayWidth);
 
     scrollRef.current.scrollLeft = horizontalScroll;
     headerScrollRef.current.scrollLeft = horizontalScroll;
