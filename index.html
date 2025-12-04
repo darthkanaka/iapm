@@ -5,19 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Project Management System</title>
   
-  <!-- Load React + Lucide via ES modules with proper bundling, then Babel -->
+  <!-- Load React + Lucide + Supabase via ES modules with proper bundling, then Babel -->
   <script type="module">
     // Use esm.sh which properly handles React as a peer dependency
     import React from 'https://esm.sh/react@18.2.0';
     import ReactDOM from 'https://esm.sh/react-dom@18.2.0';
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import * as LucideReact from 'https://esm.sh/lucide-react@0.263.1?deps=react@18.2.0';
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
     // Expose to global scope for Babel scripts
     window.React = React;
     window.ReactDOM = ReactDOM;
     window.ReactDOM.createRoot = createRoot;
     window.lucideReact = LucideReact;
+
+    // Initialize Supabase client
+    const SUPABASE_URL = 'https://rnzhhwcoxengwmixzaws.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJuemhod2NveGVuZ3dtaXh6YXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MDg5MzgsImV4cCI6MjA4MDM4NDkzOH0.8eH9g3lKKMVIdiGBhEO6O0DhICv6o3X0wtE9Ift2ERw';
+    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Now load and run Babel after React is available
     const babelScript = document.createElement('script');
@@ -46,13 +52,423 @@
     #root {
       min-height: 100vh;
     }
+
+    /* Auth styles */
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #09090b;
+      padding: 20px;
+    }
+
+    .auth-card {
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .auth-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #fafafa;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .auth-subtitle {
+      font-size: 14px;
+      color: #71717a;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .auth-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .auth-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #a1a1aa;
+    }
+
+    .auth-input {
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.15s;
+    }
+
+    .auth-input:focus {
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .auth-input::placeholder {
+      color: #52525b;
+    }
+
+    .auth-button {
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      margin-top: 8px;
+    }
+
+    .auth-button-primary {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    .auth-button-primary:hover {
+      background: #4f46e5;
+    }
+
+    .auth-button-primary:disabled {
+      background: #4338ca;
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .auth-toggle {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: #71717a;
+    }
+
+    .auth-toggle-link {
+      color: #6366f1;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .auth-toggle-link:hover {
+      color: #818cf8;
+    }
+
+    .auth-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .auth-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #71717a;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
   
   <script type="text/babel" data-type="module">
-const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search } = lucideReact;
+const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock } = lucideReact;
+
+// ==================== AUTH CONTEXT & PROVIDER ====================
+const AuthContext = React.createContext(null);
+
+function useAuth() {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+// Generate a random color for new users
+const generateUserColor = () => {
+  const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+  return colors[Math.floor(Math.random() * colors.length)];
+};
+
+function AuthProvider({ children }) {
+  const [session, setSession] = React.useState(null);
+  const [teamMember, setTeamMember] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [authError, setAuthError] = React.useState(null);
+
+  // Fetch or create team member profile
+  const fetchOrCreateTeamMember = async (user) => {
+    try {
+      // First try to get existing team member
+      const { data: existing, error: fetchError } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (existing) {
+        setTeamMember(existing);
+        return existing;
+      }
+
+      // If not found, create new team member
+      if (fetchError && fetchError.code === 'PGRST116') {
+        const { data: newMember, error: createError } = await supabase
+          .from('team_members')
+          .insert({
+            auth_user_id: user.id,
+            email: user.email,
+            name: user.user_metadata?.name || user.email.split('@')[0],
+            color: generateUserColor()
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+
+        // Create personal space for new user
+        await supabase
+          .from('clients')
+          .insert({
+            name: 'Personal',
+            color: '#8b5cf6',
+            details: 'My personal workspace for private notes, tasks, and reminders.',
+            is_internal: true,
+            is_personal: true,
+            owner_id: newMember.id
+          });
+
+        setTeamMember(newMember);
+        return newMember;
+      }
+
+      throw fetchError;
+    } catch (err) {
+      console.error('Error fetching/creating team member:', err);
+      setAuthError(err.message);
+      return null;
+    }
+  };
+
+  // Initialize auth state
+  React.useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchOrCreateTeamMember(session.user).then(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      if (session?.user) {
+        await fetchOrCreateTeamMember(session.user);
+      } else {
+        setTeamMember(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signUp = async (email, password, name) => {
+    setAuthError(null);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name }
+      }
+    });
+    if (error) {
+      setAuthError(error.message);
+      return { error };
+    }
+    return { data };
+  };
+
+  const signIn = async (email, password) => {
+    setAuthError(null);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) {
+      setAuthError(error.message);
+      return { error };
+    }
+    return { data };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setTeamMember(null);
+  };
+
+  const value = {
+    session,
+    user: session?.user,
+    teamMember,
+    loading,
+    authError,
+    signUp,
+    signIn,
+    signOut
+  };
+
+  return React.createElement(AuthContext.Provider, { value }, children);
+}
+
+// ==================== LOGIN/SIGNUP FORM ====================
+function AuthForm() {
+  const [mode, setMode] = React.useState('signin'); // 'signin' or 'signup'
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [name, setName] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [successMessage, setSuccessMessage] = React.useState('');
+  const { signIn, signUp, authError } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSuccessMessage('');
+
+    if (mode === 'signup') {
+      const { error } = await signUp(email, password, name);
+      if (!error) {
+        setSuccessMessage('Check your email to confirm your account!');
+      }
+    } else {
+      await signIn(email, password);
+    }
+
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1 className="auth-title">
+          {mode === 'signin' ? 'Welcome back' : 'Create account'}
+        </h1>
+        <p className="auth-subtitle">
+          {mode === 'signin'
+            ? 'Sign in to your project management workspace'
+            : 'Get started with your project management workspace'
+          }
+        </p>
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          {mode === 'signup' && (
+            <div className="auth-field">
+              <label className="auth-label">Name</label>
+              <input
+                type="text"
+                className="auth-input"
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          <div className="auth-field">
+            <label className="auth-label">Email</label>
+            <input
+              type="email"
+              className="auth-input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="auth-field">
+            <label className="auth-label">Password</label>
+            <input
+              type="password"
+              className="auth-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+
+          {authError && (
+            <div className="auth-error">{authError}</div>
+          )}
+
+          {successMessage && (
+            <div className="auth-error" style={{ background: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#86efac' }}>
+              {successMessage}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="auth-button auth-button-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? (mode === 'signin' ? 'Signing in...' : 'Creating account...')
+              : (mode === 'signin' ? 'Sign in' : 'Create account')
+            }
+          </button>
+        </form>
+
+        <div className="auth-toggle">
+          {mode === 'signin' ? (
+            <>
+              Don't have an account?{' '}
+              <span className="auth-toggle-link" onClick={() => setMode('signup')}>
+                Sign up
+              </span>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <span className="auth-toggle-link" onClick={() => setMode('signin')}>
+                Sign in
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ==================== TIME SELECT HELPERS ====================
 // Hour options (1-12)
@@ -999,10 +1415,29 @@ const getTaskStatusBadge = (task) => {
 };
 
 // ==================== MAIN APP ====================
-function ProjectManagementApp() {
+function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const [clients, setClients] = React.useState(initialClients);
   const [internal, setInternal] = React.useState(internalSpaces);
-  const [teamMembers] = React.useState(initialTeamMembers);
+  // Include the authenticated user in the team members list
+  const [teamMembers] = React.useState(() => {
+    const authUserAsMember = {
+      id: currentTeamMember.id,
+      name: currentTeamMember.name,
+      color: currentTeamMember.color
+    };
+    // Check if user already exists in initial team (by email or name match)
+    const existingIndex = initialTeamMembers.findIndex(m =>
+      m.name.toLowerCase() === currentTeamMember.name.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      // Replace with auth user data
+      const updated = [...initialTeamMembers];
+      updated[existingIndex] = authUserAsMember;
+      return updated;
+    }
+    // Add authenticated user at the beginning
+    return [authUserAsMember, ...initialTeamMembers];
+  });
   const [events, setEvents] = React.useState(generateEvents);
   const [lists, setLists] = React.useState(generateLists);
   const [tasks, setTasks] = React.useState(() => {
@@ -1020,7 +1455,12 @@ function ProjectManagementApp() {
     }
     return false;
   });
-  const [currentUser] = React.useState(initialTeamMembers[0]); // Kawika is logged in
+  // Use authenticated user
+  const currentUser = {
+    id: currentTeamMember.id,
+    name: currentTeamMember.name,
+    color: currentTeamMember.color
+  };
   const [showAddClient, setShowAddClient] = React.useState(false);
   const [showAddProject, setShowAddProject] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState(null);
@@ -1711,7 +2151,66 @@ function ProjectManagementApp() {
           border-color: rgba(99, 102, 241, 0.3);
           background: rgba(99, 102, 241, 0.1);
         }
-        
+
+        .sidebar-user {
+          padding: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .sidebar-user-info {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .sidebar-user-details {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .sidebar-user-name {
+          font-size: 13px;
+          font-weight: 500;
+          color: #fafafa;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .sidebar-user-email {
+          font-size: 11px;
+          color: #71717a;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .sidebar-signout {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          border: none;
+          background: transparent;
+          color: #71717a;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+          flex-shrink: 0;
+        }
+
+        .sidebar-signout:hover {
+          background: rgba(239, 68, 68, 0.1);
+          color: #f87171;
+        }
+
         /* Main Content */
         .main {
           flex: 1;
@@ -2023,6 +2522,39 @@ function ProjectManagementApp() {
             </div>
           ))}
         </nav>
+
+        {/* Current User & Sign Out */}
+        <div className="sidebar-user">
+          <div className="sidebar-user-info">
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: currentUser.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 13,
+              fontWeight: 600,
+              flexShrink: 0
+            }}>
+              {currentUser.name[0]}
+            </div>
+            {!sidebarCollapsed && (
+              <div className="sidebar-user-details">
+                <div className="sidebar-user-name">{currentUser.name}</div>
+                <div className="sidebar-user-email">{currentTeamMember.email}</div>
+              </div>
+            )}
+          </div>
+          <button
+            className="sidebar-signout"
+            onClick={onSignOut}
+            title="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
@@ -12553,9 +13085,32 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   );
 }
 
+// ==================== APP WITH AUTH WRAPPER ====================
+function AppWithAuth() {
+  const { session, teamMember, loading, signOut } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="auth-loading">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!session || !teamMember) {
+    return <AuthForm />;
+  }
+
+  return <ProjectManagementApp currentTeamMember={teamMember} onSignOut={signOut} />;
+}
+
 // Render the app
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(ProjectManagementApp));
+root.render(
+  React.createElement(AuthProvider, null,
+    React.createElement(AppWithAuth)
+  )
+);
   </script>
 </body>
 </html>
