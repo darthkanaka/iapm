@@ -2216,7 +2216,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       due_date: task.dueDate instanceof Date ? task.dueDate.toISOString() : task.dueDate || null,
       is_completed: task.isCompleted || false,
       list_id: task.listId || null,
-      list_order: task.listOrder || null
+      list_order: task.listOrder || null,
+      created_by: currentUser?.id
     };
 
     console.log('Adding task to Supabase:', dbTask);
