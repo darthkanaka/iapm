@@ -5483,6 +5483,13 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                   <span style={{ color: '#52525b' }}>– {currentVisibility.description}</span>
                 </div>
               </div>
+
+              <div className="event-modal-field">
+                <label className="event-modal-label">Notes</label>
+                <div className={`event-modal-value ${!event.notes ? 'empty' : 'notes'}`}>
+                  {event.notes ? <MarkdownText text={event.notes} /> : 'No notes'}
+                </div>
+              </div>
             </>
           ) : (
             /* EDIT MODE for both new and existing events */
