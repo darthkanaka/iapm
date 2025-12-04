@@ -6535,48 +6535,30 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
               <div className="task-modal-row">
                 <div className="task-modal-field">
                   <label className="task-modal-label">Due Date (optional)</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
-                    {dueDate ? (
-                      <>
-                        <input
-                          type="date"
-                          className="task-modal-input"
-                          style={{ flex: 1, paddingRight: '36px' }}
-                          value={dueDate}
-                          onChange={(e) => setDueDate(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setDueDate('')}
-                          title="Clear due date"
-                          style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px', background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
-                          onMouseOver={(e) => e.currentTarget.style.color = '#a1a1aa'}
-                          onMouseOut={(e) => e.currentTarget.style.color = '#71717a'}
-                        >
-                          <X size={16} />
-                        </button>
-                      </>
-                    ) : (
-                      <div
-                        className="task-modal-input"
-                        style={{ flex: 1, cursor: 'pointer', color: '#52525b', display: 'flex', alignItems: 'center' }}
-                        onClick={(e) => {
-                          const input = document.createElement('input');
-                          input.type = 'date';
-                          input.style.position = 'absolute';
-                          input.style.opacity = '0';
-                          input.style.pointerEvents = 'none';
-                          e.currentTarget.appendChild(input);
-                          input.showPicker?.();
-                          input.addEventListener('change', (ev) => {
-                            setDueDate(ev.target.value);
-                            input.remove();
-                          });
-                          input.addEventListener('blur', () => input.remove());
-                        }}
-                      >
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <input
+                      type="date"
+                      className="task-modal-input"
+                      style={{ width: '100%', paddingRight: dueDate ? '36px' : '14px', color: dueDate ? undefined : 'transparent' }}
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                    />
+                    {!dueDate && (
+                      <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#52525b', pointerEvents: 'none' }}>
                         -- / -- / ----
                       </div>
+                    )}
+                    {dueDate && (
+                      <button
+                        type="button"
+                        onClick={() => setDueDate('')}
+                        title="Clear due date"
+                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px', background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
+                        onMouseOver={(e) => e.currentTarget.style.color = '#a1a1aa'}
+                        onMouseOut={(e) => e.currentTarget.style.color = '#71717a'}
+                      >
+                        <X size={16} />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -7392,48 +7374,30 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
               
               <div className="list-modal-field">
                 <label className="list-modal-label">Due Date (optional)</label>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
-                  {dueDate ? (
-                    <>
-                      <input
-                        className="list-modal-input"
-                        type="date"
-                        style={{ flex: 1, paddingRight: '36px' }}
-                        value={dueDate}
-                        onChange={(e) => setDueDate(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setDueDate('')}
-                        title="Clear due date"
-                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px', background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
-                        onMouseOver={(e) => e.currentTarget.style.color = '#a1a1aa'}
-                        onMouseOut={(e) => e.currentTarget.style.color = '#71717a'}
-                      >
-                        <X size={16} />
-                      </button>
-                    </>
-                  ) : (
-                    <div
-                      className="list-modal-input"
-                      style={{ flex: 1, cursor: 'pointer', color: '#52525b', display: 'flex', alignItems: 'center' }}
-                      onClick={(e) => {
-                        const input = document.createElement('input');
-                        input.type = 'date';
-                        input.style.position = 'absolute';
-                        input.style.opacity = '0';
-                        input.style.pointerEvents = 'none';
-                        e.currentTarget.appendChild(input);
-                        input.showPicker?.();
-                        input.addEventListener('change', (ev) => {
-                          setDueDate(ev.target.value);
-                          input.remove();
-                        });
-                        input.addEventListener('blur', () => input.remove());
-                      }}
-                    >
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="list-modal-input"
+                    type="date"
+                    style={{ width: '100%', paddingRight: dueDate ? '36px' : '14px', color: dueDate ? undefined : 'transparent' }}
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                  {!dueDate && (
+                    <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#52525b', pointerEvents: 'none' }}>
                       -- / -- / ----
                     </div>
+                  )}
+                  {dueDate && (
+                    <button
+                      type="button"
+                      onClick={() => setDueDate('')}
+                      title="Clear due date"
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px', background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
+                      onMouseOver={(e) => e.currentTarget.style.color = '#a1a1aa'}
+                      onMouseOut={(e) => e.currentTarget.style.color = '#71717a'}
+                    >
+                      <X size={16} />
+                    </button>
                   )}
                 </div>
               </div>
