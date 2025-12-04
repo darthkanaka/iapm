@@ -4886,22 +4886,23 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           }
           .event-modal {
             background: #18181b;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
             width: 440px;
             max-width: 95vw;
             max-height: 90vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
           }
           .event-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
           }
           .event-modal-header-left {
             display: flex;
@@ -4909,64 +4910,72 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             gap: 12px;
           }
           .event-modal-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
-            color: #f4f4f5;
+            color: #e4e4e7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           .event-modal-edit-btn {
-            background: rgba(255, 255, 255, 0.05);
+            background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #a1a1aa;
             cursor: pointer;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 13px;
+            padding: 5px 10px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.15s;
+            gap: 5px;
+            transition: all 0.1s ease;
           }
           .event-modal-edit-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #f4f4f5;
           }
           .event-modal-close {
-            background: none;
-            border: none;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #71717a;
             cursor: pointer;
-            padding: 4px;
-            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .event-modal-close:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #f4f4f5;
           }
           .event-modal-body {
-            padding: 20px 24px;
+            padding: 16px 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             overflow-y: auto;
           }
           .event-modal-field {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
           }
           .event-modal-label {
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 10px;
+            font-weight: 600;
             color: #a1a1aa;
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
           .event-modal-value {
-            font-size: 15px;
+            font-size: 14px;
             color: #f4f4f5;
             line-height: 1.5;
           }
@@ -4977,60 +4986,68 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           .event-modal-value.notes {
             white-space: pre-wrap;
             background: rgba(255, 255, 255, 0.03);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 10px 12px;
+            border-radius: 2px;
+            font-size: 13px;
           }
           .event-modal-badges {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
           }
           .event-modal-badge {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             color: white;
             border: none;
             cursor: pointer;
-            transition: opacity 0.15s;
+            transition: opacity 0.1s ease;
           }
           .event-modal-badge:hover {
-            opacity: 0.8;
+            opacity: 0.85;
           }
           .event-modal-input {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 12px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 9px 12px;
             color: #f4f4f5;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
-            transition: border-color 0.15s;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .event-modal-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .event-modal-input::placeholder {
             color: #52525b;
           }
           .event-modal-select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 12px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 9px 12px;
             color: #f4f4f5;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             cursor: pointer;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .event-modal-select:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .event-modal-row {
             display: flex;
-            gap: 12px;
+            gap: 10px;
           }
           .event-modal-row > * {
             flex: 1;
@@ -5044,41 +5061,45 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           .event-modal-time-group {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
           }
           .event-modal-time-select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            padding: 8px 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 7px 5px;
             color: #f4f4f5;
-            font-size: 13px;
+            font-size: 12px;
             outline: none;
             cursor: pointer;
+            transition: border-color 0.1s ease;
           }
           .event-modal-time-select:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .event-modal-time-colon {
             color: #71717a;
-            font-size: 14px;
+            font-size: 12px;
           }
           .event-modal-time-separator {
             color: #71717a;
-            font-size: 13px;
+            font-size: 12px;
             padding: 0 4px;
           }
           .event-modal-textarea {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 12px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 9px 12px;
             color: #f4f4f5;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             resize: vertical;
-            min-height: 80px;
+            min-height: 100px;
             font-family: inherit;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .event-modal-textarea:focus {
             border-color: rgba(99, 102, 241, 0.5);
@@ -5091,36 +5112,36 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           .event-modal-attendees-trigger {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
+            gap: 6px;
+            padding: 9px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             flex-wrap: wrap;
           }
           .event-modal-attendees-trigger:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.2);
           }
           .event-modal-attendee-chip {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 2px;
+            font-size: 11px;
             font-weight: 500;
           }
           .event-modal-attendee-chip.can-edit::after {
             content: '✎';
-            font-size: 10px;
+            font-size: 9px;
             opacity: 0.7;
           }
           .event-modal-attendees-placeholder {
             color: #71717a;
-            font-size: 14px;
+            font-size: 13px;
           }
           .event-modal-attendees-arrow {
             margin-left: auto;
@@ -5128,13 +5149,13 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           }
           .event-modal-attendees-dropdown {
             position: absolute;
-            top: calc(100% + 4px);
+            top: calc(100% + 2px);
             left: 0;
             right: 0;
             background: #1c1c1f;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
             z-index: 100;
             overflow: hidden;
             max-height: 280px;
@@ -5144,11 +5165,12 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
           }
           .event-modal-attendees-header-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -5156,36 +5178,40 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           }
           .event-modal-select-all {
             background: none;
-            border: none;
+            border: 1px solid rgba(99, 102, 241, 0.3);
             color: #6366f1;
-            font-size: 11px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             cursor: pointer;
             padding: 2px 6px;
-            border-radius: 4px;
+            border-radius: 2px;
+            transition: all 0.1s ease;
           }
           .event-modal-select-all:hover {
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(99, 102, 241, 0.15);
           }
           .event-modal-attendee-option {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
+            padding: 9px 12px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background 0.1s ease;
           }
           .event-modal-attendee-option:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.06);
           }
           .event-modal-attendee-checkbox {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
             border: 1.5px solid rgba(255, 255, 255, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             flex-shrink: 0;
           }
           .event-modal-attendee-checkbox.checked {
@@ -5195,29 +5221,34 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           .event-modal-attendee-color {
             width: 8px;
             height: 8px;
-            border-radius: 50%;
+            border-radius: 2px;
             flex-shrink: 0;
           }
           .event-modal-attendee-name {
             flex: 1;
-            font-size: 13px;
+            font-size: 12px;
             color: #e4e4e7;
           }
           .event-modal-edit-toggle {
-            font-size: 11px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             color: #71717a;
-            padding: 3px 8px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.05);
-            border: none;
+            padding: 3px 6px;
+            border-radius: 2px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .event-modal-edit-toggle:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
           }
           .event-modal-edit-toggle.active {
-            background: rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.4);
             color: #a5b4fc;
           }
           
@@ -5227,27 +5258,27 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           .event-modal-visibility-trigger {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
+            gap: 8px;
+            padding: 9px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .event-modal-visibility-trigger:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.2);
           }
           .event-modal-visibility-icon {
-            font-size: 16px;
+            font-size: 14px;
           }
           .event-modal-visibility-label {
-            font-size: 14px;
+            font-size: 13px;
             color: #e4e4e7;
           }
           .event-modal-visibility-desc {
-            font-size: 12px;
+            font-size: 11px;
             color: #71717a;
             margin-left: 4px;
           }
@@ -5257,13 +5288,13 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
           }
           .event-modal-visibility-dropdown {
             position: absolute;
-            top: calc(100% + 4px);
+            top: calc(100% + 2px);
             left: 0;
             right: 0;
             background: #1c1c1f;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
             z-index: 100;
             overflow: hidden;
           }
@@ -5271,48 +5302,48 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px;
+            padding: 10px 12px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background 0.1s ease;
           }
           .event-modal-visibility-option:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.06);
           }
           .event-modal-visibility-option.selected {
-            background: rgba(99, 102, 241, 0.15);
+            background: rgba(99, 102, 241, 0.12);
           }
           .event-modal-visibility-option-content {
             flex: 1;
           }
           .event-modal-visibility-option-label {
-            font-size: 14px;
+            font-size: 13px;
             color: #e4e4e7;
             margin-bottom: 2px;
           }
           .event-modal-visibility-option-desc {
-            font-size: 12px;
+            font-size: 11px;
             color: #71717a;
           }
-          
+
           /* View mode attendees display */
           .event-modal-attendees-display {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 5px;
           }
           .event-modal-attendee-badge {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 5px 10px;
-            border-radius: 12px;
-            font-size: 12px;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
             font-weight: 500;
             color: #fff;
           }
           .event-modal-attendee-badge.can-edit::after {
             content: '✎';
-            font-size: 10px;
+            font-size: 9px;
             opacity: 0.7;
             margin-left: 2px;
           }
@@ -5320,7 +5351,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 14px;
+            font-size: 13px;
             color: #a1a1aa;
           }
           
@@ -5328,32 +5359,37 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
           }
           .event-modal-footer-left {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .event-modal-footer-right {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .event-modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 12px;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             border: none;
           }
           .event-modal-btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #a1a1aa;
           }
           .event-modal-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #f4f4f5;
           }
           .event-modal-btn-primary {
@@ -5361,7 +5397,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             color: white;
           }
           .event-modal-btn-primary:hover {
-            background: #4f46e5;
+            background: #5558e3;
           }
           .event-modal-btn-primary:disabled {
             background: #3f3f46;
@@ -5369,13 +5405,13 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             cursor: not-allowed;
           }
           .event-modal-btn-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: transparent;
             color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
           }
           .event-modal-btn-danger:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
           }
         `}</style>
         
@@ -6230,6 +6266,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             color: #fca5a5;
           }
           .task-modal-input {
+            width: 100%;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 2px;
@@ -6238,6 +6275,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             font-size: 13px;
             outline: none;
             transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .task-modal-input:focus {
             border-color: rgba(99, 102, 241, 0.6);
@@ -6246,6 +6284,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             color: #52525b;
           }
           .task-modal-select {
+            width: 100%;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 2px;
@@ -6255,6 +6294,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             outline: none;
             cursor: pointer;
             transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .task-modal-select:focus {
             border-color: rgba(99, 102, 241, 0.6);
@@ -6267,6 +6307,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             flex: 1;
           }
           .task-modal-textarea {
+            width: 100%;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 2px;
@@ -6275,9 +6316,10 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             font-size: 13px;
             outline: none;
             resize: vertical;
-            min-height: 80px;
+            min-height: 100px;
             font-family: inherit;
             transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .task-modal-textarea:focus {
             border-color: rgba(99, 102, 241, 0.6);
@@ -6856,21 +6898,22 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
           }
           .list-modal {
             background: #18181b;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
             width: 520px;
             max-width: 95vw;
             max-height: 90vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
           }
           .list-modal-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
             flex-shrink: 0;
           }
           .list-modal-header-left {
@@ -6879,61 +6922,70 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             gap: 12px;
           }
           .list-modal-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
+            color: #e4e4e7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           .list-modal-edit-btn {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.06);
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 2px;
+            background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #a1a1aa;
-            font-size: 13px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .list-modal-edit-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #fff;
           }
           .list-modal-close {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
             background: transparent;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #71717a;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .list-modal-close:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #fff;
           }
           .list-modal-body {
-            padding: 20px 24px;
+            padding: 16px 20px;
             overflow-y: auto;
             flex: 1;
           }
           .list-modal-field {
-            margin-bottom: 20px;
+            margin-bottom: 14px;
           }
           .list-modal-label {
             display: block;
-            font-size: 12px;
+            font-size: 10px;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #71717a;
-            margin-bottom: 8px;
+            color: #a1a1aa;
+            margin-bottom: 5px;
           }
           .list-modal-value {
-            font-size: 15px;
+            font-size: 14px;
             color: #e4e4e7;
           }
           .list-modal-value.empty {
@@ -6942,103 +6994,114 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
           }
           .list-modal-badges {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
           }
           .list-modal-badge {
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             color: #fff;
             border: none;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: opacity 0.1s ease;
           }
           .list-modal-badge:hover {
-            filter: brightness(1.1);
+            opacity: 0.85;
           }
           .list-modal-input {
             width: 100%;
-            padding: 10px 14px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 12px;
+            border-radius: 2px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #fff;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
-            transition: border-color 0.15s;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .list-modal-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .list-modal-textarea {
             width: 100%;
-            padding: 10px 14px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 12px;
+            border-radius: 2px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #fff;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             resize: vertical;
             min-height: 80px;
             font-family: inherit;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
           .list-modal-select {
-            padding: 10px 14px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 12px;
+            border-radius: 2px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #fff;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             cursor: pointer;
             flex: 1;
+            transition: border-color 0.1s ease;
           }
           .list-modal-row {
             display: flex;
-            gap: 12px;
+            gap: 10px;
           }
           .list-modal-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
             flex-shrink: 0;
           }
           .list-modal-footer-left {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .list-modal-footer-right {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .list-modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 12px;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             border: none;
           }
           .list-modal-btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #a1a1aa;
           }
           .list-modal-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #fff;
           }
           .list-modal-btn-primary {
-            background: #4f46e5;
+            background: #6366f1;
             color: #fff;
           }
           .list-modal-btn-primary:hover {
-            background: #4338ca;
+            background: #5558e3;
           }
           .list-modal-btn-primary:disabled {
             background: #3f3f46;
@@ -7046,88 +7109,96 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             cursor: not-allowed;
           }
           .list-modal-btn-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: transparent;
             color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
           }
           .list-modal-btn-danger:hover {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
           }
           
           /* Progress bar */
           .list-progress {
-            margin-bottom: 20px;
+            margin-bottom: 14px;
           }
           .list-progress-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
           }
           .list-progress-label {
-            font-size: 13px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             color: #a1a1aa;
           }
           .list-progress-count {
-            font-size: 13px;
+            font-size: 11px;
             color: #71717a;
           }
           .list-progress-bar {
-            height: 8px;
+            height: 6px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
+            border-radius: 1px;
             overflow: hidden;
           }
           .list-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #22c55e, #16a34a);
-            border-radius: 4px;
-            transition: width 0.3s ease;
+            background: #22c55e;
+            border-radius: 1px;
+            transition: width 0.2s ease;
           }
-          
+
           /* Task list */
           .list-tasks {
-            margin-top: 16px;
+            margin-top: 14px;
           }
           .list-tasks-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
           }
           .list-tasks-title {
-            font-size: 12px;
+            font-size: 10px;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #71717a;
+            color: #a1a1aa;
           }
           .list-tasks-add-btn {
             display: flex;
             align-items: center;
             gap: 4px;
-            padding: 4px 10px;
-            border-radius: 6px;
-            background: rgba(99, 102, 241, 0.15);
+            padding: 4px 8px;
+            border-radius: 2px;
+            background: transparent;
             border: 1px solid rgba(99, 102, 241, 0.3);
             color: #818cf8;
-            font-size: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .list-tasks-add-btn:hover {
-            background: rgba(99, 102, 241, 0.25);
+            background: rgba(99, 102, 241, 0.15);
           }
           .list-task-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
+            gap: 10px;
+            padding: 8px 10px;
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 8px;
-            margin-bottom: 6px;
+            border-radius: 2px;
+            margin-bottom: 4px;
             cursor: grab;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .list-task-item:hover {
             background: rgba(255, 255, 255, 0.04);
@@ -7144,15 +7215,15 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             cursor: grab;
           }
           .list-task-check {
-            width: 20px;
-            height: 20px;
-            border-radius: 5px;
+            width: 18px;
+            height: 18px;
+            border-radius: 2px;
             border: 2px solid #52525b;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
             flex-shrink: 0;
           }
           .list-task-check:hover {
@@ -7164,7 +7235,7 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
           }
           .list-task-title {
             flex: 1;
-            font-size: 14px;
+            font-size: 13px;
             color: #e4e4e7;
           }
           .list-task-item.completed .list-task-title {
@@ -7172,8 +7243,8 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             color: #71717a;
           }
           .list-task-remove {
-            padding: 4px;
-            border-radius: 4px;
+            padding: 3px;
+            border-radius: 2px;
             background: transparent;
             border: none;
             color: #52525b;
@@ -7181,35 +7252,36 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
           .list-task-remove:hover {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
           }
           .list-add-task-form {
             display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 10px;
           }
           .list-add-task-input {
             flex: 1;
-            padding: 8px 12px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 7px 10px;
+            border-radius: 2px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #fff;
-            font-size: 13px;
+            font-size: 12px;
             outline: none;
+            transition: border-color 0.1s ease;
           }
           .list-add-task-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: rgba(99, 102, 241, 0.6);
           }
           .list-empty-tasks {
             text-align: center;
-            padding: 20px;
+            padding: 16px;
             color: #52525b;
-            font-size: 13px;
+            font-size: 12px;
           }
         `}</style>
         
