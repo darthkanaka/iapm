@@ -12377,6 +12377,9 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   // Sort notes by date (newest first)
   // Sort notes by date (newest first) - only client-level notes (not project-specific)
   const sortedNotes = [...clientLevelNotes].sort((a, b) => b.createdAt - a.createdAt);
+
+  // All notes sorted by date (for Overview tab - includes both client-level and project notes)
+  const allSortedNotes = [...notes].sort((a, b) => b.createdAt - a.createdAt);
   
   // Get team member by id
   const getMember = (id) => teamMembers.find(m => m.id === id);
@@ -13653,107 +13656,38 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
       
       {/* Tabs */}
       <div className="cv-tabs">
-        <button 
+        <button
           className={`cv-tab ${activeTab === 'overview' ? 'active' : ''}`}
           onClick={() => setActiveTab('overview')}
         >
           Overview
         </button>
-        <button 
+        <button
           className={`cv-tab ${activeTab === 'projects' ? 'active' : ''}`}
           onClick={() => setActiveTab('projects')}
         >
           {client.isInternal ? 'Categories' : 'Projects'}
-        </button>
-        <button 
-          className={`cv-tab ${activeTab === 'tasks' ? 'active' : ''}`}
-          onClick={() => setActiveTab('tasks')}
-        >
-          Tasks ({pendingTasks.length})
-        </button>
-        <button 
-          className={`cv-tab ${activeTab === 'schedule' ? 'active' : ''}`}
-          onClick={() => setActiveTab('schedule')}
-        >
-          Schedule
         </button>
       </div>
       
       {/* Content */}
       <div className="cv-content">
         {activeTab === 'overview' && (
-          <>
-            {/* Stats */}
-            <div className="cv-stats">
-              <div className="cv-stat">
-                <div className="cv-stat-value">{client.projects.length}</div>
-                <div className="cv-stat-label">{client.isInternal ? 'Categories' : 'Active Projects'}</div>
-              </div>
-              <div className="cv-stat">
-                <div className="cv-stat-value">{upcomingEvents.length}</div>
-                <div className="cv-stat-label">Upcoming Events</div>
-              </div>
-              <div className="cv-stat">
-                <div className="cv-stat-value">{pendingTasks.length}</div>
-                <div className="cv-stat-label">Pending Tasks</div>
-              </div>
-              <div className="cv-stat">
-                <div className="cv-stat-value">{notes.length}</div>
-                <div className="cv-stat-label">Notes</div>
-              </div>
-            </div>
-            
-            {/* Projects Preview */}
-            <div className="cv-section">
+          <div className="cv-project-detail-split">
+            {/* Left side - Notes (60%) */}
+            <div className="cv-project-notes-section">
               <div className="cv-section-header">
                 <div className="cv-section-title">
-                  <FolderOpen size={18} /> {client.isInternal ? 'Categories' : 'Projects'}
-                </div>
-                <button className="cv-add-btn" onClick={() => setShowAddProject(true)}>
-                  <Plus size={14} /> Add {client.isInternal ? 'Category' : 'Project'}
-                </button>
-              </div>
-              <div className="cv-projects">
-                {client.projects.map(project => {
-                  const projectEvents = getProjectEvents(project.id);
-                  const projectTasks = getProjectTasks(project.id);
-                  const upcoming = projectEvents.filter(e => e.startTime > new Date());
-                  return (
-                    <div 
-                      key={project.id}
-                      className="cv-project"
-                      style={{ borderLeftColor: project.color }}
-                      onClick={() => { setSelectedProject(project); setActiveTab('projects'); }}
-                    >
-                      <div className="cv-project-name">{project.name}</div>
-                      <div className="cv-project-stats">
-                        <span>{projectEvents.length} events</span>
-                        <span>{projectTasks.filter(t => !t.isCompleted).length} tasks</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                {client.projects.length === 0 && (
-                  <div className="cv-empty" style={{ padding: 20 }}>
-                    No {client.isInternal ? 'categories' : 'projects'} yet. Add one to get started!
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Notes Section */}
-            <div className="cv-section">
-              <div className="cv-section-header">
-                <div className="cv-section-title">
-                  <MessageSquare size={18} /> Notes
+                  <MessageSquare size={14} />
+                  Notes
                 </div>
                 <button className="cv-add-btn" onClick={() => setShowAddNote(!showAddNote)}>
-                  <Plus size={14} /> New Note
+                  <Plus size={12} /> Add Note
                 </button>
               </div>
-              
+
               {showAddNote && (
-                <div className="cv-add-note-form">
+                <div className="cv-add-note-form" style={{ marginBottom: 12 }}>
                   <div className="cv-form-row">
                     <MentionTextarea
                       className="cv-textarea"
@@ -13770,51 +13704,123 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   </div>
                 </div>
               )}
-              
+
               <div className="cv-notes-list">
-                {sortedNotes.length === 0 ? (
+                {allSortedNotes.map(note => {
+                  const author = getMember(note.authorId);
+                  const project = note.projectId ? client.projects.find(p => p.id === note.projectId) : null;
+                  return (
+                    <div
+                      key={note.id}
+                      className="cv-note-card"
+                      onClick={() => setSelectedNoteId(note.id)}
+                    >
+                      <div className="cv-note-header">
+                        <div className="cv-note-avatar" style={{ background: author?.color || '#6366f1' }}>
+                          {author?.name?.split(' ').map(n => n[0]).join('') || '?'}
+                        </div>
+                        <span className="cv-note-author">{author?.name || 'Unknown'}</span>
+                        <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
+                        {project && (
+                          <span className="cv-task-badge" style={{ background: project.color, color: '#fff', marginLeft: 'auto' }}>
+                            {project.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="cv-note-content">{renderMentionText(note.content)}</div>
+                      {note.replies?.length > 0 && (
+                        <div className="cv-note-footer">
+                          <span className="cv-note-replies">
+                            <MessageSquare size={12} /> {note.replies.length} {note.replies.length === 1 ? 'reply' : 'replies'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {allSortedNotes.length === 0 && !showAddNote && (
                   <div className="cv-empty">
-                    {client.isPersonal 
+                    {client.isPersonal
                       ? 'No personal notes yet. Add thoughts, reminders, or ideas!'
-                      : client.isTeam 
+                      : client.isTeam
                         ? 'No team notes yet. Start a conversation!'
                         : 'No notes yet. Start a conversation about this client!'
                     }
                   </div>
-                ) : (
-                  sortedNotes.map(note => {
-                    const author = getMember(note.authorId);
-                    return (
-                      <div 
-                        key={note.id} 
-                        className="cv-note-card"
-                        onClick={() => setSelectedNoteId(note.id)}
-                      >
-                        <div className="cv-note-header">
-                          <div className="cv-note-avatar" style={{ background: author?.color || '#6366f1' }}>
-                            {author?.name?.charAt(0) || '?'}
-                          </div>
-                          <span className="cv-note-author">{author?.name || 'Unknown'}</span>
-                          <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
-                        </div>
-                        <div className="cv-note-content">{renderMentionText(note.content)}</div>
-                        <div className="cv-note-footer">
-                          <div className="cv-note-replies">
-                            <MessageSquare size={14} />
-                            {note.replies.length > 0 ? (
-                              <span className="cv-note-replies-count">{note.replies.length} {note.replies.length === 1 ? 'reply' : 'replies'}</span>
-                            ) : (
-                              <span>Reply</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
                 )}
               </div>
             </div>
-          </>
+
+            {/* Right side - Tasks (40%) */}
+            <div className="cv-project-tasks-section">
+              <div className="cv-section" style={{ marginBottom: 16 }}>
+                <div className="cv-section-header" style={{ marginBottom: 8 }}>
+                  <div className="cv-section-title">
+                    Pending Tasks ({pendingTasks.length})
+                  </div>
+                  <button className="cv-add-btn" onClick={() => openAddTaskModal()}>
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+
+                <div className="cv-tasks-list">
+                  {pendingTasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)).concat(
+                    pendingTasks.filter(t => !t.dueDate)
+                  ).map(task => {
+                    const project = client.projects.find(p => p.id === task.projectId);
+                    const color = project?.color || client.color;
+                    const assignee = teamMembers.find(m => m.id === task.assignedTo);
+                    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+                    const statusBadge = getTaskStatusBadge(task);
+                    return (
+                      <div
+                        key={task.id}
+                        className="cv-task"
+                        style={{ borderColor: color, cursor: 'pointer' }}
+                        onClick={() => onTaskClick && onTaskClick(task)}
+                      >
+                        <div
+                          className="cv-task-check"
+                          style={{ borderColor: color, color: color }}
+                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                        />
+                        <div className="cv-task-info">
+                          <div className="cv-task-title">{task.title}</div>
+                          <div className="cv-task-meta">
+                            <span style={{ color: isOverdue ? '#ef4444' : undefined }}>
+                              {!task.dueDate ? 'No due date' : isOverdue ? 'Overdue' : new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                            {project && (
+                              <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
+                                {project.name}
+                              </span>
+                            )}
+                            {!project && (
+                              <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
+                                {client.isInternal ? 'General' : 'Client-level'}
+                              </span>
+                            )}
+                            {assignee && <span>→ {assignee.name}</span>}
+                          </div>
+                        </div>
+                        {statusBadge && (
+                          <div
+                            className="cv-task-status-badge"
+                            style={{ background: statusBadge.bgColor, color: statusBadge.color }}
+                          >
+                            {statusBadge.label}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {pendingTasks.length === 0 && (
+                    <div className="cv-empty">No pending tasks</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         
         {activeTab === 'projects' && (
@@ -14147,357 +14153,6 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                 </div>
               </div>
             )}
-          </>
-        )}
-        
-        {activeTab === 'tasks' && (
-          <>
-            <div className="cv-section">
-              <div className="cv-section-header">
-                <div className="cv-section-title">All Tasks</div>
-                <button className="cv-add-btn" onClick={() => openAddTaskModal()}>
-                  <Plus size={14} /> Add Task
-                </button>
-              </div>
-
-              {pendingTasks.length === 0 && completedTasks.length === 0 && (
-                <div className="cv-empty">No tasks yet. Create one above!</div>
-              )}
-
-              {/* Timely Tasks - tasks with due dates */}
-              {(() => {
-                const timelyTasks = pendingTasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-                if (timelyTasks.length === 0) return null;
-                return (
-                  <>
-                    <div className="cv-subsection-title">Timely Tasks</div>
-                    <div className="cv-tasks-list">
-                      {timelyTasks.map(task => {
-                        const project = client.projects.find(p => p.id === task.projectId);
-                        const color = project?.color || client.color;
-                        const assignee = teamMembers.find(m => m.id === task.assignedTo);
-                        const taskDueDate = new Date(task.dueDate);
-                        const isOverdue = taskDueDate < new Date();
-                        const statusBadge = getTaskStatusBadge(task);
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="cv-task"
-                            style={{ borderColor: color, cursor: 'pointer' }}
-                            onClick={() => onTaskClick && onTaskClick(task)}
-                          >
-                            <div
-                              className="cv-task-check"
-                              style={{ borderColor: color, color }}
-                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                            />
-                            <div className="cv-task-info">
-                              <div className="cv-task-title">{task.title}</div>
-                              <div className="cv-task-meta">
-                                <span style={{ color: isOverdue ? '#ef4444' : undefined }}>
-                                  {isOverdue ? 'Overdue: ' : 'Due '}
-                                  {taskDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                                {project && (
-                                  <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
-                                    {project.name}
-                                  </span>
-                                )}
-                                {!project && (
-                                  <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
-                                    {client.isInternal ? 'General' : 'Client-level'}
-                                  </span>
-                                )}
-                                {assignee && <span>→ {assignee.name}</span>}
-                              </div>
-                            </div>
-                            {statusBadge && (
-                              <div
-                                className="cv-task-status-badge"
-                                style={{ background: statusBadge.bgColor, color: statusBadge.color }}
-                              >
-                                {statusBadge.label}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* Floating Tasks - tasks without due dates */}
-              {(() => {
-                const floatingTasks = pendingTasks.filter(t => !t.dueDate);
-                if (floatingTasks.length === 0) return null;
-                return (
-                  <>
-                    <div className="cv-subsection-title" style={{ marginTop: 16 }}>Floating Tasks</div>
-                    <div className="cv-tasks-list">
-                      {floatingTasks.map(task => {
-                        const project = client.projects.find(p => p.id === task.projectId);
-                        const color = project?.color || client.color;
-                        const assignee = teamMembers.find(m => m.id === task.assignedTo);
-                        const statusBadge = getTaskStatusBadge(task);
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="cv-task"
-                            style={{ borderColor: color, cursor: 'pointer' }}
-                            onClick={() => onTaskClick && onTaskClick(task)}
-                          >
-                            <div
-                              className="cv-task-check"
-                              style={{ borderColor: color, color }}
-                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                            />
-                            <div className="cv-task-info">
-                              <div className="cv-task-title">{task.title}</div>
-                              <div className="cv-task-meta">
-                                <span style={{ color: '#71717a' }}>No due date</span>
-                                {project && (
-                                  <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
-                                    {project.name}
-                                  </span>
-                                )}
-                                {!project && (
-                                  <span className="cv-task-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
-                                    {client.isInternal ? 'General' : 'Client-level'}
-                                  </span>
-                                )}
-                                {assignee && <span>→ {assignee.name}</span>}
-                              </div>
-                            </div>
-                            {statusBadge && (
-                              <div
-                                className="cv-task-status-badge"
-                                style={{ background: statusBadge.bgColor, color: statusBadge.color }}
-                              >
-                                {statusBadge.label}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* Completed tasks - collapsible */}
-              {completedTasks.length > 0 && (
-                <div className="cv-collapsible-section">
-                  <div
-                    className="cv-collapsible-header"
-                    onClick={() => setShowCompletedTasks(!showCompletedTasks)}
-                  >
-                    <div className="cv-collapsible-toggle">
-                      {showCompletedTasks ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    </div>
-                    <span>Completed Tasks</span>
-                    <span className="cv-collapsible-count">{completedTasks.length}</span>
-                  </div>
-                  {showCompletedTasks && (
-                    <div className="cv-tasks-list" style={{ marginTop: 12 }}>
-                      {completedTasks.map(task => {
-                        const project = client.projects.find(p => p.id === task.projectId);
-                        const color = project?.color || client.color;
-                        const assignee = teamMembers.find(m => m.id === task.assignedTo);
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="cv-task completed"
-                            style={{ borderColor: color, cursor: 'pointer' }}
-                            onClick={() => onTaskClick && onTaskClick(task)}
-                          >
-                            <div
-                              className="cv-task-check checked"
-                              style={{ borderColor: color, color, background: color }}
-                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                            >
-                              <Check size={14} color="#fff" />
-                            </div>
-                            <div className="cv-task-info">
-                              <div className="cv-task-title">{task.title}</div>
-                              <div className="cv-task-meta">
-                                {task.dueDate && (
-                                  <span style={{ color: '#71717a' }}>
-                                    {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </span>
-                                )}
-                                {!task.dueDate && (
-                                  <span style={{ color: '#52525b' }}>No due date</span>
-                                )}
-                                {project && (
-                                  <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
-                                    {project.name}
-                                  </span>
-                                )}
-                                {assignee && <span>→ {assignee.name}</span>}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {/* Lists Section in Tasks Tab */}
-            {allClientLists.length > 0 && (
-              <div className="cv-section cv-lists-section">
-                <div className="cv-section-header">
-                  <div className="cv-section-title">Lists</div>
-                </div>
-                
-                <div className="cv-lists-list">
-                  {allClientLists.map(list => {
-                    const project = client.projects.find(p => p.id === list.projectId);
-                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                    const percent = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
-                    const isComplete = progress.total > 0 && progress.completed === progress.total;
-                    return (
-                      <div 
-                        key={list.id}
-                        className="cv-list-card"
-                        onClick={() => onListClick && onListClick(list)}
-                      >
-                        <span className="cv-list-icon">📋</span>
-                        <div className="cv-list-info">
-                          <div className="cv-list-title">{list.title}</div>
-                          <div className="cv-list-meta">
-                            {list.dueDate && (
-                              <span>Due {new Date(list.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                            )}
-                            {project && (
-                              <span className="cv-list-project-badge" style={{ background: project.color }}>
-                                {project.name}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="cv-list-progress-wrapper">
-                          <div className="cv-list-progress-bar">
-                            <div 
-                              className={`cv-list-progress-fill ${isComplete ? 'complete' : ''}`}
-                              style={{ width: `${percent}%` }}
-                            />
-                          </div>
-                          <span className="cv-list-count">{progress.completed}/{progress.total}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-        
-        {activeTab === 'schedule' && (
-          <>
-            <div className="cv-section-header" style={{ marginBottom: 16 }}>
-              <div className="cv-section-title">Schedule</div>
-              <button className="cv-add-btn" onClick={() => openAddEventModal()}>
-                <Plus size={14} /> Add Event
-              </button>
-            </div>
-            
-            {(() => {
-              const now = new Date();
-              const upcomingEvts = events.filter(e => e.endTime >= now).sort((a, b) => a.startTime - b.startTime);
-              const pastEvts = events.filter(e => e.endTime < now).sort((a, b) => b.startTime - a.startTime);
-              
-              return (
-                <>
-                  {upcomingEvts.length === 0 && pastEvts.length === 0 && (
-                    <div className="cv-empty">No events scheduled</div>
-                  )}
-                  
-                  {/* Upcoming events */}
-                  {upcomingEvts.length > 0 && (
-                    <div className="cv-events-list">
-                      {upcomingEvts.map(event => {
-                        const project = client.projects.find(p => p.id === event.projectId);
-                        return (
-                          <div 
-                            key={event.id} 
-                            className="cv-event"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => onEventClick && onEventClick(event)}
-                          >
-                            <div className="cv-event-color" style={{ background: project?.color || client.color }} />
-                            <div className="cv-event-info">
-                              <div className="cv-event-title">{event.title}</div>
-                              <div className="cv-event-meta">
-                                <span>{event.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                                <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
-                                {project && (
-                                  <span className="cv-event-project" style={{ background: project.color }}>
-                                    {project.name}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  
-                  {/* Past events - collapsible */}
-                  {pastEvts.length > 0 && (
-                    <div className="cv-collapsible-section" style={{ marginTop: upcomingEvts.length > 0 ? 24 : 0 }}>
-                      <div 
-                        className="cv-collapsible-header"
-                        onClick={() => setShowPastEvents(!showPastEvents)}
-                      >
-                        <div className="cv-collapsible-toggle">
-                          {showPastEvents ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        </div>
-                        <span>Past Events</span>
-                        <span className="cv-collapsible-count">{pastEvts.length}</span>
-                      </div>
-                      {showPastEvents && (
-                        <div className="cv-events-list" style={{ marginTop: 12 }}>
-                          {pastEvts.map(event => {
-                            const project = client.projects.find(p => p.id === event.projectId);
-                            return (
-                              <div 
-                                key={event.id} 
-                                className="cv-event completed"
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => onEventClick && onEventClick(event)}
-                              >
-                                <div className="cv-event-color" style={{ background: project?.color || client.color }} />
-                                <div className="cv-event-info">
-                                  <div className="cv-event-title">{event.title}</div>
-                                  <div className="cv-event-meta">
-                                    <span>{event.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                                    <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
-                                    {project && (
-                                      <span className="cv-event-project" style={{ background: project.color }}>
-                                        {project.name}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
           </>
         )}
       </div>
