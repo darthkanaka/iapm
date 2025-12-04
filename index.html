@@ -3570,27 +3570,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
         <div className="content">
           {activeView === 'timeline' && (
-            <Timeline 
-              clients={clients} 
-              internal={internal}
-              events={events} 
-              tasks={tasks}
-              lists={lists}
-              teamMembers={teamMembers}
-              navigateToClient={navigateToClient}
-              toggleTaskComplete={toggleTaskComplete}
-              addTask={addTask}
-              addEvent={addEvent}
-              addList={addList}
-              onEventClick={setSelectedEvent}
-              onTaskClick={setSelectedTask}
-              onListClick={setSelectedList}
-              getListProgress={getListProgress}
-            />
-          )}
-          {activeView === 'calendar' && (
-            <MonthlyCalendar 
-              clients={clients} 
+            <Timeline
+              clients={clients}
               internal={internal}
               events={events}
               tasks={tasks}
@@ -3605,6 +3586,27 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               onTaskClick={setSelectedTask}
               onListClick={setSelectedList}
               getListProgress={getListProgress}
+              currentUser={currentUser}
+            />
+          )}
+          {activeView === 'calendar' && (
+            <MonthlyCalendar
+              clients={clients}
+              internal={internal}
+              events={events}
+              tasks={tasks}
+              lists={lists}
+              teamMembers={teamMembers}
+              navigateToClient={navigateToClient}
+              toggleTaskComplete={toggleTaskComplete}
+              addTask={addTask}
+              addEvent={addEvent}
+              addList={addList}
+              onEventClick={setSelectedEvent}
+              onTaskClick={setSelectedTask}
+              onListClick={setSelectedList}
+              getListProgress={getListProgress}
+              currentUser={currentUser}
             />
           )}
           {activeView === 'list' && (
@@ -8023,7 +8025,7 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
 }
 
 // ==================== TIMELINE COMPONENT ====================
-function Timeline({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function Timeline({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress, currentUser }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [collapsedClients, setCollapsedClients] = React.useState({});
   const [viewMode, setViewMode] = React.useState('day'); // 'day' or 'week'
@@ -9726,7 +9728,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 }
 
 // ==================== MONTHLY CALENDAR ====================
-function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress, currentUser }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
