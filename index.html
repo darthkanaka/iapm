@@ -522,22 +522,33 @@ const addHourToTime = (timeStr, hoursToAdd = 1) => {
   return formatTimeString(newHour, minute, newAmpm);
 };
 
-// Get default event times (next hour, 1 hour duration)
+// Get default event times (next hour, 1 hour duration) in HST
 const getDefaultEventTimes = () => {
+  // Get current time in HST
   const now = new Date();
-  const nextHour = new Date(now);
-  nextHour.setHours(now.getHours() + 1, 0, 0, 0);
-  
+  const hstOptions = { timeZone: 'Pacific/Honolulu' };
+  const hstString = now.toLocaleString('en-US', hstOptions);
+  const hstNow = new Date(hstString);
+
+  // Round up to next hour
+  const nextHour = new Date(hstNow);
+  nextHour.setHours(hstNow.getHours() + 1, 0, 0, 0);
+
   const startH = nextHour.getHours();
   const startHour = startH === 0 ? 12 : startH > 12 ? startH - 12 : startH;
   const startAmpm = startH < 12 ? 'AM' : 'PM';
-  
+
   const endH = (startH + 1) % 24;
   const endHour = endH === 0 ? 12 : endH > 12 ? endH - 12 : endH;
   const endAmpm = endH < 12 ? 'AM' : 'PM';
-  
+
+  // Format date as YYYY-MM-DD in HST
+  const year = nextHour.getFullYear();
+  const month = String(nextHour.getMonth() + 1).padStart(2, '0');
+  const day = String(nextHour.getDate()).padStart(2, '0');
+
   return {
-    date: nextHour.toISOString().slice(0, 10),
+    date: `${year}-${month}-${day}`,
     startHour,
     startMinute: 0,
     startAmpm,
@@ -4722,25 +4733,54 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
     setAttendees(teamMembers?.map(m => m.id) || []);
   };
   
-  // Handle start time change - auto update end time to 1 hour later (only for new events)
+  // Calculate original duration in minutes for existing events
+  const getOriginalDurationMinutes = () => {
+    if (isExistingEvent && event.startTime && event.endTime) {
+      const start = new Date(event.startTime);
+      const end = new Date(event.endTime);
+      return Math.round((end - start) / (1000 * 60));
+    }
+    return 60; // Default 1 hour
+  };
+
+  // Convert 12-hour time to minutes since midnight
+  const timeToMinutes = (hour, minute, ampm) => {
+    let h = hour;
+    if (ampm === 'PM' && hour !== 12) h += 12;
+    if (ampm === 'AM' && hour === 12) h = 0;
+    return h * 60 + minute;
+  };
+
+  // Convert minutes since midnight to 12-hour format
+  const minutesToTime = (totalMinutes) => {
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    return { hour, minute: m, ampm };
+  };
+
+  // Handle start time change - auto update end time
   const handleStartTimeChange = (field, value) => {
     if (field === 'hour') setStartHour(value);
     else if (field === 'minute') setStartMinute(value);
     else if (field === 'ampm') setStartAmpm(value);
-    
-    // Only auto-update end time for new events
-    if (!isExistingEvent) {
-      const newHour = field === 'hour' ? value : startHour;
-      const newMinute = field === 'minute' ? value : startMinute;
-      const newAmpm = field === 'ampm' ? value : startAmpm;
-      
-      const startTimeStr = formatTimeString(newHour, newMinute, newAmpm);
-      const endTimeStr = addHourToTime(startTimeStr, 1);
-      const endParsed = parseTimeString(endTimeStr);
-      setEndHour(endParsed.hour);
-      setEndMinute(endParsed.minute);
-      setEndAmpm(endParsed.ampm);
-    }
+
+    const newHour = field === 'hour' ? value : startHour;
+    const newMinute = field === 'minute' ? value : startMinute;
+    const newAmpm = field === 'ampm' ? value : startAmpm;
+
+    // For new events: 1 hour duration
+    // For existing events: maintain original duration
+    const durationMinutes = isExistingEvent ? getOriginalDurationMinutes() : 60;
+
+    const startMinutes = timeToMinutes(newHour, newMinute, newAmpm);
+    const endMinutes = startMinutes + durationMinutes;
+    const endTime = minutesToTime(endMinutes);
+
+    setEndHour(endTime.hour);
+    setEndMinute(endTime.minute);
+    setEndAmpm(endTime.ampm);
   };
   
   // Cancel editing - reset to original values
