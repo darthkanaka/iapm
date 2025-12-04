@@ -5871,9 +5871,11 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
 
   // Parse existing task due date
   const getInitialDueDate = () => {
-    if (isExistingTask && task.dueDate) {
-      return formatDateLocal(new Date(task.dueDate));
+    if (isExistingTask) {
+      // For existing tasks, use their dueDate or empty string if none
+      return task.dueDate ? formatDateLocal(new Date(task.dueDate)) : '';
     }
+    // For new tasks, default to today (user can clear if needed)
     return getDefaultDueDate();
   };
   
@@ -5910,10 +5912,10 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
   };
   
   const handleSubmit = () => {
-    if (!title.trim() || !clientId || !dueDate) return;
-    
-    const dueDateObj = new Date(dueDate + 'T17:00:00');
-    
+    if (!title.trim() || !clientId) return;
+
+    const dueDateObj = dueDate ? new Date(dueDate + 'T17:00:00') : null;
+
     const taskData = {
       clientId,
       projectId: projectId || null,
@@ -5943,7 +5945,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
   };
   
   // Check if overdue
-  const isOverdue = isExistingTask && !task.isCompleted && new Date(task.dueDate) < new Date();
+  const isOverdue = isExistingTask && !task.isCompleted && task.dueDate && new Date(task.dueDate) < new Date();
   
   return (
     <div className="task-modal-overlay" onClick={onClose}>
@@ -6458,8 +6460,8 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
               
               <div className="task-modal-field">
                 <label className="task-modal-label">Due Date</label>
-                <div className={`task-modal-value ${isOverdue ? 'overdue' : ''}`}>
-                  {formatDisplayDate(dueDate)}
+                <div className={`task-modal-value ${isOverdue ? 'overdue' : ''} ${!dueDate ? 'empty' : ''}`}>
+                  {dueDate ? formatDisplayDate(dueDate) : 'No due date'}
                   {isOverdue && ' (Overdue)'}
                 </div>
               </div>
@@ -6532,13 +6534,27 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
               
               <div className="task-modal-row">
                 <div className="task-modal-field">
-                  <label className="task-modal-label">Due Date</label>
-                  <input
-                    type="date"
-                    className="task-modal-input"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                  />
+                  <label className="task-modal-label">Due Date (optional)</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="date"
+                      className="task-modal-input"
+                      style={{ flex: 1 }}
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                    />
+                    {dueDate && (
+                      <button
+                        type="button"
+                        className="task-modal-clear-btn"
+                        onClick={() => setDueDate('')}
+                        title="Clear due date"
+                        style={{ padding: '6px 10px', background: '#27272a', border: '1px solid #3f3f46', borderRadius: '6px', color: '#a1a1aa', cursor: 'pointer', fontSize: '12px' }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="task-modal-field">
@@ -6699,11 +6715,13 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
   const [clientId, setClientId] = React.useState(existingClientId);
   const [projectId, setProjectId] = React.useState(existingProjectId);
   const [dueDate, setDueDate] = React.useState(() => {
-    if (isExistingList && list.dueDate) {
-      return formatDateLocal(new Date(list.dueDate));
+    if (isExistingList) {
+      // For existing lists, use their dueDate or empty string if none
+      return list.dueDate ? formatDateLocal(new Date(list.dueDate)) : '';
     }
+    // For new lists, default 1 week out (user can clear if needed)
     const now = new Date();
-    now.setDate(now.getDate() + 7); // Default 1 week out
+    now.setDate(now.getDate() + 7);
     return formatDateLocal(now);
   });
   const [notes, setNotes] = React.useState(isExistingList ? (list.notes || '') : '');
@@ -6723,10 +6741,10 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
   
   // Handle submit
   const handleSubmit = () => {
-    if (!title.trim() || !clientId || !dueDate) return;
-    
-    const dueDateObj = new Date(dueDate + 'T17:00:00');
-    
+    if (!title.trim() || !clientId) return;
+
+    const dueDateObj = dueDate ? new Date(dueDate + 'T17:00:00') : null;
+
     const listData = {
       clientId,
       projectId: projectId || null,
@@ -6750,7 +6768,7 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
     setTitle(list.title);
     setClientId(existingClientId);
     setProjectId(existingProjectId);
-    setDueDate(formatDateLocal(new Date(list.dueDate)));
+    setDueDate(list.dueDate ? formatDateLocal(new Date(list.dueDate)) : '');
     setNotes(list.notes || '');
     setIsEditing(false);
   };
@@ -7220,8 +7238,10 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
               
               <div className="list-modal-field">
                 <label className="list-modal-label">Due Date</label>
-                <div className="list-modal-value">
-                  {new Date(list.dueDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                <div className={`list-modal-value ${!list.dueDate ? 'empty' : ''}`}>
+                  {list.dueDate
+                    ? new Date(list.dueDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                    : 'No due date'}
                 </div>
               </div>
               
@@ -7349,13 +7369,25 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
               </div>
               
               <div className="list-modal-field">
-                <label className="list-modal-label">Due Date</label>
-                <input
-                  className="list-modal-input"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
+                <label className="list-modal-label">Due Date (optional)</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    className="list-modal-input"
+                    type="date"
+                    style={{ flex: 1 }}
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                  {dueDate && (
+                    <button
+                      type="button"
+                      onClick={() => setDueDate('')}
+                      style={{ padding: '6px 10px', background: '#27272a', border: '1px solid #3f3f46', borderRadius: '6px', color: '#a1a1aa', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
               
               <div className="list-modal-field">
@@ -7392,10 +7424,10 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="list-modal-btn list-modal-btn-primary"
                 onClick={handleSubmit}
-                disabled={!title.trim() || !clientId || !dueDate}
+                disabled={!title.trim() || !clientId}
               >
                 {isExistingList ? 'Save Changes' : 'Create List'}
               </button>
@@ -9772,10 +9804,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           <div className="tl-fixed-badges-container">
             <div className="tl-fixed-badges-header" />
             {rows.map((row, i) => {
-              // Filter tasks and lists for the visible date
+              // Filter tasks and lists for the visible date (skip those without due dates)
               const visibleDateStr = visibleDate.toDateString();
-              const dayTasks = row.tasks.filter(t => new Date(t.dueDate).toDateString() === visibleDateStr);
-              const dayLists = row.lists.filter(l => new Date(l.dueDate).toDateString() === visibleDateStr);
+              const dayTasks = row.tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr);
+              const dayLists = row.lists.filter(l => l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr);
               const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
 
               return (
