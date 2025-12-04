@@ -2253,9 +2253,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const addEvent = async (event) => {
     const dbEvent = {
       title: event.title,
-      description: event.description || null,
-      start_time: event.startTime,
-      end_time: event.endTime || null,
+      description: event.description || event.notes || null,
+      start_time: event.startTime instanceof Date ? event.startTime.toISOString() : event.startTime,
+      end_time: event.endTime instanceof Date ? event.endTime.toISOString() : event.endTime,
       all_day: event.allDay || false,
       location: event.location || null,
       project_id: event.projectId || null,
@@ -2263,6 +2263,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       color: event.color || null,
       is_completed: event.isCompleted || false
     };
+
+    console.log('Adding event to Supabase:', dbEvent);
 
     const { data: newEvent, error } = await window.supabase
       .from('events')
@@ -2272,8 +2274,11 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     if (error) {
       console.error('Error adding event:', error);
+      alert('Error saving event: ' + error.message);
       return;
     }
+
+    console.log('Event saved successfully:', newEvent);
 
     // Add attendees if any
     if (event.attendees && event.attendees.length > 0) {
