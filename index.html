@@ -9169,19 +9169,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           white-space: nowrap;
         }
 
-        /* Floating badges for tasks and lists */
-        .tl-floating-badges {
-          position: sticky;
-          left: 8px;
-          top: 50%;
-          transform: translateY(-50%);
+        /* Floating badges for tasks and lists in label area */
+        .tl-label-badges {
           display: flex;
           align-items: center;
-          gap: 4px;
-          z-index: 30;
-          height: 100%;
-          padding: 8px 0;
-          pointer-events: none;
+          gap: 3px;
+          margin-left: auto;
+          padding-left: 4px;
+          flex-shrink: 0;
         }
 
         .tl-badge {
@@ -9709,8 +9704,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         <div className="tl-labels">
           <div className="tl-label-header">Clients / Projects</div>
           {rows.map((row, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={`tl-label-row ${row.type}`}
               onClick={() => row.type === 'client' && toggleCollapse(row.client.id)}
             >
@@ -9728,6 +9723,48 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   <div className="tl-label-dot" style={{ background: row.project.color, width: 8, height: 8 }} />
                   <span className="tl-label-text">{row.project.name}</span>
                 </>
+              )}
+              {/* Floating badges in label area */}
+              {(row.tasks.length > 0 || row.lists.length > 0) && (
+                <div className="tl-label-badges">
+                  {row.lists.map(list => {
+                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+                    return (
+                      <div
+                        key={`label-list-${list.id}`}
+                        className="tl-badge tl-badge-list"
+                        style={{ borderColor: color, background: `${color}15` }}
+                        title={`${list.title}\n${progress.completed}/${progress.total} completed\nDue: ${new Date(list.dueDate).toLocaleDateString()}`}
+                        onClick={(e) => { e.stopPropagation(); onListClick && onListClick(list); }}
+                      >
+                        <List size={12} />
+                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
+                      </div>
+                    );
+                  })}
+                  {row.tasks.map(task => {
+                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+                    return (
+                      <div
+                        key={`label-task-${task.id}`}
+                        className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
+                        style={{ borderColor: color }}
+                        title={`${task.title}\nDue: ${new Date(task.dueDate).toLocaleDateString()}`}
+                        onClick={(e) => { e.stopPropagation(); onTaskClick && onTaskClick(task); }}
+                      >
+                        <div
+                          className="tl-badge-check"
+                          style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
+                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                        >
+                          {task.isCompleted && <Check size={8} color="#fff" />}
+                        </div>
+                        <span className="tl-badge-title">{task.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           ))}
@@ -9763,49 +9800,6 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   {hourMarkers.map((m, j) => (
                     <div key={j} className={`tl-grid ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
                   ))}
-
-                  {/* Floating Tasks & Lists badges */}
-                  {(row.tasks.length > 0 || row.lists.length > 0) && (
-                    <div className="tl-floating-badges">
-                      {row.lists.map(list => {
-                        const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                        const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
-                        return (
-                          <div
-                            key={`list-${list.id}`}
-                            className="tl-badge tl-badge-list"
-                            style={{ borderColor: color, background: `${color}15` }}
-                            title={`${list.title}\n${progress.completed}/${progress.total} completed\nDue: ${new Date(list.dueDate).toLocaleDateString()}`}
-                            onClick={() => onListClick && onListClick(list)}
-                          >
-                            <List size={12} />
-                            <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
-                          </div>
-                        );
-                      })}
-                      {row.tasks.map(task => {
-                        const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
-                        return (
-                          <div
-                            key={`task-${task.id}`}
-                            className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
-                            style={{ borderColor: color }}
-                            title={`${task.title}\nDue: ${new Date(task.dueDate).toLocaleDateString()}`}
-                            onClick={() => onTaskClick && onTaskClick(task)}
-                          >
-                            <div
-                              className="tl-badge-check"
-                              style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
-                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                            >
-                              {task.isCompleted && <Check size={8} color="#fff" />}
-                            </div>
-                            <span className="tl-badge-title">{task.title}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
 
                   {/* Events */}
                   {row.events.map(event => {
