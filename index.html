@@ -2271,31 +2271,18 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     console.log('Task saved successfully:', newTask);
 
-    // Transform back to camelCase for local state
-    const localTask = {
-      id: newTask.id,
-      title: newTask.title,
-      description: newTask.notes,
-      projectId: newTask.project_id,
-      clientId: newTask.client_id,
-      assignedTo: newTask.assigned_to,
-      dueDate: newTask.due_date ? new Date(newTask.due_date) : null,
-      isCompleted: newTask.is_completed,
-      listId: newTask.list_id,
-      listOrder: newTask.list_order
-    };
-
-    setTasks(prev => [...prev, localTask]);
+    // Note: Local state update is handled by the realtime subscription
+    // to avoid race condition duplicates
 
     // Notify assignee if different from creator
-    if (localTask.assignedTo && localTask.assignedTo !== currentUser.id) {
+    if (newTask.assigned_to && newTask.assigned_to !== currentUser.id) {
       const notif = createNotification(
         'task_assigned',
         currentUser.id,
-        localTask.assignedTo,
+        newTask.assigned_to,
         'task',
-        localTask.id,
-        localTask.title
+        newTask.id,
+        newTask.title
       );
       addNotification(notif);
     }
@@ -2349,21 +2336,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       }
     }
 
-    const localEvent = {
-      id: newEvent.id,
-      title: newEvent.title,
-      description: newEvent.notes,
-      startTime: new Date(newEvent.start_time),
-      endTime: newEvent.end_time ? new Date(newEvent.end_time) : null,
-      allDay: newEvent.all_day,
-      location: newEvent.location,
-      projectId: newEvent.project_id,
-      clientId: newEvent.client_id,
-      isCompleted: newEvent.is_completed,
-      attendees: event.attendees || []
-    };
-
-    setEvents(prev => [...prev, localEvent]);
+    // Note: Local state update is handled by the realtime subscription
+    // to avoid race condition duplicates
 
     // Notify attendees (except creator)
     if (event.attendees && event.attendees.length > 0) {
@@ -2539,17 +2513,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     console.log('List saved successfully:', newList);
 
-    const localList = {
-      id: newList.id,
-      title: newList.title,
-      description: newList.notes,
-      projectId: newList.project_id,
-      clientId: newList.client_id,
-      dueDate: newList.due_date ? new Date(newList.due_date) : null,
-      createdBy: newList.created_by
-    };
-
-    setLists(prev => [...prev, localList]);
+    // Note: Local state update is handled by the realtime subscription
+    // to avoid race condition duplicates
   };
 
   const updateList = async (listId, updates) => {
