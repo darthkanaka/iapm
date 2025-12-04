@@ -8309,7 +8309,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     ...clients
   ];
   
-  const HOURS_VISIBLE = 6;
+  const HOURS_VISIBLE = 8;
   const LABEL_WIDTH = 200;
   const ROW_HEIGHT = 60;
   const RULER_HEIGHT = 44;
@@ -8350,7 +8350,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   rangeStart.setMinutes(0, 0, 0);
   
   // Calculate dynamic end based on furthest event/task
-  const MIN_HOURS = 48; // Minimum 2 days
+  const MIN_HOURS = 720; // Minimum 30 days forward
   let furthestTime = new Date(rangeStart.getTime() + MIN_HOURS * 60 * 60 * 1000);
   
   // Check all events for furthest end time
@@ -9769,7 +9769,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
               setTargetDate(weekVisibleDateRef.current);
               setViewMode('day');
             }
-          }}>6-Hour</button>
+          }}>8-Hour</button>
           <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== 'week') {
               // When switching from day to week, use state (updated by scroll handler)
