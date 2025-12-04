@@ -9765,8 +9765,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         <div className="tl-toggle">
           <button className={`tl-toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== 'day') {
-              // When switching from week to day, use the ref (no re-renders during scroll)
-              setTargetDate(weekVisibleDateRef.current);
+              // When switching from week to day, use the ref but set time to 8am for sensible view
+              const targetDay = new Date(weekVisibleDateRef.current);
+              targetDay.setHours(8, 0, 0, 0);
+              setTargetDate(targetDay);
               setViewMode('day');
             }
           }}>8-Hour</button>
