@@ -13,6 +13,14 @@
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import * as LucideReact from 'https://esm.sh/lucide-react@0.263.1?deps=react@18.2.0';
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { marked } from 'https://esm.sh/marked@9.1.0';
+
+    // Configure marked for safe rendering
+    marked.setOptions({
+      breaks: true,  // Convert \n to <br>
+      gfm: true,     // GitHub Flavored Markdown
+    });
+    window.marked = marked;
 
     // Expose to global scope for Babel scripts
     window.React = React;
@@ -5790,6 +5798,13 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
   );
 }
 
+// ==================== MARKDOWN TEXT COMPONENT ====================
+function MarkdownText({ text, className = '' }) {
+  if (!text) return null;
+  const html = window.marked ? window.marked.parse(text) : text;
+  return <div dangerouslySetInnerHTML={{ __html: html }} className={`markdown-content ${className}`} />;
+}
+
 // ==================== TASK MODAL (Create & Edit) ====================
 function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete, clients, internal, teamMembers, defaultClientId, defaultProjectId, defaultDate, navigateToClient }) {
   const isExistingTask = !!task;
@@ -6452,7 +6467,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
               <div className="task-modal-field">
                 <label className="task-modal-label">Notes</label>
                 <div className={`task-modal-value ${!task.notes ? 'empty' : 'notes'}`}>
-                  {task.notes || 'No notes'}
+                  {task.notes ? <MarkdownText text={task.notes} /> : 'No notes'}
                 </div>
               </div>
             </>
@@ -7200,7 +7215,7 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
               {list.notes && (
                 <div className="list-modal-field">
                   <label className="list-modal-label">Notes</label>
-                  <div className="list-modal-value">{list.notes}</div>
+                  <div className="list-modal-value"><MarkdownText text={list.notes} /></div>
                 </div>
               )}
               
@@ -12098,24 +12113,24 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   // Get team member by id
   const getMember = (id) => teamMembers.find(m => m.id === id);
   
-  // Render text with highlighted @mentions
+  // Render text with markdown and highlighted @mentions
   const renderMentionText = (text) => {
     if (!text) return null;
-    const parts = text.split(/(@\w+(?:\s+\w+)?)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('@')) {
-        const name = part.slice(1);
-        const member = teamMembers.find(m => m.name === name);
-        if (member) {
-          return (
-            <span key={i} style={{ color: member.color, fontWeight: 600 }}>
-              {part}
-            </span>
-          );
-        }
+
+    // First, process @mentions and wrap them in styled spans
+    let processedText = text.replace(/(@\w+(?:\s+\w+)?)/g, (match) => {
+      const name = match.slice(1);
+      const member = teamMembers.find(m => m.name === name);
+      if (member) {
+        return `<span style="color: ${member.color}; font-weight: 600;">${match}</span>`;
       }
-      return <span key={i}>{part}</span>;
+      return match;
     });
+
+    // Parse markdown
+    const html = window.marked ? window.marked.parse(processedText) : processedText;
+
+    return <div dangerouslySetInnerHTML={{ __html: html }} className="markdown-content" />;
   };
   
   // Format relative time
@@ -12541,7 +12556,73 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           line-height: 1.4;
           margin-bottom: 8px;
         }
-        
+
+        /* Markdown content styles */
+        .markdown-content {
+          line-height: 1.5;
+        }
+        .markdown-content p {
+          margin: 0 0 0.5em 0;
+        }
+        .markdown-content p:last-child {
+          margin-bottom: 0;
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3,
+        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+          margin: 0.5em 0 0.25em 0;
+          font-weight: 600;
+          color: #e4e4e7;
+        }
+        .markdown-content h1 { font-size: 1.4em; }
+        .markdown-content h2 { font-size: 1.25em; }
+        .markdown-content h3 { font-size: 1.1em; }
+        .markdown-content ul, .markdown-content ol {
+          margin: 0.25em 0;
+          padding-left: 1.5em;
+        }
+        .markdown-content li {
+          margin: 0.15em 0;
+        }
+        .markdown-content code {
+          background: #27272a;
+          padding: 0.15em 0.4em;
+          border-radius: 4px;
+          font-family: 'SF Mono', Monaco, monospace;
+          font-size: 0.9em;
+          color: #a78bfa;
+        }
+        .markdown-content pre {
+          background: #27272a;
+          padding: 0.75em 1em;
+          border-radius: 6px;
+          overflow-x: auto;
+          margin: 0.5em 0;
+        }
+        .markdown-content pre code {
+          background: none;
+          padding: 0;
+        }
+        .markdown-content blockquote {
+          border-left: 3px solid #6366f1;
+          margin: 0.5em 0;
+          padding-left: 1em;
+          color: #71717a;
+        }
+        .markdown-content a {
+          color: #818cf8;
+          text-decoration: none;
+        }
+        .markdown-content a:hover {
+          text-decoration: underline;
+        }
+        .markdown-content strong {
+          font-weight: 600;
+          color: #e4e4e7;
+        }
+        .markdown-content em {
+          font-style: italic;
+        }
+
         .cv-note-footer {
           display: flex;
           align-items: center;
