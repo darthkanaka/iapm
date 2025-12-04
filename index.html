@@ -7766,32 +7766,26 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
   React.useEffect(() => {
     // Skip initial render (scrollTrigger starts at 0)
     if (scrollTrigger === 0) return;
-    
-    // Small delay to ensure measurements are ready
-    const timer = setTimeout(() => {
-      if (scrollRef.current && headerScrollRef.current && containerWidth > 0) {
-        // Find the target day in allDays
-        const targetDayIndex = allDays.findIndex(d => d.toDateString() === targetDate.toDateString());
-        let targetWeekSundayIndex;
-        
-        if (targetDayIndex === -1) {
-          const targetSunday = new Date(targetDate);
-          targetSunday.setDate(targetSunday.getDate() - targetSunday.getDay());
-          const closestIndex = allDays.findIndex(d => d.toDateString() === targetSunday.toDateString());
-          targetWeekSundayIndex = closestIndex >= 0 ? closestIndex : 0;
-        } else {
-          targetWeekSundayIndex = targetDayIndex - targetDate.getDay();
-        }
-        
-        const dayWidth = containerWidth / 7;
-        const horizontalScroll = Math.max(0, targetWeekSundayIndex * dayWidth);
-        
-        scrollRef.current.scrollLeft = horizontalScroll;
-        headerScrollRef.current.scrollLeft = horizontalScroll;
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    if (!scrollRef.current || !headerScrollRef.current || containerWidth <= 0) return;
+
+    // Find the target day in allDays
+    const targetDayIndex = allDays.findIndex(d => d.toDateString() === targetDate.toDateString());
+    let targetWeekSundayIndex;
+
+    if (targetDayIndex === -1) {
+      const targetSunday = new Date(targetDate);
+      targetSunday.setDate(targetSunday.getDate() - targetSunday.getDay());
+      const closestIndex = allDays.findIndex(d => d.toDateString() === targetSunday.toDateString());
+      targetWeekSundayIndex = closestIndex >= 0 ? closestIndex : 0;
+    } else {
+      targetWeekSundayIndex = targetDayIndex - targetDate.getDay();
+    }
+
+    const dayWidth = containerWidth / 7;
+    const horizontalScroll = Math.max(0, targetWeekSundayIndex * dayWidth);
+
+    scrollRef.current.scrollLeft = horizontalScroll;
+    headerScrollRef.current.scrollLeft = horizontalScroll;
   }, [scrollTrigger, targetDate, containerWidth]); // allDays removed - recalculated but content stable
   
   // Sync scroll between components
@@ -8391,8 +8385,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   // Handle scroll to update visible date indicator
   const handleTimelineScroll = (e) => {
     const scrollLeft = e.target.scrollLeft;
-    // Calculate what time is at the left edge of the viewport
-    const hoursFromStart = scrollLeft / pixelsPerHour;
+    // Calculate what time is at the CENTER of the viewport (not left edge)
+    const centerScrollLeft = scrollLeft + (containerWidth / 2);
+    const hoursFromStart = centerScrollLeft / pixelsPerHour;
     const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
     setVisibleDate(viewportDate);
   };
