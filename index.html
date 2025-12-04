@@ -1753,8 +1753,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
         // Transform events to match app structure
         const transformedEvents = (allEvents || []).map(event => ({
           ...event,
-          startTime: event.start_time,
-          endTime: event.end_time,
+          startTime: new Date(event.start_time),
+          endTime: event.end_time ? new Date(event.end_time) : null,
           allDay: event.all_day,
           projectId: event.project_id,
           clientId: event.client_id,
@@ -1851,8 +1851,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     // Helper to transform events
     const transformEvent = (event) => ({
       ...event,
-      startTime: event.start_time,
-      endTime: event.end_time,
+      startTime: new Date(event.start_time),
+      endTime: event.end_time ? new Date(event.end_time) : null,
       allDay: event.all_day,
       projectId: event.project_id,
       clientId: event.client_id,
