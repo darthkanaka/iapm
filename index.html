@@ -2510,7 +2510,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       description: newList.notes,
       projectId: newList.project_id,
       clientId: newList.client_id,
-      dueDate: newList.due_date,
+      dueDate: newList.due_date ? new Date(newList.due_date) : null,
       createdBy: newList.created_by
     };
 
@@ -2589,24 +2589,22 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   };
 
   // Add task to a list
-  const addTaskToList = (listId, task) => {
+  const addTaskToList = async (listId, task) => {
     const list = lists.find(l => l.id === listId);
     if (!list) return;
-    
+
     const listTasks = getListTasks(listId);
     const maxOrder = listTasks.length > 0 ? Math.max(...listTasks.map(t => t.listOrder || 0)) : -1;
-    
-    const newTask = {
+
+    // Use addTask to properly save to Supabase
+    await addTask({
       ...task,
-      id: `task${Date.now()}`,
       listId: listId,
       listOrder: maxOrder + 1,
       clientId: list.clientId,
       projectId: list.projectId,
-      dueDate: task.dueDate || null, // Can be null to inherit from list
-    };
-    
-    setTasks(prev => [...prev, newTask]);
+      dueDate: task.dueDate || null,
+    });
   };
 
   // Reorder tasks within a list
