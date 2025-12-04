@@ -3777,20 +3777,20 @@ function AddClientModal({ onClose, onAdd }) {
   const [name, setName] = React.useState('');
   const [color, setColor] = React.useState('#6366f1');
   const [details, setDetails] = React.useState('');
-  
+
   const colorOptions = [
     '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
     '#ec4899', '#f43f5e', '#ef4444', '#f97316',
     '#f59e0b', '#eab308', '#84cc16', '#22c55e',
     '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
   ];
-  
+
   const handleSubmit = () => {
     if (!name.trim()) return;
     onAdd(name.trim(), color, details.trim());
     onClose();
   };
-  
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -3801,199 +3801,214 @@ function AddClientModal({ onClose, onAdd }) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(2px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
           }
-          
+
           .modal-content {
-            background: #18181b;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            width: 480px;
+            background: #111113;
+            border: 1px solid #2a2a2e;
+            border-radius: 2px;
+            width: 440px;
             max-width: 90vw;
             max-height: 90vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
           }
-          
+
           .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 16px 20px;
+            border-bottom: 1px solid #2a2a2e;
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-shrink: 0;
+            background: #161618;
           }
-          
+
           .modal-title {
-            font-size: 18px;
+            font-size: 13px;
             font-weight: 600;
             color: #e4e4e7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
+
           .modal-close {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: none;
-            color: #71717a;
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #52525b;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s;
           }
-          
+
           .modal-close:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+            background: #1f1f23;
+            border-color: #2a2a2e;
+            color: #a1a1aa;
           }
-          
+
           .modal-body {
-            padding: 24px;
+            padding: 20px;
             overflow-y: auto;
           }
-          
+
           .modal-field {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
           }
-          
+
           .modal-field:last-child {
             margin-bottom: 0;
           }
-          
+
           .modal-label {
             display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: #a1a1aa;
-            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #71717a;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
+
           .modal-input {
             width: 100%;
-            padding: 12px 16px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
+            padding: 10px 12px;
+            border-radius: 2px;
+            background: #0a0a0b;
+            border: 1px solid #2a2a2e;
+            color: #e4e4e7;
             font-size: 14px;
             outline: none;
-            transition: all 0.15s;
+            transition: border-color 0.1s;
           }
-          
+
           .modal-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: #3f3f46;
           }
-          
+
           .modal-input::placeholder {
-            color: #52525b;
+            color: #3f3f46;
           }
-          
+
           .modal-textarea {
             width: 100%;
-            min-height: 80px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
+            min-height: 72px;
+            padding: 10px 12px;
+            border-radius: 2px;
+            background: #0a0a0b;
+            border: 1px solid #2a2a2e;
+            color: #e4e4e7;
             font-size: 14px;
             font-family: inherit;
             outline: none;
             resize: vertical;
-            transition: all 0.15s;
+            transition: border-color 0.1s;
           }
-          
+
           .modal-textarea:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+            border-color: #3f3f46;
           }
-          
+
           .modal-textarea::placeholder {
-            color: #52525b;
+            color: #3f3f46;
           }
-          
+
           .color-grid {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
-            gap: 8px;
+            gap: 6px;
           }
-          
+
           .color-option {
             width: 100%;
             aspect-ratio: 1;
-            border-radius: 8px;
+            border-radius: 2px;
             cursor: pointer;
             border: 2px solid transparent;
-            transition: all 0.15s;
+            transition: all 0.1s;
+            opacity: 0.8;
           }
-          
+
           .color-option:hover {
-            transform: scale(1.1);
+            opacity: 1;
           }
-          
+
           .color-option.selected {
+            opacity: 1;
             border-color: #fff;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
           }
-          
+
           .modal-footer {
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 14px 20px;
+            border-top: 1px solid #2a2a2e;
             display: flex;
-            gap: 12px;
+            gap: 10px;
             justify-content: flex-end;
             flex-shrink: 0;
+            background: #161618;
           }
-          
+
           .modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.15s;
-            border: none;
+            transition: all 0.1s;
+            border: 1px solid transparent;
           }
-          
+
           .modal-btn-primary {
-            background: #6366f1;
-            color: #fff;
+            background: #e4e4e7;
+            color: #111113;
+            border-color: #e4e4e7;
           }
-          
+
           .modal-btn-primary:hover {
-            background: #5558e3;
+            background: #fff;
+            border-color: #fff;
           }
-          
+
           .modal-btn-primary:disabled {
-            opacity: 0.5;
+            background: #3f3f46;
+            border-color: #3f3f46;
+            color: #71717a;
             cursor: not-allowed;
           }
-          
+
           .modal-btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
-            color: #a1a1aa;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent;
+            color: #71717a;
+            border-color: #2a2a2e;
           }
-          
+
           .modal-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+            background: #1f1f23;
+            color: #a1a1aa;
+            border-color: #3f3f46;
           }
         `}</style>
-        
+
         <div className="modal-header">
           <span className="modal-title">Add New Client</span>
           <button className="modal-close" onClick={onClose}>
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
-        
+
         <div className="modal-body">
           <div className="modal-field">
             <label className="modal-label">Client Name</label>
@@ -4006,7 +4021,7 @@ function AddClientModal({ onClose, onAdd }) {
               autoFocus
             />
           </div>
-          
+
           <div className="modal-field">
             <label className="modal-label">Color</label>
             <div className="color-grid">
@@ -4020,7 +4035,7 @@ function AddClientModal({ onClose, onAdd }) {
               ))}
             </div>
           </div>
-          
+
           <div className="modal-field">
             <label className="modal-label">Client Details (optional)</label>
             <textarea
@@ -4031,11 +4046,11 @@ function AddClientModal({ onClose, onAdd }) {
             />
           </div>
         </div>
-        
+
         <div className="modal-footer">
           <button className="modal-btn modal-btn-secondary" onClick={onClose}>Cancel</button>
-          <button 
-            className="modal-btn modal-btn-primary" 
+          <button
+            className="modal-btn modal-btn-primary"
             onClick={handleSubmit}
             disabled={!name.trim()}
           >
