@@ -2263,6 +2263,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       all_day: event.allDay || false,
       location: event.location || null,
       project_id: event.projectId || null,
+      client_id: event.clientId || null,
       is_completed: event.isCompleted || false,
       created_by: currentUser?.id,
       visibility: event.visibility || {},
@@ -2344,6 +2345,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     if (updates.allDay !== undefined) dbUpdates.all_day = updates.allDay;
     if (updates.location !== undefined) dbUpdates.location = updates.location;
     if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+    if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
     if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
 
