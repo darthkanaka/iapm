@@ -2197,16 +2197,17 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     // Transform camelCase to snake_case for Supabase
     const dbTask = {
       title: task.title,
-      description: task.description || null,
+      notes: task.description || task.notes || null,
       project_id: task.projectId || null,
       client_id: task.clientId || null,
       assigned_to: task.assignedTo || null,
-      due_date: task.dueDate || null,
+      due_date: task.dueDate instanceof Date ? task.dueDate.toISOString() : task.dueDate || null,
       is_completed: task.isCompleted || false,
       list_id: task.listId || null,
-      list_order: task.listOrder || null,
-      priority: task.priority || 'medium'
+      list_order: task.listOrder || null
     };
+
+    console.log('Adding task to Supabase:', dbTask);
 
     const { data: newTask, error } = await window.supabase
       .from('tasks')
@@ -2216,22 +2217,24 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     if (error) {
       console.error('Error adding task:', error);
+      alert('Error saving task: ' + error.message);
       return;
     }
+
+    console.log('Task saved successfully:', newTask);
 
     // Transform back to camelCase for local state
     const localTask = {
       id: newTask.id,
       title: newTask.title,
-      description: newTask.description,
+      description: newTask.notes,
       projectId: newTask.project_id,
       clientId: newTask.client_id,
       assignedTo: newTask.assigned_to,
       dueDate: newTask.due_date,
       isCompleted: newTask.is_completed,
       listId: newTask.list_id,
-      listOrder: newTask.list_order,
-      priority: newTask.priority
+      listOrder: newTask.list_order
     };
 
     setTasks(prev => [...prev, localTask]);
@@ -2402,15 +2405,15 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     // Transform camelCase to snake_case for Supabase
     const dbUpdates = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.description !== undefined) dbUpdates.notes = updates.description;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
     if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
     if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo;
-    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate instanceof Date ? updates.dueDate.toISOString() : updates.dueDate;
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
     if (updates.listId !== undefined) dbUpdates.list_id = updates.listId;
     if (updates.listOrder !== undefined) dbUpdates.list_order = updates.listOrder;
-    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
 
     const { error } = await window.supabase
       .from('tasks')
@@ -2419,6 +2422,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     if (error) {
       console.error('Error updating task:', error);
+      alert('Error updating task: ' + error.message);
       return;
     }
 
