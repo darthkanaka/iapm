@@ -9168,7 +9168,79 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           margin-left: auto;
           white-space: nowrap;
         }
-        
+
+        /* Floating badges for tasks and lists */
+        .tl-floating-badges {
+          position: sticky;
+          left: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          z-index: 30;
+          height: 100%;
+          padding: 8px 0;
+          pointer-events: none;
+        }
+
+        .tl-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          border: 1.5px solid;
+          background: rgba(10, 10, 14, 0.95);
+          cursor: pointer;
+          font-size: 11px;
+          white-space: nowrap;
+          pointer-events: auto;
+          transition: all 0.15s ease;
+          max-width: 80px;
+          height: 24px;
+        }
+
+        .tl-badge:hover {
+          transform: scale(1.05);
+          z-index: 35;
+        }
+
+        .tl-badge-list {
+          border-style: dashed;
+        }
+
+        .tl-badge-fraction {
+          font-weight: 600;
+          font-size: 10px;
+        }
+
+        .tl-badge-task.completed {
+          opacity: 0.5;
+        }
+
+        .tl-badge-task.completed .tl-badge-title {
+          text-decoration: line-through;
+        }
+
+        .tl-badge-check {
+          width: 12px;
+          height: 12px;
+          border-radius: 3px;
+          border: 1.5px solid;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .tl-badge-title {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: #a1a1aa;
+          font-size: 10px;
+        }
+
         .tl-task {
           position: absolute;
           top: 12px;
@@ -9691,7 +9763,50 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   {hourMarkers.map((m, j) => (
                     <div key={j} className={`tl-grid ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
                   ))}
-                  
+
+                  {/* Floating Tasks & Lists badges */}
+                  {(row.tasks.length > 0 || row.lists.length > 0) && (
+                    <div className="tl-floating-badges">
+                      {row.lists.map(list => {
+                        const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                        const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+                        return (
+                          <div
+                            key={`list-${list.id}`}
+                            className="tl-badge tl-badge-list"
+                            style={{ borderColor: color, background: `${color}15` }}
+                            title={`${list.title}\n${progress.completed}/${progress.total} completed\nDue: ${new Date(list.dueDate).toLocaleDateString()}`}
+                            onClick={() => onListClick && onListClick(list)}
+                          >
+                            <List size={12} />
+                            <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
+                          </div>
+                        );
+                      })}
+                      {row.tasks.map(task => {
+                        const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+                        return (
+                          <div
+                            key={`task-${task.id}`}
+                            className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
+                            style={{ borderColor: color }}
+                            title={`${task.title}\nDue: ${new Date(task.dueDate).toLocaleDateString()}`}
+                            onClick={() => onTaskClick && onTaskClick(task)}
+                          >
+                            <div
+                              className="tl-badge-check"
+                              style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
+                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                            >
+                              {task.isCompleted && <Check size={8} color="#fff" />}
+                            </div>
+                            <span className="tl-badge-title">{task.title}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Events */}
                   {row.events.map(event => {
                     const left = getPosition(event.startTime);
@@ -9717,90 +9832,6 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                         {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
                       </div>
                     );
-                  })}
-                  
-                  {/* Tasks & Lists (grouped by day) */}
-                  {row.groupedItems && row.groupedItems.map(group => {
-                    const color = row.type === 'client' 
-                      ? row.client.color 
-                      : row.project?.color || row.client.color;
-                    
-                    if (group.isGrouped) {
-                      // Show grouped indicator for 2+ items on same day
-                      return (
-                        <div
-                          key={`group-${group.dayKey}`}
-                          className="tl-items-group"
-                          style={{ 
-                            left: group.position,
-                            borderColor: color,
-                            background: `${color}22`
-                          }}
-                          title={`${group.totalItems} items on ${new Date(group.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`}
-                          onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setItemsPopover({
-                              x: rect.left + rect.width / 2,
-                              y: rect.bottom + 8,
-                              tasks: group.tasks,
-                              lists: group.lists,
-                              color,
-                              date: group.date
-                            });
-                          }}
-                        >
-                          <span className="tl-group-count">{group.totalItems}</span>
-                          <span className="tl-group-label">items</span>
-                        </div>
-                      );
-                    } else if (group.lists.length === 1 && group.tasks.length === 0) {
-                      // Single list - show list indicator
-                      const list = group.lists[0];
-                      const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                      return (
-                        <div
-                          key={`list-${list.id}`}
-                          className="tl-list"
-                          style={{ 
-                            left: group.position,
-                            borderColor: color
-                          }}
-                          title={`List: ${list.title}\n${progress.completed}/${progress.total} completed`}
-                          onClick={() => onListClick && onListClick(list)}
-                        >
-                          <span className="tl-list-icon">📋</span>
-                          <span className="tl-list-title">{list.title}</span>
-                          <span className="tl-list-progress">{progress.completed}/{progress.total}</span>
-                        </div>
-                      );
-                    } else if (group.tasks.length === 1 && group.lists.length === 0) {
-                      // Single task - show individual task
-                      const task = group.tasks[0];
-                      const left = getPosition(task.dueDate);
-                      return (
-                        <div
-                          key={task.id}
-                          className={`tl-task ${task.isCompleted ? 'completed' : ''}`}
-                          style={{ 
-                            left, 
-                            width: 120,
-                            borderColor: color,
-                            color: color
-                          }}
-                          title={`Task: ${task.title}\nDue: ${formatTime(task.dueDate)}`}
-                          onClick={() => onTaskClick && onTaskClick(task)}
-                        >
-                          <div 
-                            className="tl-task-check"
-                            onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                          >
-                            {task.isCompleted && <Check size={10} color="#fff" />}
-                          </div>
-                          <span className="tl-task-title">{task.title}</span>
-                        </div>
-                      );
-                    }
-                    return null;
                   })}
                 </div>
               ))}
