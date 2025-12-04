@@ -7792,7 +7792,7 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [scrollTrigger, targetDate, containerWidth, allDays]);
+  }, [scrollTrigger, targetDate, containerWidth]); // allDays removed - recalculated but content stable
   
   // Sync scroll between components
   const handleScroll = (e) => {
@@ -8296,6 +8296,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
   const [scrollTrigger, setScrollTrigger] = React.useState(0); // Increment to force scroll
   const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 6-hour view
+  const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date without re-renders
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
@@ -9764,12 +9765,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         <div className="tl-toggle">
           <button className={`tl-toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== 'day') {
-              setTargetDate(visibleDate);
+              // When switching from week to day, use the ref (no re-renders during scroll)
+              setTargetDate(weekVisibleDateRef.current);
               setViewMode('day');
             }
           }}>6-Hour</button>
           <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== 'week') {
+              // When switching from day to week, use state (updated by scroll handler)
               setTargetDate(visibleDate);
               setScrollTrigger(prev => prev + 1);
               setViewMode('week');
@@ -10055,7 +10058,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           onEventClick={onEventClick}
           onTaskClick={onTaskClick}
           toggleTaskComplete={toggleTaskComplete}
-          onVisibleDateChange={setVisibleDate}
+          onVisibleDateChange={(date) => { weekVisibleDateRef.current = date; }}
         />
       )}
     </div>
