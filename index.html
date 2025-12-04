@@ -4715,6 +4715,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
   const [canEdit, setCanEdit] = React.useState(getInitialCanEdit);
   const [showAttendeesDropdown, setShowAttendeesDropdown] = React.useState(false);
   const [showVisibilityDropdown, setShowVisibilityDropdown] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   
   // Get projects for selected client
   const selectedClient = allSpaces.find(s => s.id === clientId);
@@ -4825,12 +4826,15 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
     }
   };
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !clientId || !date) return;
-    
+    if (isSaving) return; // Prevent double-clicks
+
+    setIsSaving(true);
+
     const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
     const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
-    
+
     const eventData = {
       clientId,
       projectId: projectId || null,
@@ -4846,14 +4850,20 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
         canEdit: canEdit
       }
     };
-    
-    if (isExistingEvent) {
-      onUpdate(event.id, eventData);
-    } else {
-      onSave(eventData);
+
+    try {
+      if (isExistingEvent) {
+        console.log('Updating event:', event.id, eventData);
+        await onUpdate(event.id, eventData);
+      } else {
+        console.log('Creating new event:', eventData);
+        await onSave(eventData);
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error saving event:', err);
+      setIsSaving(false);
     }
-    
-    onClose();
   };
   
   // Format time for display
@@ -5827,18 +5837,19 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
               )}
             </div>
             <div className="event-modal-footer-right">
-              <button 
-                className="event-modal-btn event-modal-btn-secondary" 
+              <button
+                className="event-modal-btn event-modal-btn-secondary"
                 onClick={isExistingEvent ? handleCancelEdit : onClose}
+                disabled={isSaving}
               >
                 Cancel
               </button>
-              <button 
-                className="event-modal-btn event-modal-btn-primary" 
+              <button
+                className="event-modal-btn event-modal-btn-primary"
                 onClick={handleSubmit}
-                disabled={!title.trim() || !clientId || !date}
+                disabled={!title.trim() || !clientId || !date || isSaving}
               >
-                {isExistingEvent ? 'Save Changes' : 'Create Event'}
+                {isSaving ? 'Saving...' : (isExistingEvent ? 'Save Changes' : 'Create Event')}
               </button>
             </div>
           </div>
@@ -5925,7 +5936,8 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
   const [status, setStatus] = React.useState(isExistingTask ? (task.status || 'todo') : 'todo');
   const [blockedReason, setBlockedReason] = React.useState(isExistingTask ? (task.blockedReason || '') : '');
   const [showStatusDropdown, setShowStatusDropdown] = React.useState(false);
-  
+  const [isSaving, setIsSaving] = React.useState(false);
+
   // Get projects for selected client
   const selectedClient = allSpaces.find(s => s.id === clientId);
   const availableProjects = selectedClient?.projects || [];
@@ -5948,8 +5960,11 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
     }
   };
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !clientId) return;
+    if (isSaving) return; // Prevent double-clicks
+
+    setIsSaving(true);
 
     const dueDateObj = dueDate ? new Date(dueDate + 'T17:00:00') : null;
 
@@ -5965,14 +5980,20 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
       status: status,
       blockedReason: status === 'blocked' ? blockedReason.trim() : '',
     };
-    
-    if (isExistingTask) {
-      onUpdate(task.id, taskData);
-    } else {
-      onSave(taskData);
+
+    try {
+      if (isExistingTask) {
+        console.log('Updating task:', task.id, taskData);
+        await onUpdate(task.id, taskData);
+      } else {
+        console.log('Creating new task:', taskData);
+        await onSave(taskData);
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error saving task:', err);
+      setIsSaving(false);
     }
-    
-    onClose();
   };
   
   // Format date for display
@@ -6724,18 +6745,19 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
               )}
             </div>
             <div className="task-modal-footer-right">
-              <button 
-                className="task-modal-btn task-modal-btn-secondary" 
+              <button
+                className="task-modal-btn task-modal-btn-secondary"
                 onClick={isExistingTask ? handleCancelEdit : onClose}
+                disabled={isSaving}
               >
                 Cancel
               </button>
               <button
                 className="task-modal-btn task-modal-btn-primary"
                 onClick={handleSubmit}
-                disabled={!title.trim() || !clientId}
+                disabled={!title.trim() || !clientId || isSaving}
               >
-                {isExistingTask ? 'Save Changes' : 'Create Task'}
+                {isSaving ? 'Saving...' : (isExistingTask ? 'Save Changes' : 'Create Task')}
               </button>
             </div>
           </div>
@@ -6794,7 +6816,8 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
     return '';
   });
   const [notes, setNotes] = React.useState(isExistingList ? (list.notes || '') : '');
-  
+  const [isSaving, setIsSaving] = React.useState(false);
+
   // Get projects for selected client
   const selectedClient = allSpaces.find(s => s.id === clientId);
   const availableProjects = selectedClient?.projects || [];
@@ -6809,8 +6832,11 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   
   // Handle submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !clientId) return;
+    if (isSaving) return; // Prevent double-clicks
+
+    setIsSaving(true);
 
     const dueDateObj = dueDate ? new Date(dueDate + 'T17:00:00') : null;
 
@@ -6823,12 +6849,19 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
       createdBy: teamMembers[0]?.id,
       createdAt: new Date(),
     };
-    
-    if (isExistingList) {
-      onUpdate(list.id, listData);
-    } else {
-      onSave(listData);
-      onClose();
+
+    try {
+      if (isExistingList) {
+        console.log('Updating list:', list.id, listData);
+        await onUpdate(list.id, listData);
+      } else {
+        console.log('Creating new list:', listData);
+        await onSave(listData);
+        onClose();
+      }
+    } catch (err) {
+      console.error('Error saving list:', err);
+      setIsSaving(false);
     }
   };
   
@@ -7525,18 +7558,19 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
               )}
             </div>
             <div className="list-modal-footer-right">
-              <button 
+              <button
                 className="list-modal-btn list-modal-btn-secondary"
                 onClick={isExistingList ? handleCancelEdit : onClose}
+                disabled={isSaving}
               >
                 Cancel
               </button>
               <button
                 className="list-modal-btn list-modal-btn-primary"
                 onClick={handleSubmit}
-                disabled={!title.trim() || !clientId}
+                disabled={!title.trim() || !clientId || isSaving}
               >
-                {isExistingList ? 'Save Changes' : 'Create List'}
+                {isSaving ? 'Saving...' : (isExistingList ? 'Save Changes' : 'Create List')}
               </button>
             </div>
           </div>
