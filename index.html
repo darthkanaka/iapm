@@ -8597,27 +8597,29 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           justify-content: center;
           gap: 6px;
           padding: 8px 14px;
-          border-radius: 8px;
-          background: rgba(99, 102, 241, 0.15);
+          border-radius: 2px;
+          background: rgba(99, 102, 241, 0.12);
           border: 1px solid rgba(99, 102, 241, 0.3);
           color: #818cf8;
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           font-family: inherit;
           white-space: nowrap;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        
+
         .tl-add-btn .btn-text {
           display: inline;
         }
-        
+
         .tl-add-btn:hover {
-          background: rgba(99, 102, 241, 0.25);
+          background: rgba(99, 102, 241, 0.2);
           border-color: rgba(99, 102, 241, 0.5);
         }
-        
+
         /* Responsive: hide text on smaller screens */
         @media (max-width: 900px) {
           .tl-add-btn {
@@ -8631,14 +8633,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           }
           .tl-btn {
             padding: 8px 12px !important;
-            font-size: 12px !important;
+            font-size: 10px !important;
           }
           .tl-btn .btn-text {
             display: none;
           }
           .tl-toggle-btn {
             padding: 6px 12px !important;
-            font-size: 12px !important;
+            font-size: 10px !important;
           }
         }
         
@@ -8680,12 +8682,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         .tl-add-modal {
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 16px;
+          border-radius: 2px;
           width: 480px;
           max-width: 90vw;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-        
+
         .tl-add-modal-header {
           display: flex;
           align-items: center;
@@ -8693,12 +8695,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           padding: 20px 24px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
-        
+
         .tl-add-modal-header h3 {
-          font-size: 18px;
+          font-size: 14px;
           font-weight: 600;
           color: #fff;
           margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         
         .tl-add-modal-close {
@@ -8707,8 +8711,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           color: #71717a;
           cursor: pointer;
           padding: 4px;
-          border-radius: 6px;
-          transition: all 0.15s;
+          border-radius: 2px;
+          transition: all 0.1s;
         }
         
         .tl-add-modal-close:hover {
@@ -8732,38 +8736,38 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         .tl-add-input, .tl-add-select {
           flex: 1;
           padding: 10px 14px;
-          border-radius: 8px;
+          border-radius: 2px;
           background: rgba(0, 0, 0, 0.3);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           color: #fff;
-          font-size: 14px;
+          font-size: 13px;
           font-family: inherit;
           outline: none;
-          transition: all 0.15s;
+          transition: all 0.1s;
         }
-        
+
         .tl-add-input:focus, .tl-add-select:focus {
           border-color: rgba(99, 102, 241, 0.5);
         }
-        
+
         .tl-add-input::placeholder {
           color: #52525b;
         }
-        
+
         .tl-add-select {
           cursor: pointer;
         }
-        
+
         .tl-add-select:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
-        
+
         .tl-add-input[type="date"],
         .tl-add-input[type="time"] {
           position: relative;
         }
-        
+
         .tl-add-input[type="date"]::-webkit-calendar-picker-indicator,
         .tl-add-input[type="time"]::-webkit-calendar-picker-indicator {
           filter: invert(1);
@@ -8771,23 +8775,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           cursor: pointer;
           padding: 4px;
           margin-right: -4px;
-          border-radius: 4px;
-          transition: all 0.15s;
+          border-radius: 2px;
+          transition: all 0.1s;
         }
-        
+
         .tl-add-input[type="date"]::-webkit-calendar-picker-indicator:hover,
         .tl-add-input[type="time"]::-webkit-calendar-picker-indicator:hover {
           opacity: 1;
           filter: invert(1) brightness(1.5);
           background: rgba(99, 102, 241, 0.5);
-          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
         }
-        
+
         .tl-add-input[type="date"]::-webkit-datetime-edit,
         .tl-add-input[type="time"]::-webkit-datetime-edit {
           color: #a1a1aa;
         }
-        
+
         .tl-add-input[type="date"]:focus::-webkit-datetime-edit,
         .tl-add-input[type="time"]:focus::-webkit-datetime-edit {
           color: #fff;
@@ -8803,32 +8806,34 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         
         .tl-add-modal-btn {
           padding: 10px 20px;
-          border-radius: 8px;
-          font-size: 14px;
+          border-radius: 2px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           font-family: inherit;
           border: none;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        
+
         .tl-add-modal-btn.primary {
           background: #6366f1;
           color: #fff;
         }
-        
+
         .tl-add-modal-btn.primary:hover {
           background: #5558e3;
         }
-        
+
         .tl-add-modal-btn.secondary {
-          background: rgba(255, 255, 255, 0.06);
+          background: transparent;
           color: #a1a1aa;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
         }
-        
+
         .tl-add-modal-btn.secondary:hover {
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.08);
           color: #fff;
         }
         
@@ -8839,49 +8844,49 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         }
         
         .tl-date-btn {
-          font-size: 16px;
+          font-size: 14px;
           font-weight: 600;
           color: #fff;
           background: none;
           border: none;
           cursor: pointer;
           padding: 6px 12px;
-          border-radius: 8px;
-          transition: all 0.15s;
+          border-radius: 2px;
+          transition: all 0.1s;
           display: flex;
           align-items: center;
           gap: 8px;
           font-family: inherit;
         }
-        
+
         .tl-date-btn:hover {
           background: rgba(255, 255, 255, 0.1);
         }
-        
+
         .tl-today-display {
           display: flex;
           flex-direction: column;
           margin-right: 16px;
         }
-        
+
         .tl-today-label {
-          font-size: 10px;
+          font-size: 9px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           color: #52525b;
           margin-bottom: 2px;
         }
-        
+
         .tl-today-date {
-          font-size: 16px;
+          font-size: 14px;
           font-weight: 600;
           color: #fff;
         }
-        
+
         .tl-date-picker-wrapper {
           position: relative;
         }
-        
+
         .tl-date-picker-popup {
           position: absolute;
           top: 100%;
@@ -8889,7 +8894,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           margin-top: 8px;
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
+          border-radius: 2px;
           padding: 16px;
           z-index: 100;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -8914,9 +8919,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         }
         
         .tl-picker-nav-btn {
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
+          width: 26px;
+          height: 26px;
+          border-radius: 2px;
           background: rgba(255, 255, 255, 0.06);
           border: none;
           color: #a1a1aa;
@@ -8924,11 +8929,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.15s;
+          transition: all 0.1s;
         }
-        
+
         .tl-picker-nav-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.12);
           color: #fff;
         }
         
@@ -8955,77 +8960,82 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         .tl-picker-day {
           width: 32px;
           height: 32px;
-          border-radius: 6px;
+          border-radius: 2px;
           background: none;
           border: none;
           color: #a1a1aa;
-          font-size: 13px;
+          font-size: 12px;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           font-family: inherit;
         }
-        
+
         .tl-picker-day:hover {
           background: rgba(255, 255, 255, 0.1);
           color: #fff;
         }
-        
+
         .tl-picker-day.today {
           background: rgba(99, 102, 241, 0.2);
           color: #818cf8;
         }
-        
+
         .tl-picker-day.other-month {
           color: #3f3f46;
         }
-        
+
         .tl-picker-day.other-month:hover {
           color: #71717a;
         }
         
         .tl-btn {
           padding: 8px 16px;
-          border-radius: 8px;
+          border-radius: 2px;
           background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           color: #a1a1aa;
-          font-size: 13px;
+          font-size: 11px;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           display: flex;
           align-items: center;
           font-family: inherit;
           white-space: nowrap;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        
+
         .tl-btn .btn-text {
           display: inline;
         }
-        
+
         .tl-btn:hover {
           background: rgba(255, 255, 255, 0.1);
           color: #fff;
         }
-        
+
         .tl-toggle {
           display: flex;
           background: rgba(255, 255, 255, 0.03);
-          border-radius: 8px;
-          padding: 4px;
+          border-radius: 2px;
+          padding: 3px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
+
         .tl-toggle-btn {
-          padding: 8px 20px;
+          padding: 7px 18px;
           border: none;
           background: transparent;
           color: #71717a;
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
-          border-radius: 6px;
-          transition: all 0.15s;
+          border-radius: 2px;
+          transition: all 0.1s;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        
+
         .tl-toggle-btn:hover { color: #a1a1aa; }
         .tl-toggle-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
         
@@ -9033,8 +9043,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           flex: 1;
           display: flex;
           background: rgba(15, 15, 20, 0.9);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 2px;
           overflow: hidden;
           min-height: 0;
         }
@@ -10207,87 +10217,92 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         }
         
         .cal-nav-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
+          width: 32px;
+          height: 32px;
+          border-radius: 2px;
           background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           color: #a1a1aa;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.15s;
+          transition: all 0.1s;
           flex-shrink: 0;
         }
-        
+
         .cal-nav-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.12);
           color: #fff;
         }
-        
+
         .cal-title {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 600;
           color: #fff;
-          min-width: 180px;
+          min-width: 160px;
           text-align: center;
         }
-        
+
         .cal-today-btn {
           padding: 8px 16px;
-          border-radius: 8px;
-          background: rgba(99, 102, 241, 0.2);
+          border-radius: 2px;
+          background: rgba(99, 102, 241, 0.15);
           border: 1px solid rgba(99, 102, 241, 0.3);
           color: #818cf8;
-          font-size: 13px;
+          font-size: 11px;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           white-space: nowrap;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 500;
         }
-        
+
         .cal-today-btn:hover {
-          background: rgba(99, 102, 241, 0.3);
+          background: rgba(99, 102, 241, 0.25);
         }
-        
+
         .cal-header-right {
           display: flex;
           align-items: center;
           gap: 8px;
         }
-        
+
         .cal-add-btn {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
           padding: 8px 14px;
-          border-radius: 8px;
-          background: rgba(99, 102, 241, 0.15);
+          border-radius: 2px;
+          background: rgba(99, 102, 241, 0.12);
           border: 1px solid rgba(99, 102, 241, 0.3);
           color: #818cf8;
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           font-family: inherit;
           white-space: nowrap;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        
+
         .cal-add-btn .btn-text {
           display: inline;
         }
-        
+
         .cal-add-btn:hover {
-          background: rgba(99, 102, 241, 0.25);
+          background: rgba(99, 102, 241, 0.2);
           border-color: rgba(99, 102, 241, 0.5);
         }
-        
+
         /* Responsive: smaller screens */
         @media (max-width: 700px) {
           .cal-title {
-            font-size: 16px;
-            min-width: 140px;
+            font-size: 14px;
+            min-width: 120px;
           }
           .cal-add-btn {
             padding: 8px 10px;
@@ -10297,7 +10312,7 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           }
           .cal-today-btn {
             padding: 8px 12px;
-            font-size: 12px;
+            font-size: 10px;
           }
         }
         
@@ -10317,12 +10332,12 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         .cal-add-modal {
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 16px;
+          border-radius: 2px;
           width: 480px;
           max-width: 90vw;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-        
+
         .cal-add-modal-header {
           display: flex;
           align-items: center;
@@ -10330,12 +10345,14 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           padding: 20px 24px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
-        
+
         .cal-add-modal-header h3 {
-          font-size: 18px;
+          font-size: 14px;
           font-weight: 600;
           color: #fff;
           margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         
         .cal-add-modal-close {
@@ -10344,8 +10361,8 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           color: #71717a;
           cursor: pointer;
           padding: 4px;
-          border-radius: 6px;
-          transition: all 0.15s;
+          border-radius: 2px;
+          transition: all 0.1s;
         }
         
         .cal-add-modal-close:hover {
@@ -10369,14 +10386,14 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         .cal-add-input, .cal-add-select {
           flex: 1;
           padding: 10px 14px;
-          border-radius: 8px;
+          border-radius: 2px;
           background: rgba(0, 0, 0, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: #fff;
-          font-size: 14px;
+          font-size: 13px;
           font-family: inherit;
           outline: none;
-          transition: all 0.15s;
+          transition: all 0.1s;
         }
         
         .cal-add-input:focus, .cal-add-select:focus {
@@ -10408,8 +10425,8 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           cursor: pointer;
           padding: 4px;
           margin-right: -4px;
-          border-radius: 4px;
-          transition: all 0.15s;
+          border-radius: 2px;
+          transition: all 0.1s;
         }
         
         .cal-add-input[type="date"]::-webkit-calendar-picker-indicator:hover,
@@ -10440,13 +10457,15 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         
         .cal-add-modal-btn {
           padding: 10px 20px;
-          border-radius: 8px;
-          font-size: 14px;
+          border-radius: 2px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.1s;
           font-family: inherit;
           border: none;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         
         .cal-add-modal-btn.primary {
