@@ -9983,6 +9983,7 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   // Get lists for a specific date
   const getListsForDate = (date) => {
     return (lists || []).filter(l => {
+      if (!l.dueDate) return false; // Skip lists without due dates
       const listDate = new Date(l.dueDate);
       return listDate.getFullYear() === date.getFullYear() &&
              listDate.getMonth() === date.getMonth() &&
