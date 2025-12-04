@@ -2466,11 +2466,14 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const addList = async (list) => {
     const dbList = {
       title: list.title,
-      description: list.description || null,
+      notes: list.description || list.notes || null,
       project_id: list.projectId || null,
       client_id: list.clientId || null,
-      color: list.color || null
+      due_date: list.dueDate instanceof Date ? list.dueDate.toISOString() : list.dueDate || null,
+      created_by: currentUser?.id || null
     };
+
+    console.log('Adding list to Supabase:', dbList);
 
     const { data: newList, error } = await window.supabase
       .from('lists')
@@ -2480,16 +2483,20 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     if (error) {
       console.error('Error adding list:', error);
+      alert('Error saving list: ' + error.message);
       return;
     }
+
+    console.log('List saved successfully:', newList);
 
     const localList = {
       id: newList.id,
       title: newList.title,
-      description: newList.description,
+      description: newList.notes,
       projectId: newList.project_id,
       clientId: newList.client_id,
-      color: newList.color
+      dueDate: newList.due_date,
+      createdBy: newList.created_by
     };
 
     setLists(prev => [...prev, localList]);
@@ -2498,10 +2505,11 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const updateList = async (listId, updates) => {
     const dbUpdates = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.description !== undefined) dbUpdates.notes = updates.description;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
     if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
-    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate instanceof Date ? updates.dueDate.toISOString() : updates.dueDate;
 
     const { error } = await window.supabase
       .from('lists')
@@ -2510,6 +2518,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     if (error) {
       console.error('Error updating list:', error);
+      alert('Error updating list: ' + error.message);
       return;
     }
 
