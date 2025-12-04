@@ -1828,6 +1828,313 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     loadData();
   }, [currentTeamMember.id]);
 
+  // Supabase Realtime subscriptions for live updates
+  React.useEffect(() => {
+    if (!currentTeamMember?.id) return;
+
+    const supabase = window.supabase;
+
+    // Helper to transform snake_case to camelCase for tasks
+    const transformTask = (task) => ({
+      ...task,
+      clientId: task.client_id,
+      projectId: task.project_id,
+      listId: task.list_id,
+      listOrder: task.list_order,
+      dueDate: task.due_date ? new Date(task.due_date) : null,
+      assignedTo: task.assigned_to,
+      createdBy: task.created_by,
+      isCompleted: task.is_completed,
+      blockedReason: task.blocked_reason || ''
+    });
+
+    // Helper to transform events
+    const transformEvent = (event) => ({
+      ...event,
+      startTime: event.start_time,
+      endTime: event.end_time,
+      allDay: event.all_day,
+      projectId: event.project_id,
+      clientId: event.client_id,
+      isCompleted: event.is_completed,
+      attendees: [] // Will be loaded separately if needed
+    });
+
+    // Helper to transform lists
+    const transformList = (list) => ({
+      ...list,
+      clientId: list.client_id,
+      projectId: list.project_id,
+      dueDate: list.due_date ? new Date(list.due_date) : null,
+      createdBy: list.created_by,
+      createdAt: new Date(list.created_at)
+    });
+
+    // Helper to transform notes
+    const transformNote = (note) => ({
+      id: note.id,
+      clientId: note.client_id,
+      projectId: note.project_id,
+      authorId: note.author_id,
+      content: note.content,
+      mentions: note.mentions || [],
+      createdAt: new Date(note.created_at),
+      replies: []
+    });
+
+    // Helper to transform notifications
+    const transformNotification = (n) => ({
+      id: n.id,
+      type: n.type,
+      recipientId: n.recipient_id,
+      actorId: n.actor_id,
+      entityType: n.entity_type,
+      entityId: n.entity_id,
+      entityTitle: n.entity_title,
+      message: n.message,
+      read: n.read,
+      createdAt: n.created_at
+    });
+
+    // Subscribe to tasks
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setTasks(prev => [...prev, transformTask(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setTasks(prev => prev.map(t => t.id === payload.new.id ? transformTask(payload.new) : t));
+        } else if (payload.eventType === 'DELETE') {
+          setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to events
+    const eventsChannel = supabase
+      .channel('events-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, async (payload) => {
+        if (payload.eventType === 'INSERT') {
+          // Fetch attendees for new event
+          const { data: attendees } = await supabase
+            .from('event_attendees')
+            .select('team_member_id')
+            .eq('event_id', payload.new.id);
+          const event = transformEvent(payload.new);
+          event.attendees = (attendees || []).map(a => a.team_member_id);
+          setEvents(prev => [...prev, event]);
+        } else if (payload.eventType === 'UPDATE') {
+          setEvents(prev => prev.map(e => {
+            if (e.id === payload.new.id) {
+              return { ...transformEvent(payload.new), attendees: e.attendees };
+            }
+            return e;
+          }));
+        } else if (payload.eventType === 'DELETE') {
+          setEvents(prev => prev.filter(e => e.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to event_attendees for attendee changes
+    const attendeesChannel = supabase
+      .channel('attendees-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees' }, async (payload) => {
+        // Refetch attendees for the affected event
+        const eventId = payload.new?.event_id || payload.old?.event_id;
+        if (eventId) {
+          const { data: attendees } = await supabase
+            .from('event_attendees')
+            .select('team_member_id')
+            .eq('event_id', eventId);
+          setEvents(prev => prev.map(e => {
+            if (e.id === eventId) {
+              return { ...e, attendees: (attendees || []).map(a => a.team_member_id) };
+            }
+            return e;
+          }));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to lists
+    const listsChannel = supabase
+      .channel('lists-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setLists(prev => [...prev, transformList(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setLists(prev => prev.map(l => l.id === payload.new.id ? transformList(payload.new) : l));
+        } else if (payload.eventType === 'DELETE') {
+          setLists(prev => prev.filter(l => l.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to notes
+    const notesChannel = supabase
+      .channel('notes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setNotes(prev => [transformNote(payload.new), ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setNotes(prev => prev.map(n => n.id === payload.new.id ? { ...transformNote(payload.new), replies: n.replies } : n));
+        } else if (payload.eventType === 'DELETE') {
+          setNotes(prev => prev.filter(n => n.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to note_replies
+    const repliesChannel = supabase
+      .channel('replies-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'note_replies' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const noteId = payload.new.note_id;
+          const newReply = {
+            id: payload.new.id,
+            authorId: payload.new.author_id,
+            content: payload.new.content,
+            mentions: payload.new.mentions || [],
+            createdAt: new Date(payload.new.created_at)
+          };
+          setNotes(prev => prev.map(n =>
+            n.id === noteId ? { ...n, replies: [...n.replies, newReply] } : n
+          ));
+        } else if (payload.eventType === 'DELETE') {
+          setNotes(prev => prev.map(n => ({
+            ...n,
+            replies: n.replies.filter(r => r.id !== payload.old.id)
+          })));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to notifications for current user
+    const notificationsChannel = supabase
+      .channel('notifications-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `recipient_id=eq.${currentTeamMember.id}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setNotifications(prev => [transformNotification(payload.new), ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setNotifications(prev => prev.map(n => n.id === payload.new.id ? transformNotification(payload.new) : n));
+        } else if (payload.eventType === 'DELETE') {
+          setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to clients
+    const clientsChannel = supabase
+      .channel('clients-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newClient = { ...payload.new, projects: [] };
+          if (payload.new.is_internal) {
+            if (payload.new.is_personal && payload.new.owner_id === currentTeamMember.id) {
+              setInternal(prev => ({ ...prev, personal: newClient }));
+            } else if (payload.new.is_team) {
+              setInternal(prev => ({ ...prev, team: newClient }));
+            }
+          } else {
+            setClients(prev => [...prev, newClient]);
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          if (payload.new.is_internal) {
+            if (payload.new.is_personal) {
+              setInternal(prev => prev.personal?.id === payload.new.id
+                ? { ...prev, personal: { ...prev.personal, ...payload.new } }
+                : prev);
+            } else if (payload.new.is_team) {
+              setInternal(prev => prev.team?.id === payload.new.id
+                ? { ...prev, team: { ...prev.team, ...payload.new } }
+                : prev);
+            }
+          } else {
+            setClients(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } : c));
+          }
+        } else if (payload.eventType === 'DELETE') {
+          setClients(prev => prev.filter(c => c.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Subscribe to projects
+    const projectsChannel = supabase
+      .channel('projects-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
+        const updateClientProjects = (clientsSetter, clientId, updateFn) => {
+          clientsSetter(prev => {
+            if (Array.isArray(prev)) {
+              return prev.map(c => c.id === clientId ? { ...c, projects: updateFn(c.projects || []) } : c);
+            }
+            return prev;
+          });
+        };
+
+        if (payload.eventType === 'INSERT') {
+          const clientId = payload.new.client_id;
+          // Update in clients array
+          setClients(prev => prev.map(c =>
+            c.id === clientId ? { ...c, projects: [...(c.projects || []), payload.new] } : c
+          ));
+          // Update in internal spaces
+          setInternal(prev => {
+            const updated = { ...prev };
+            if (prev.personal?.id === clientId) {
+              updated.personal = { ...prev.personal, projects: [...(prev.personal.projects || []), payload.new] };
+            }
+            if (prev.team?.id === clientId) {
+              updated.team = { ...prev.team, projects: [...(prev.team.projects || []), payload.new] };
+            }
+            return updated;
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const clientId = payload.new.client_id;
+          const updateProjects = (projects) => projects.map(p => p.id === payload.new.id ? payload.new : p);
+          setClients(prev => prev.map(c =>
+            c.id === clientId ? { ...c, projects: updateProjects(c.projects || []) } : c
+          ));
+          setInternal(prev => {
+            const updated = { ...prev };
+            if (prev.personal?.id === clientId) {
+              updated.personal = { ...prev.personal, projects: updateProjects(prev.personal.projects || []) };
+            }
+            if (prev.team?.id === clientId) {
+              updated.team = { ...prev.team, projects: updateProjects(prev.team.projects || []) };
+            }
+            return updated;
+          });
+        } else if (payload.eventType === 'DELETE') {
+          const removeProject = (projects) => projects.filter(p => p.id !== payload.old.id);
+          setClients(prev => prev.map(c => ({ ...c, projects: removeProject(c.projects || []) })));
+          setInternal(prev => ({
+            personal: prev.personal ? { ...prev.personal, projects: removeProject(prev.personal.projects || []) } : null,
+            team: prev.team ? { ...prev.team, projects: removeProject(prev.team.projects || []) } : null
+          }));
+        }
+      })
+      .subscribe();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(eventsChannel);
+      supabase.removeChannel(attendeesChannel);
+      supabase.removeChannel(listsChannel);
+      supabase.removeChannel(notesChannel);
+      supabase.removeChannel(repliesChannel);
+      supabase.removeChannel(notificationsChannel);
+      supabase.removeChannel(clientsChannel);
+      supabase.removeChannel(projectsChannel);
+    };
+  }, [currentTeamMember?.id]);
+
   // Auto-collapse sidebar on small viewports
   React.useEffect(() => {
     const handleResize = () => {
