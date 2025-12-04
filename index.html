@@ -8153,6 +8153,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const HOURS_VISIBLE = 6;
   const LABEL_WIDTH = 200;
   const ROW_HEIGHT = 60;
+  const RULER_HEIGHT = 44;
   
   // Update time every minute
   React.useEffect(() => {
@@ -9169,7 +9170,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           white-space: nowrap;
         }
 
-        /* Floating badges for tasks and lists in label area */
+        /* Floating badges for tasks and lists - fixed overlay */
+        .tl-fixed-badges-container {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          z-index: 20;
+          pointer-events: none;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .tl-fixed-badges-header {
+          height: ${RULER_HEIGHT}px;
+          flex-shrink: 0;
+        }
+
+        .tl-fixed-badges-row {
+          height: ${ROW_HEIGHT}px;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          padding-left: 8px;
+          pointer-events: auto;
+        }
+
         .tl-label-badges {
           display: flex;
           align-items: center;
@@ -9724,58 +9750,67 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   <span className="tl-label-text">{row.project.name}</span>
                 </>
               )}
-              {/* Floating badges in label area */}
-              {(row.tasks.length > 0 || row.lists.length > 0) && (
-                <div className="tl-label-badges">
-                  {row.lists.map(list => {
-                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
-                    return (
-                      <div
-                        key={`label-list-${list.id}`}
-                        className="tl-badge tl-badge-list"
-                        style={{ borderColor: color, background: `${color}15` }}
-                        title={`${list.title}\n${progress.completed}/${progress.total} completed\nDue: ${new Date(list.dueDate).toLocaleDateString()}`}
-                        onClick={(e) => { e.stopPropagation(); onListClick && onListClick(list); }}
-                      >
-                        <List size={12} />
-                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
-                      </div>
-                    );
-                  })}
-                  {row.tasks.map(task => {
-                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
-                    return (
-                      <div
-                        key={`label-task-${task.id}`}
-                        className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
-                        style={{ borderColor: color }}
-                        title={`${task.title}\nDue: ${new Date(task.dueDate).toLocaleDateString()}`}
-                        onClick={(e) => { e.stopPropagation(); onTaskClick && onTaskClick(task); }}
-                      >
-                        <div
-                          className="tl-badge-check"
-                          style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
-                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                        >
-                          {task.isCompleted && <Check size={8} color="#fff" />}
-                        </div>
-                        <span className="tl-badge-title">{task.title}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           ))}
         </div>
-        
+
         {/* Scrollable area with fixed date overlay */}
         <div className="tl-scroll-wrapper">
           {/* Fixed date indicator - positioned outside scroll for true fixed behavior */}
           <div className="tl-fixed-date">
             {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </div>
+
+          {/* Fixed badges overlay - shows tasks/lists for visible date */}
+          <div className="tl-fixed-badges-container">
+            <div className="tl-fixed-badges-header" />
+            {rows.map((row, i) => {
+              // Filter tasks and lists for the visible date
+              const visibleDateStr = visibleDate.toDateString();
+              const dayTasks = row.tasks.filter(t => new Date(t.dueDate).toDateString() === visibleDateStr);
+              const dayLists = row.lists.filter(l => new Date(l.dueDate).toDateString() === visibleDateStr);
+              const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+
+              return (
+                <div key={i} className={`tl-fixed-badges-row ${row.type}`}>
+                  {dayLists.map(list => {
+                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                    return (
+                      <div
+                        key={`fixed-list-${list.id}`}
+                        className="tl-badge tl-badge-list"
+                        style={{ borderColor: color, background: `${color}15` }}
+                        title={`${list.title}\n${progress.completed}/${progress.total} completed`}
+                        onClick={() => onListClick && onListClick(list)}
+                      >
+                        <List size={12} />
+                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
+                      </div>
+                    );
+                  })}
+                  {dayTasks.map(task => (
+                    <div
+                      key={`fixed-task-${task.id}`}
+                      className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
+                      style={{ borderColor: color }}
+                      title={task.title}
+                      onClick={() => onTaskClick && onTaskClick(task)}
+                    >
+                      <div
+                        className="tl-badge-check"
+                        style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
+                        onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                      >
+                        {task.isCompleted && <Check size={8} color="#fff" />}
+                      </div>
+                      <span className="tl-badge-title">{task.title}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+
           <div className="tl-scroll" ref={scrollContainerRef} onScroll={handleTimelineScroll}>
             <div className="tl-content" style={{ width: totalWidth }}>
               {/* Ruler */}
