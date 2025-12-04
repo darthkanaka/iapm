@@ -2244,7 +2244,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       projectId: newTask.project_id,
       clientId: newTask.client_id,
       assignedTo: newTask.assigned_to,
-      dueDate: newTask.due_date,
+      dueDate: newTask.due_date ? new Date(newTask.due_date) : null,
       isCompleted: newTask.is_completed,
       listId: newTask.list_id,
       listOrder: newTask.list_order
@@ -5826,18 +5826,24 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
   // Get assignee info
   const assignee = isExistingTask ? teamMembers.find(m => m.id === task.assignedTo) : null;
   
-  // Get default due date (today at 5pm if not specified)
+  // Format date as YYYY-MM-DD in local timezone
+  const formatDateLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Get default due date (today if not specified)
   const getDefaultDueDate = () => {
     if (defaultDate) return defaultDate;
-    const now = new Date();
-    return now.toISOString().slice(0, 10);
+    return formatDateLocal(new Date());
   };
-  
+
   // Parse existing task due date
   const getInitialDueDate = () => {
     if (isExistingTask && task.dueDate) {
-      const d = new Date(task.dueDate);
-      return d.toISOString().slice(0, 10);
+      return formatDateLocal(new Date(task.dueDate));
     }
     return getDefaultDueDate();
   };
@@ -6651,17 +6657,25 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
     }
   }
   
+  // Format date as YYYY-MM-DD in local timezone
+  const formatDateLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Form state
   const [title, setTitle] = React.useState(isExistingList ? list.title : '');
   const [clientId, setClientId] = React.useState(existingClientId);
   const [projectId, setProjectId] = React.useState(existingProjectId);
   const [dueDate, setDueDate] = React.useState(() => {
     if (isExistingList && list.dueDate) {
-      return new Date(list.dueDate).toISOString().slice(0, 10);
+      return formatDateLocal(new Date(list.dueDate));
     }
     const now = new Date();
     now.setDate(now.getDate() + 7); // Default 1 week out
-    return now.toISOString().slice(0, 10);
+    return formatDateLocal(now);
   });
   const [notes, setNotes] = React.useState(isExistingList ? (list.notes || '') : '');
   
@@ -6707,7 +6721,7 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
     setTitle(list.title);
     setClientId(existingClientId);
     setProjectId(existingProjectId);
-    setDueDate(new Date(list.dueDate).toISOString().slice(0, 10));
+    setDueDate(formatDateLocal(new Date(list.dueDate)));
     setNotes(list.notes || '');
     setIsEditing(false);
   };
