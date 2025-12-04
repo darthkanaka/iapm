@@ -1416,8 +1416,13 @@ const getTaskStatusBadge = (task) => {
 
 // ==================== MAIN APP ====================
 function ProjectManagementApp({ currentTeamMember, onSignOut }) {
-  const [clients, setClients] = React.useState(initialClients);
-  const [internal, setInternal] = React.useState(internalSpaces);
+  // Data loading state
+  const [dataLoading, setDataLoading] = React.useState(true);
+  const [clients, setClients] = React.useState([]);
+  const [internal, setInternal] = React.useState({
+    personal: null,
+    team: null
+  });
   // Include the authenticated user in the team members list
   const [teamMembers] = React.useState(() => {
     const authUserAsMember = {
@@ -1605,6 +1610,77 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       .slice(0, 20); // Limit to 20 most recent
   };
 
+  // Load data from Supabase
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load all clients with their projects
+        const { data: allClients, error: clientsError } = await supabase
+          .from('clients')
+          .select(`
+            *,
+            projects (*)
+          `)
+          .order('created_at', { ascending: true });
+
+        if (clientsError) throw clientsError;
+
+        // Separate internal spaces from regular clients
+        const regularClients = [];
+        let personalSpace = null;
+        let teamSpace = null;
+
+        allClients?.forEach(client => {
+          // Transform projects array for app compatibility
+          const clientWithProjects = {
+            ...client,
+            projects: client.projects || []
+          };
+
+          if (client.is_personal && client.owner_id === currentTeamMember.id) {
+            personalSpace = clientWithProjects;
+          } else if (client.is_team) {
+            teamSpace = clientWithProjects;
+          } else if (!client.is_internal) {
+            regularClients.push(clientWithProjects);
+          }
+        });
+
+        // If no team space exists, create one
+        if (!teamSpace) {
+          const { data: newTeam, error: teamError } = await supabase
+            .from('clients')
+            .insert({
+              name: 'Team',
+              color: '#0ea5e9',
+              details: 'Shared team workspace for internal projects, meetings, and collaboration.',
+              is_internal: true,
+              is_team: true
+            })
+            .select(`*, projects (*)`)
+            .single();
+
+          if (!teamError && newTeam) {
+            teamSpace = { ...newTeam, projects: newTeam.projects || [] };
+          }
+        }
+
+        setClients(regularClients);
+        setInternal({
+          personal: personalSpace,
+          team: teamSpace
+        });
+
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    loadData();
+  }, [currentTeamMember.id]);
+
   // Auto-collapse sidebar on small viewports
   React.useEffect(() => {
     const handleResize = () => {
@@ -1617,12 +1693,19 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   }, []);
 
   const navigateToClient = (clientId, projectId = null) => {
-    // Check if it's an internal space
-    if (clientId === 'personal' || clientId === 'team') {
-      setSelectedClient({ ...internal[clientId], _initialProject: projectId });
+    // Check if it's the personal space (by UUID or is_personal flag)
+    if (internal.personal && (clientId === internal.personal.id || clientId === 'personal')) {
+      setSelectedClient({ ...internal.personal, _initialProject: projectId });
       setActiveView('client');
       return;
     }
+    // Check if it's the team space (by UUID or is_team flag)
+    if (internal.team && (clientId === internal.team.id || clientId === 'team')) {
+      setSelectedClient({ ...internal.team, _initialProject: projectId });
+      setActiveView('client');
+      return;
+    }
+    // Regular client
     const client = clients.find(c => c.id === clientId);
     if (client) {
       setSelectedClient({ ...client, _initialProject: projectId });
@@ -1961,79 +2044,149 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     addNotifications(notificationsToSend);
   };
 
-  const addClient = (name, color, details = '') => {
-    const newClient = {
-      id: `c${Date.now()}`,
-      name,
-      color,
-      details,
-      projects: []
-    };
-    setClients(prev => [...prev, newClient]);
-    setSelectedClient(newClient);
-    setActiveView('client');
+  const addClient = async (name, color, details = '') => {
+    try {
+      const { data: newClient, error } = await supabase
+        .from('clients')
+        .insert({
+          name,
+          color,
+          details,
+          is_internal: false,
+          is_personal: false,
+          is_team: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const clientWithProjects = { ...newClient, projects: [] };
+      setClients(prev => [...prev, clientWithProjects]);
+      setSelectedClient(clientWithProjects);
+      setActiveView('client');
+    } catch (err) {
+      console.error('Error adding client:', err);
+    }
   };
 
-  const updateClient = (clientId, updates) => {
-    // Check if it's an internal space
-    if (clientId === 'personal' || clientId === 'team') {
-      setInternal(prev => ({
-        ...prev,
-        [clientId]: { ...prev[clientId], ...updates }
-      }));
-      if (selectedClient?.id === clientId) {
-        setSelectedClient(prev => ({ ...prev, ...updates }));
+  const updateClient = async (clientId, updates) => {
+    try {
+      // Get the actual UUID for internal spaces
+      let actualId = clientId;
+      if (clientId === 'personal') {
+        actualId = internal.personal?.id;
+      } else if (clientId === 'team') {
+        actualId = internal.team?.id;
       }
-      return;
-    }
-    
-    setClients(prev => prev.map(c => 
-      c.id === clientId ? { ...c, ...updates } : c
-    ));
-    // Update selectedClient if it's the one we're updating
-    if (selectedClient?.id === clientId) {
-      setSelectedClient(prev => ({ ...prev, ...updates }));
-    }
-  };
 
-  const addProject = (clientId, name, color) => {
-    const newProject = {
-      id: `p${Date.now()}`,
-      name,
-      color
-    };
-    
-    // Check if it's an internal space
-    if (clientId === 'personal' || clientId === 'team') {
-      setInternal(prev => ({
-        ...prev,
-        [clientId]: { 
-          ...prev[clientId], 
-          projects: [...prev[clientId].projects, newProject] 
+      // Only update allowed fields
+      const { name, color, details } = updates;
+      const updateData = {};
+      if (name !== undefined) updateData.name = name;
+      if (color !== undefined) updateData.color = color;
+      if (details !== undefined) updateData.details = details;
+
+      const { error } = await supabase
+        .from('clients')
+        .update(updateData)
+        .eq('id', actualId);
+
+      if (error) throw error;
+
+      // Update local state
+      if (clientId === 'personal' || clientId === 'team') {
+        setInternal(prev => ({
+          ...prev,
+          [clientId]: { ...prev[clientId], ...updates }
+        }));
+        if (selectedClient?.id === actualId || selectedClient?.id === clientId) {
+          setSelectedClient(prev => ({ ...prev, ...updates }));
         }
-      }));
-      if (selectedClient?.id === clientId) {
-        setSelectedClient(prev => ({ ...prev, projects: [...prev.projects, newProject] }));
+      } else {
+        setClients(prev => prev.map(c =>
+          c.id === clientId ? { ...c, ...updates } : c
+        ));
+        if (selectedClient?.id === clientId) {
+          setSelectedClient(prev => ({ ...prev, ...updates }));
+        }
       }
-      return;
-    }
-    
-    setClients(prev => prev.map(c => 
-      c.id === clientId 
-        ? { ...c, projects: [...c.projects, newProject] }
-        : c
-    ));
-    // Update selectedClient if it's the one we're adding to
-    if (selectedClient?.id === clientId) {
-      setSelectedClient(prev => ({ ...prev, projects: [...prev.projects, newProject] }));
+    } catch (err) {
+      console.error('Error updating client:', err);
     }
   };
+
+  const addProject = async (clientId, name, color) => {
+    try {
+      // Get the actual UUID for internal spaces
+      let actualClientId = clientId;
+      if (clientId === 'personal') {
+        actualClientId = internal.personal?.id;
+      } else if (clientId === 'team') {
+        actualClientId = internal.team?.id;
+      }
+
+      const { data: newProject, error } = await supabase
+        .from('projects')
+        .insert({
+          client_id: actualClientId,
+          name,
+          color
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      if (clientId === 'personal' || clientId === 'team') {
+        setInternal(prev => ({
+          ...prev,
+          [clientId]: {
+            ...prev[clientId],
+            projects: [...(prev[clientId]?.projects || []), newProject]
+          }
+        }));
+        if (selectedClient?.id === actualClientId || selectedClient?.is_personal || selectedClient?.is_team) {
+          setSelectedClient(prev => ({ ...prev, projects: [...(prev.projects || []), newProject] }));
+        }
+      } else {
+        setClients(prev => prev.map(c =>
+          c.id === clientId
+            ? { ...c, projects: [...(c.projects || []), newProject] }
+            : c
+        ));
+        if (selectedClient?.id === clientId) {
+          setSelectedClient(prev => ({ ...prev, projects: [...(prev.projects || []), newProject] }));
+        }
+      }
+    } catch (err) {
+      console.error('Error adding project:', err);
+    }
+  };
+
+  // Show loading state while data is being fetched
+  if (dataLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: '#09090b',
+        color: '#71717a',
+        fontSize: '14px'
+      }}>
+        Loading your workspace...
+      </div>
+    );
+  }
 
   return (
     <div className="app">
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         .app {
           display: flex;
           height: 100vh;
@@ -2457,20 +2610,24 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
         <nav className="nav-section">
           {!sidebarCollapsed && <div className="nav-label">Internal</div>}
-          <div 
-            className={`nav-item ${selectedClient?.id === 'personal' ? 'active' : ''}`}
-            onClick={() => { setSelectedClient(internal.personal); setActiveView('client'); }}
-          >
-            <User size={16} style={{ color: internal.personal.color }} />
-            {!sidebarCollapsed && 'Personal'}
-          </div>
-          <div 
-            className={`nav-item ${selectedClient?.id === 'team' ? 'active' : ''}`}
-            onClick={() => { setSelectedClient(internal.team); setActiveView('client'); }}
-          >
-            <Users size={16} style={{ color: internal.team.color }} />
-            {!sidebarCollapsed && 'Team'}
-          </div>
+          {internal.personal && (
+            <div
+              className={`nav-item ${selectedClient?.id === internal.personal.id || selectedClient?.is_personal ? 'active' : ''}`}
+              onClick={() => { setSelectedClient(internal.personal); setActiveView('client'); }}
+            >
+              <User size={16} style={{ color: internal.personal.color }} />
+              {!sidebarCollapsed && 'Personal'}
+            </div>
+          )}
+          {internal.team && (
+            <div
+              className={`nav-item ${selectedClient?.id === internal.team.id || selectedClient?.is_team ? 'active' : ''}`}
+              onClick={() => { setSelectedClient(internal.team); setActiveView('client'); }}
+            >
+              <Users size={16} style={{ color: internal.team.color }} />
+              {!sidebarCollapsed && 'Team'}
+            </div>
+          )}
         </nav>
 
         <nav className="nav-section" style={{ flex: 1, overflowY: 'auto' }}>
