@@ -1922,7 +1922,14 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
         console.log('[Realtime] Task change:', payload.eventType, payload.new?.id || payload.old?.id);
         if (payload.eventType === 'INSERT') {
-          setTasks(prev => [...prev, transformTask(payload.new)]);
+          // Only add if not already in state (prevents duplicates from local add + realtime)
+          setTasks(prev => {
+            if (prev.some(t => t.id === payload.new.id)) {
+              console.log('[Realtime] Task already exists, skipping duplicate:', payload.new.id);
+              return prev;
+            }
+            return [...prev, transformTask(payload.new)];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setTasks(prev => prev.map(t => t.id === payload.new.id ? transformTask(payload.new) : t));
         } else if (payload.eventType === 'DELETE') {
@@ -1946,7 +1953,14 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
             .eq('event_id', payload.new.id);
           const event = transformEvent(payload.new);
           event.attendees = (attendees || []).map(a => a.team_member_id);
-          setEvents(prev => [...prev, event]);
+          // Only add if not already in state (prevents duplicates from local add + realtime)
+          setEvents(prev => {
+            if (prev.some(e => e.id === event.id)) {
+              console.log('[Realtime] Event already exists, skipping duplicate:', event.id);
+              return prev;
+            }
+            return [...prev, event];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setEvents(prev => prev.map(e => {
             if (e.id === payload.new.id) {
@@ -1988,7 +2002,14 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       .channel('lists-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setLists(prev => [...prev, transformList(payload.new)]);
+          // Only add if not already in state (prevents duplicates from local add + realtime)
+          setLists(prev => {
+            if (prev.some(l => l.id === payload.new.id)) {
+              console.log('[Realtime] List already exists, skipping duplicate:', payload.new.id);
+              return prev;
+            }
+            return [...prev, transformList(payload.new)];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setLists(prev => prev.map(l => l.id === payload.new.id ? transformList(payload.new) : l));
         } else if (payload.eventType === 'DELETE') {
