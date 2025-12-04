@@ -1423,34 +1423,11 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     personal: null,
     team: null
   });
-  // Include the authenticated user in the team members list
-  const [teamMembers] = React.useState(() => {
-    const authUserAsMember = {
-      id: currentTeamMember.id,
-      name: currentTeamMember.name,
-      color: currentTeamMember.color
-    };
-    // Check if user already exists in initial team (by email or name match)
-    const existingIndex = initialTeamMembers.findIndex(m =>
-      m.name.toLowerCase() === currentTeamMember.name.toLowerCase()
-    );
-    if (existingIndex >= 0) {
-      // Replace with auth user data
-      const updated = [...initialTeamMembers];
-      updated[existingIndex] = authUserAsMember;
-      return updated;
-    }
-    // Add authenticated user at the beginning
-    return [authUserAsMember, ...initialTeamMembers];
-  });
-  const [events, setEvents] = React.useState(generateEvents);
-  const [lists, setLists] = React.useState(generateLists);
-  const [tasks, setTasks] = React.useState(() => {
-    const regularTasks = generateTasks();
-    const listTasks = generateListTasks();
-    return [...regularTasks, ...listTasks];
-  });
-  const [notes, setNotes] = React.useState(generateNotes);
+  const [events, setEvents] = React.useState([]);
+  const [lists, setLists] = React.useState([]);
+  const [tasks, setTasks] = React.useState([]);
+  const [notes, setNotes] = React.useState([]);
+  const [teamMembers, setTeamMembers] = React.useState([]);
   const [activeView, setActiveView] = React.useState('timeline');
   const [selectedClient, setSelectedClient] = React.useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
@@ -1472,60 +1449,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const [selectedTask, setSelectedTask] = React.useState(null);
   const [selectedList, setSelectedList] = React.useState(null);
   
-  // Notifications system - initialize with sample notifications
-  const [notifications, setNotifications] = React.useState(() => {
-    const now = new Date();
-    return [
-      {
-        id: 'notif_1',
-        type: 'task_assigned',
-        recipientId: 't1', // Kawika
-        actorId: 't2', // Nick
-        entityType: 'task',
-        entityId: 'task1',
-        entityTitle: 'Review homepage mockups',
-        message: 'Nick assigned you to "Review homepage mockups"',
-        read: false,
-        createdAt: new Date(now.getTime() - 30 * 60 * 1000).toISOString() // 30 min ago
-      },
-      {
-        id: 'notif_2',
-        type: 'event_attendee_added',
-        recipientId: 't1',
-        actorId: 't3', // Chris
-        entityType: 'event',
-        entityId: 'e1',
-        entityTitle: 'Design Review',
-        message: 'Chris added you to "Design Review"',
-        read: false,
-        createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
-      },
-      {
-        id: 'notif_3',
-        type: 'task_completed',
-        recipientId: 't1',
-        actorId: 't4', // John
-        entityType: 'task',
-        entityId: 'task5',
-        entityTitle: 'Finalize color palette',
-        message: 'John completed "Finalize color palette"',
-        read: true,
-        createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString() // 5 hours ago
-      },
-      {
-        id: 'notif_4',
-        type: 'mentioned',
-        recipientId: 't1',
-        actorId: 't2',
-        entityType: 'note',
-        entityId: 'note1',
-        entityTitle: 'Acme Corp',
-        message: 'Nick mentioned you in "Acme Corp"',
-        read: true,
-        createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString() // 1 day ago
-      }
-    ];
-  });
+  // Notifications system
+  const [notifications, setNotifications] = React.useState([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
   
   // Generate notification from activity
@@ -1575,26 +1500,118 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   };
   
   // Add notification(s)
-  const addNotification = (notification) => {
+  const addNotification = async (notification) => {
     if (!notification) return;
-    setNotifications(prev => [notification, ...prev]);
+
+    const dbNotif = {
+      type: notification.type,
+      recipient_id: notification.recipientId,
+      actor_id: notification.actorId,
+      entity_type: notification.entityType,
+      entity_id: notification.entityId,
+      entity_title: notification.entityTitle,
+      message: notification.message,
+      read: false
+    };
+
+    const { data: newNotif, error } = await window.supabase
+      .from('notifications')
+      .insert(dbNotif)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding notification:', error);
+      return;
+    }
+
+    const localNotif = {
+      id: newNotif.id,
+      type: newNotif.type,
+      recipientId: newNotif.recipient_id,
+      actorId: newNotif.actor_id,
+      entityType: newNotif.entity_type,
+      entityId: newNotif.entity_id,
+      entityTitle: newNotif.entity_title,
+      message: newNotif.message,
+      read: newNotif.read,
+      createdAt: newNotif.created_at
+    };
+
+    setNotifications(prev => [localNotif, ...prev]);
   };
-  
-  const addNotifications = (notifs) => {
+
+  const addNotifications = async (notifs) => {
     const validNotifs = notifs.filter(Boolean);
     if (validNotifs.length === 0) return;
-    setNotifications(prev => [...validNotifs, ...prev]);
+
+    const dbNotifs = validNotifs.map(n => ({
+      type: n.type,
+      recipient_id: n.recipientId,
+      actor_id: n.actorId,
+      entity_type: n.entityType,
+      entity_id: n.entityId,
+      entity_title: n.entityTitle,
+      message: n.message,
+      read: false
+    }));
+
+    const { data: newNotifs, error } = await window.supabase
+      .from('notifications')
+      .insert(dbNotifs)
+      .select();
+
+    if (error) {
+      console.error('Error adding notifications:', error);
+      return;
+    }
+
+    const localNotifs = newNotifs.map(n => ({
+      id: n.id,
+      type: n.type,
+      recipientId: n.recipient_id,
+      actorId: n.actor_id,
+      entityType: n.entity_type,
+      entityId: n.entity_id,
+      entityTitle: n.entity_title,
+      message: n.message,
+      read: n.read,
+      createdAt: n.created_at
+    }));
+
+    setNotifications(prev => [...localNotifs, ...prev]);
   };
-  
+
   // Mark notification as read
-  const markNotificationRead = (notificationId) => {
-    setNotifications(prev => prev.map(n => 
+  const markNotificationRead = async (notificationId) => {
+    const { error } = await window.supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId);
+
+    if (error) {
+      console.error('Error marking notification read:', error);
+      return;
+    }
+
+    setNotifications(prev => prev.map(n =>
       n.id === notificationId ? { ...n, read: true } : n
     ));
   };
-  
+
   // Mark all as read
-  const markAllNotificationsRead = () => {
+  const markAllNotificationsRead = async () => {
+    const { error } = await window.supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('recipient_id', currentUser.id)
+      .eq('read', false);
+
+    if (error) {
+      console.error('Error marking all notifications read:', error);
+      return;
+    }
+
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
   
@@ -1671,6 +1688,136 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           team: teamSpace
         });
 
+        // Load team members
+        const { data: members, error: membersError } = await supabase
+          .from('team_members')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (membersError) throw membersError;
+        setTeamMembers(members || []);
+
+        // Load lists
+        const { data: allLists, error: listsError } = await supabase
+          .from('lists')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (listsError) throw listsError;
+
+        // Transform lists to match app structure
+        const transformedLists = (allLists || []).map(list => ({
+          ...list,
+          clientId: list.client_id,
+          projectId: list.project_id,
+          dueDate: list.due_date ? new Date(list.due_date) : null,
+          createdBy: list.created_by,
+          createdAt: new Date(list.created_at)
+        }));
+        setLists(transformedLists);
+
+        // Load tasks
+        const { data: allTasks, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (tasksError) throw tasksError;
+
+        // Transform tasks to match app structure
+        const transformedTasks = (allTasks || []).map(task => ({
+          ...task,
+          clientId: task.client_id,
+          projectId: task.project_id,
+          listId: task.list_id,
+          listOrder: task.list_order,
+          dueDate: task.due_date ? new Date(task.due_date) : null,
+          assignedTo: task.assigned_to,
+          createdBy: task.created_by,
+          isCompleted: task.is_completed,
+          blockedReason: task.blocked_reason || ''
+        }));
+        setTasks(transformedTasks);
+
+        // Load events with attendees
+        const { data: allEvents, error: eventsError } = await supabase
+          .from('events')
+          .select(`
+            *,
+            event_attendees (team_member_id)
+          `)
+          .order('start_time', { ascending: true });
+
+        if (eventsError) throw eventsError;
+
+        // Transform events to match app structure
+        const transformedEvents = (allEvents || []).map(event => ({
+          ...event,
+          startTime: event.start_time,
+          endTime: event.end_time,
+          allDay: event.all_day,
+          projectId: event.project_id,
+          clientId: event.client_id,
+          isCompleted: event.is_completed,
+          attendees: (event.event_attendees || []).map(a => a.team_member_id)
+        }));
+        setEvents(transformedEvents);
+
+        // Load notes with replies
+        const { data: allNotes, error: notesError } = await supabase
+          .from('notes')
+          .select(`
+            *,
+            note_replies (*)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (notesError) throw notesError;
+
+        // Transform notes to match app structure
+        const transformedNotes = (allNotes || []).map(note => ({
+          id: note.id,
+          clientId: note.client_id,
+          projectId: note.project_id,
+          authorId: note.author_id,
+          content: note.content,
+          mentions: note.mentions || [],
+          createdAt: new Date(note.created_at),
+          replies: (note.note_replies || []).map(reply => ({
+            id: reply.id,
+            authorId: reply.author_id,
+            content: reply.content,
+            mentions: reply.mentions || [],
+            createdAt: new Date(reply.created_at)
+          })).sort((a, b) => a.createdAt - b.createdAt)
+        }));
+        setNotes(transformedNotes);
+
+        // Load notifications for current user
+        const { data: allNotifications, error: notificationsError } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('recipient_id', currentTeamMember.id)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (notificationsError) throw notificationsError;
+
+        // Transform notifications to match app structure
+        const transformedNotifications = (allNotifications || []).map(n => ({
+          id: n.id,
+          type: n.type,
+          recipientId: n.recipient_id,
+          actorId: n.actor_id,
+          entityType: n.entity_type,
+          entityId: n.entity_id,
+          entityTitle: n.entity_title,
+          message: n.message,
+          read: n.read,
+          createdAt: n.created_at
+        }));
+        setNotifications(transformedNotifications);
+
       } catch (err) {
         console.error('Error loading data:', err);
       } finally {
@@ -1713,38 +1860,147 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
-  const toggleTaskComplete = (taskId) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, isCompleted: !t.isCompleted } : t
+  const toggleTaskComplete = async (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newIsCompleted = !task.isCompleted;
+
+    // Update Supabase
+    const { error } = await window.supabase
+      .from('tasks')
+      .update({ is_completed: newIsCompleted })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error toggling task:', error);
+      return;
+    }
+
+    setTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, isCompleted: newIsCompleted } : t
     ));
     // Update selectedTask if it's the one being toggled
     if (selectedTask?.id === taskId) {
-      setSelectedTask(prev => ({ ...prev, isCompleted: !prev.isCompleted }));
+      setSelectedTask(prev => ({ ...prev, isCompleted: newIsCompleted }));
     }
   };
 
-  const addTask = (task) => {
-    const taskId = `task${Date.now()}`;
-    setTasks(prev => [...prev, { ...task, id: taskId }]);
-    
+  const addTask = async (task) => {
+    // Transform camelCase to snake_case for Supabase
+    const dbTask = {
+      title: task.title,
+      description: task.description || null,
+      project_id: task.projectId || null,
+      client_id: task.clientId || null,
+      assigned_to: task.assignedTo || null,
+      due_date: task.dueDate || null,
+      is_completed: task.isCompleted || false,
+      list_id: task.listId || null,
+      list_order: task.listOrder || null,
+      priority: task.priority || 'medium'
+    };
+
+    const { data: newTask, error } = await window.supabase
+      .from('tasks')
+      .insert(dbTask)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding task:', error);
+      return;
+    }
+
+    // Transform back to camelCase for local state
+    const localTask = {
+      id: newTask.id,
+      title: newTask.title,
+      description: newTask.description,
+      projectId: newTask.project_id,
+      clientId: newTask.client_id,
+      assignedTo: newTask.assigned_to,
+      dueDate: newTask.due_date,
+      isCompleted: newTask.is_completed,
+      listId: newTask.list_id,
+      listOrder: newTask.list_order,
+      priority: newTask.priority
+    };
+
+    setTasks(prev => [...prev, localTask]);
+
     // Notify assignee if different from creator
-    if (task.assignedTo && task.assignedTo !== currentUser.id) {
+    if (localTask.assignedTo && localTask.assignedTo !== currentUser.id) {
       const notif = createNotification(
         'task_assigned',
         currentUser.id,
-        task.assignedTo,
+        localTask.assignedTo,
         'task',
-        taskId,
-        task.title
+        localTask.id,
+        localTask.title
       );
       addNotification(notif);
     }
   };
 
-  const addEvent = (event) => {
-    const eventId = `event${Date.now()}`;
-    setEvents(prev => [...prev, { ...event, id: eventId }]);
-    
+  const addEvent = async (event) => {
+    const dbEvent = {
+      title: event.title,
+      description: event.description || null,
+      start_time: event.startTime,
+      end_time: event.endTime || null,
+      all_day: event.allDay || false,
+      location: event.location || null,
+      project_id: event.projectId || null,
+      client_id: event.clientId || null,
+      color: event.color || null,
+      is_completed: event.isCompleted || false
+    };
+
+    const { data: newEvent, error } = await window.supabase
+      .from('events')
+      .insert(dbEvent)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding event:', error);
+      return;
+    }
+
+    // Add attendees if any
+    if (event.attendees && event.attendees.length > 0) {
+      const attendeeRecords = event.attendees.map(memberId => ({
+        event_id: newEvent.id,
+        team_member_id: memberId
+      }));
+
+      const { error: attendeeError } = await window.supabase
+        .from('event_attendees')
+        .insert(attendeeRecords);
+
+      if (attendeeError) {
+        console.error('Error adding event attendees:', attendeeError);
+      }
+    }
+
+    const localEvent = {
+      id: newEvent.id,
+      title: newEvent.title,
+      description: newEvent.description,
+      startTime: newEvent.start_time,
+      endTime: newEvent.end_time,
+      allDay: newEvent.all_day,
+      location: newEvent.location,
+      projectId: newEvent.project_id,
+      clientId: newEvent.client_id,
+      color: newEvent.color,
+      isCompleted: newEvent.is_completed,
+      attendees: event.attendees || []
+    };
+
+    setEvents(prev => [...prev, localEvent]);
+
     // Notify attendees (except creator)
     if (event.attendees && event.attendees.length > 0) {
       const notifs = event.attendees
@@ -1754,29 +2010,106 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           currentUser.id,
           attendeeId,
           'event',
-          eventId,
+          newEvent.id,
           event.title
         ));
       addNotifications(notifs);
     }
   };
 
-  const updateEvent = (eventId, updates) => {
-    setEvents(prev => prev.map(e => 
+  const updateEvent = async (eventId, updates) => {
+    const dbUpdates = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
+    if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+    if (updates.allDay !== undefined) dbUpdates.all_day = updates.allDay;
+    if (updates.location !== undefined) dbUpdates.location = updates.location;
+    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+    if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
+
+    if (Object.keys(dbUpdates).length > 0) {
+      const { error } = await window.supabase
+        .from('events')
+        .update(dbUpdates)
+        .eq('id', eventId);
+
+      if (error) {
+        console.error('Error updating event:', error);
+        return;
+      }
+    }
+
+    // Handle attendee updates
+    if (updates.attendees !== undefined) {
+      // Delete existing attendees and re-add
+      await window.supabase
+        .from('event_attendees')
+        .delete()
+        .eq('event_id', eventId);
+
+      if (updates.attendees.length > 0) {
+        const attendeeRecords = updates.attendees.map(memberId => ({
+          event_id: eventId,
+          team_member_id: memberId
+        }));
+
+        await window.supabase
+          .from('event_attendees')
+          .insert(attendeeRecords);
+      }
+    }
+
+    setEvents(prev => prev.map(e =>
       e.id === eventId ? { ...e, ...updates } : e
     ));
-    // Close the modal after update
     setSelectedEvent(null);
   };
 
-  const deleteEvent = (eventId) => {
+  const deleteEvent = async (eventId) => {
+    // Attendees will be deleted via CASCADE
+    const { error } = await window.supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
+
+    if (error) {
+      console.error('Error deleting event:', error);
+      return;
+    }
+
     setEvents(prev => prev.filter(e => e.id !== eventId));
     setSelectedEvent(null);
   };
 
-  const updateTask = (taskId, updates) => {
+  const updateTask = async (taskId, updates) => {
     const oldTask = tasks.find(t => t.id === taskId);
-    
+
+    // Transform camelCase to snake_case for Supabase
+    const dbUpdates = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+    if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+    if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+    if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
+    if (updates.listId !== undefined) dbUpdates.list_id = updates.listId;
+    if (updates.listOrder !== undefined) dbUpdates.list_order = updates.listOrder;
+    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+
+    const { error } = await window.supabase
+      .from('tasks')
+      .update(dbUpdates)
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error updating task:', error);
+      return;
+    }
+
     // Check if assignment changed
     if (updates.assignedTo && oldTask && updates.assignedTo !== oldTask.assignedTo) {
       const notif = createNotification(
@@ -1789,34 +2122,111 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       );
       addNotification(notif);
     }
-    
-    setTasks(prev => prev.map(t => 
+
+    setTasks(prev => prev.map(t =>
       t.id === taskId ? { ...t, ...updates } : t
     ));
     // Close the modal after update
     setSelectedTask(null);
   };
 
-  const deleteTask = (taskId) => {
+  const deleteTask = async (taskId) => {
+    const { error } = await window.supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error deleting task:', error);
+      return;
+    }
+
     setTasks(prev => prev.filter(t => t.id !== taskId));
     setSelectedTask(null);
   };
 
   // List CRUD functions
-  const addList = (list) => {
-    setLists(prev => [...prev, { ...list, id: `list${Date.now()}` }]);
+  const addList = async (list) => {
+    const dbList = {
+      title: list.title,
+      description: list.description || null,
+      project_id: list.projectId || null,
+      client_id: list.clientId || null,
+      color: list.color || null
+    };
+
+    const { data: newList, error } = await window.supabase
+      .from('lists')
+      .insert(dbList)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding list:', error);
+      return;
+    }
+
+    const localList = {
+      id: newList.id,
+      title: newList.title,
+      description: newList.description,
+      projectId: newList.project_id,
+      clientId: newList.client_id,
+      color: newList.color
+    };
+
+    setLists(prev => [...prev, localList]);
   };
 
-  const updateList = (listId, updates) => {
-    setLists(prev => prev.map(l => 
+  const updateList = async (listId, updates) => {
+    const dbUpdates = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+    if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+
+    const { error } = await window.supabase
+      .from('lists')
+      .update(dbUpdates)
+      .eq('id', listId);
+
+    if (error) {
+      console.error('Error updating list:', error);
+      return;
+    }
+
+    setLists(prev => prev.map(l =>
       l.id === listId ? { ...l, ...updates } : l
     ));
     setSelectedList(null);
   };
 
-  const deleteList = (listId) => {
-    // Also remove list association from tasks (but don't delete tasks)
-    setTasks(prev => prev.map(t => 
+  const deleteList = async (listId) => {
+    // First remove list association from tasks in Supabase
+    const { error: taskError } = await window.supabase
+      .from('tasks')
+      .update({ list_id: null, list_order: null })
+      .eq('list_id', listId);
+
+    if (taskError) {
+      console.error('Error unlinking tasks from list:', taskError);
+      return;
+    }
+
+    // Then delete the list
+    const { error } = await window.supabase
+      .from('lists')
+      .delete()
+      .eq('id', listId);
+
+    if (error) {
+      console.error('Error deleting list:', error);
+      return;
+    }
+
+    // Update local state
+    setTasks(prev => prev.map(t =>
       t.listId === listId ? { ...t, listId: null, listOrder: null } : t
     ));
     setLists(prev => prev.filter(l => l.id !== listId));
@@ -1900,21 +2310,42 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     return [...new Set(mentions)]; // Remove duplicates
   };
 
-  const addNote = (clientId, content, projectId = null) => {
+  const addNote = async (clientId, content, projectId = null) => {
     const mentions = extractMentions(content);
     const client = [...clients, internal.personal, internal.team].find(c => c.id === clientId);
-    const newNote = {
-      id: `note${Date.now()}`,
-      clientId,
-      projectId,
-      authorId: currentUser.id,
+
+    const dbNote = {
+      client_id: clientId,
+      project_id: projectId,
+      author_id: currentUser.id,
       content,
-      mentions,
-      createdAt: new Date(),
+      mentions
+    };
+
+    const { data: newNoteData, error } = await window.supabase
+      .from('notes')
+      .insert(dbNote)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding note:', error);
+      return;
+    }
+
+    const newNote = {
+      id: newNoteData.id,
+      clientId: newNoteData.client_id,
+      projectId: newNoteData.project_id,
+      authorId: newNoteData.author_id,
+      content: newNoteData.content,
+      mentions: newNoteData.mentions || [],
+      createdAt: new Date(newNoteData.created_at),
       replies: []
     };
+
     setNotes(prev => [newNote, ...prev]);
-    
+
     // Create notifications for mentioned users
     const mentionNotifs = mentions
       .filter(userId => userId !== currentUser.id)
@@ -1929,22 +2360,41 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     addNotifications(mentionNotifs);
   };
 
-  const addReply = (noteId, content) => {
+  const addReply = async (noteId, content) => {
     const mentions = extractMentions(content);
-    const newReply = {
-      id: `reply${Date.now()}`,
-      authorId: currentUser.id,
+
+    const dbReply = {
+      note_id: noteId,
+      author_id: currentUser.id,
       content,
-      mentions,
-      createdAt: new Date()
+      mentions
     };
-    
+
+    const { data: newReplyData, error } = await window.supabase
+      .from('note_replies')
+      .insert(dbReply)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding reply:', error);
+      return;
+    }
+
+    const newReply = {
+      id: newReplyData.id,
+      authorId: newReplyData.author_id,
+      content: newReplyData.content,
+      mentions: newReplyData.mentions || [],
+      createdAt: new Date(newReplyData.created_at)
+    };
+
     // Find the note to get context
     const parentNote = notes.find(n => n.id === noteId);
     const client = parentNote ? [...clients, internal.personal, internal.team].find(c => c.id === parentNote.clientId) : null;
-    
-    setNotes(prev => prev.map(note => 
-      note.id === noteId 
+
+    setNotes(prev => prev.map(note =>
+      note.id === noteId
         ? { ...note, replies: [...note.replies, newReply] }
         : note
     ));
