@@ -2256,15 +2256,15 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const addEvent = async (event) => {
     const dbEvent = {
       title: event.title,
-      description: event.description || event.notes || null,
+      notes: event.description || event.notes || null,
       start_time: event.startTime instanceof Date ? event.startTime.toISOString() : event.startTime,
       end_time: event.endTime instanceof Date ? event.endTime.toISOString() : event.endTime,
       all_day: event.allDay || false,
       location: event.location || null,
       project_id: event.projectId || null,
-      client_id: event.clientId || null,
-      color: event.color || null,
-      is_completed: event.isCompleted || false
+      is_completed: event.isCompleted || false,
+      created_by: currentUser?.id || null,
+      visibility: event.visibility || null
     };
 
     console.log('Adding event to Supabase:', dbEvent);
@@ -2335,15 +2335,15 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const updateEvent = async (eventId, updates) => {
     const dbUpdates = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
-    if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+    if (updates.description !== undefined) dbUpdates.notes = updates.description;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime instanceof Date ? updates.startTime.toISOString() : updates.startTime;
+    if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime instanceof Date ? updates.endTime.toISOString() : updates.endTime;
     if (updates.allDay !== undefined) dbUpdates.all_day = updates.allDay;
     if (updates.location !== undefined) dbUpdates.location = updates.location;
     if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
-    if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
-    if (updates.color !== undefined) dbUpdates.color = updates.color;
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
+    if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
 
     if (Object.keys(dbUpdates).length > 0) {
       const { error } = await window.supabase
@@ -2353,6 +2353,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
       if (error) {
         console.error('Error updating event:', error);
+        alert('Error updating event: ' + error.message);
         return;
       }
     }
