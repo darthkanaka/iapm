@@ -5875,8 +5875,8 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
       // For existing tasks, use their dueDate or empty string if none
       return task.dueDate ? formatDateLocal(new Date(task.dueDate)) : '';
     }
-    // For new tasks, default to today (user can clear if needed)
-    return getDefaultDueDate();
+    // For new tasks, default to no due date
+    return '';
   };
   
   const [title, setTitle] = React.useState(isExistingTask ? task.title : '');
@@ -6743,10 +6743,8 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
       // For existing lists, use their dueDate or empty string if none
       return list.dueDate ? formatDateLocal(new Date(list.dueDate)) : '';
     }
-    // For new lists, default 1 week out (user can clear if needed)
-    const now = new Date();
-    now.setDate(now.getDate() + 7);
-    return formatDateLocal(now);
+    // For new lists, default to no due date
+    return '';
   });
   const [notes, setNotes] = React.useState(isExistingList ? (list.notes || '') : '');
   
