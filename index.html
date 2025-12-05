@@ -11622,6 +11622,47 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
     const saved = localStorage.getItem('listview_myItemsOnly');
     return saved !== null ? JSON.parse(saved) : false;
   });
+
+  // Task status filter - which statuses to show
+  const [selectedStatuses, setSelectedStatuses] = React.useState(() => {
+    const saved = localStorage.getItem('listview_selectedStatuses');
+    return saved !== null ? JSON.parse(saved) : {
+      'todo': true,
+      'in-progress': true,
+      'blocked': true,
+      'on-hold': true,
+      'urgent': true
+    };
+  });
+
+  // Assigned to filter - which team members' tasks to show
+  const [selectedAssignees, setSelectedAssignees] = React.useState(() => {
+    const saved = localStorage.getItem('listview_selectedAssignees');
+    if (saved !== null) return JSON.parse(saved);
+    // Default: show all team members
+    const defaults = { 'unassigned': true };
+    teamMembers.forEach(m => { defaults[m.id] = true; });
+    return defaults;
+  });
+  const [assigneesInitialized, setAssigneesInitialized] = React.useState(false);
+
+  // Date range filter
+  const [dateRangeEnabled, setDateRangeEnabled] = React.useState(() => {
+    const saved = localStorage.getItem('listview_dateRangeEnabled');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [dateRangeStart, setDateRangeStart] = React.useState(() => {
+    const saved = localStorage.getItem('listview_dateRangeStart');
+    return saved || new Date().toISOString().split('T')[0];
+  });
+  const [dateRangeEnd, setDateRangeEnd] = React.useState(() => {
+    const saved = localStorage.getItem('listview_dateRangeEnd');
+    if (saved) return saved;
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    return endDate.toISOString().split('T')[0];
+  });
+
   const [selectedClients, setSelectedClients] = React.useState({});
   const [selectedProjects, setSelectedProjects] = React.useState({});
   const [expandedClients, setExpandedClients] = React.useState({});
@@ -11647,6 +11688,18 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
     setFiltersInitialized(true);
   }, [internal.personal, internal.team, clients, filtersInitialized]);
 
+  // Initialize assignees filter when team members load
+  React.useEffect(() => {
+    if (assigneesInitialized || !teamMembers || teamMembers.length === 0) return;
+    const saved = localStorage.getItem('listview_selectedAssignees');
+    if (saved === null) {
+      const defaults = { 'unassigned': true };
+      teamMembers.forEach(m => { defaults[m.id] = true; });
+      setSelectedAssignees(defaults);
+    }
+    setAssigneesInitialized(true);
+  }, [teamMembers, assigneesInitialized]);
+
   // Persist filter settings to localStorage
   React.useEffect(() => {
     localStorage.setItem('listview_showEvents', JSON.stringify(showEvents));
@@ -11666,6 +11719,21 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
   React.useEffect(() => {
     localStorage.setItem('listview_myItemsOnly', JSON.stringify(myItemsOnly));
   }, [myItemsOnly]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_selectedStatuses', JSON.stringify(selectedStatuses));
+  }, [selectedStatuses]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_selectedAssignees', JSON.stringify(selectedAssignees));
+  }, [selectedAssignees]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_dateRangeEnabled', JSON.stringify(dateRangeEnabled));
+  }, [dateRangeEnabled]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_dateRangeStart', dateRangeStart);
+  }, [dateRangeStart]);
+  React.useEffect(() => {
+    localStorage.setItem('listview_dateRangeEnd', dateRangeEnd);
+  }, [dateRangeEnd]);
 
   // Combine all spaces
   const allSpaces = [
@@ -11721,7 +11789,49 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
   const toggleDayCollapse = (dayKey) => {
     setCollapsedDays(prev => ({ ...prev, [dayKey]: !prev[dayKey] }));
   };
-  
+
+  // Toggle status filter
+  const toggleStatus = (status) => {
+    setSelectedStatuses(prev => ({ ...prev, [status]: !prev[status] }));
+  };
+
+  const selectAllStatuses = () => {
+    setSelectedStatuses({
+      'todo': true,
+      'in-progress': true,
+      'blocked': true,
+      'on-hold': true,
+      'urgent': true
+    });
+  };
+
+  const deselectAllStatuses = () => {
+    setSelectedStatuses({
+      'todo': false,
+      'in-progress': false,
+      'blocked': false,
+      'on-hold': false,
+      'urgent': false
+    });
+  };
+
+  // Toggle assignee filter
+  const toggleAssignee = (assigneeId) => {
+    setSelectedAssignees(prev => ({ ...prev, [assigneeId]: !prev[assigneeId] }));
+  };
+
+  const selectAllAssignees = () => {
+    const newAssignees = { 'unassigned': true };
+    teamMembers.forEach(m => { newAssignees[m.id] = true; });
+    setSelectedAssignees(newAssignees);
+  };
+
+  const deselectAllAssignees = () => {
+    const newAssignees = { 'unassigned': false };
+    teamMembers.forEach(m => { newAssignees[m.id] = false; });
+    setSelectedAssignees(newAssignees);
+  };
+
   // Filter items
   const now = new Date();
   
@@ -11755,34 +11865,70 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
     return null;
   };
   
+  // Date range helper
+  const isInDateRange = (date) => {
+    if (!dateRangeEnabled) return true;
+    const itemDate = new Date(date);
+    itemDate.setHours(0, 0, 0, 0);
+    const start = new Date(dateRangeStart);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateRangeEnd);
+    end.setHours(23, 59, 59, 999);
+    return itemDate >= start && itemDate <= end;
+  };
+
   const filteredEvents = events.filter(e => {
     if (!showEvents) return false;
     if (!showPastEvents && new Date(e.endTime) < now) return false;
-    
+
+    // Date range filter
+    if (!isInDateRange(e.startTime)) return false;
+
     // Get clientId from projectId
     const eventClientId = getEventClientId(e);
     if (eventClientId && !selectedClients[eventClientId]) return false;
-    
+
     if (e.projectId && !selectedProjects[e.projectId]) return false;
     if (searchQuery && !e.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (myItemsOnly && !isMyEvent(e)) return false;
     return true;
   });
-  
+
   const filteredTasks = tasks.filter(t => {
     if (!showTasks) return false;
     if (!showCompleted && t.isCompleted) return false;
     if (!t.dueDate) return false;
+
+    // Date range filter
+    if (!isInDateRange(t.dueDate)) return false;
+
+    // Status filter (skip for completed tasks - they're handled by showCompleted)
+    if (!t.isCompleted) {
+      const taskStatus = t.status || 'todo';
+      if (!selectedStatuses[taskStatus]) return false;
+    }
+
+    // Assignee filter
+    if (t.assignedTo) {
+      if (!selectedAssignees[t.assignedTo]) return false;
+    } else {
+      if (!selectedAssignees['unassigned']) return false;
+    }
+
     if (!selectedClients[t.clientId]) return false;
     if (t.projectId && !selectedProjects[t.projectId]) return false;
     if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (myItemsOnly && !isMyTask(t)) return false;
     return true;
   });
-  
+
   const filteredLists = (lists || []).filter(l => {
     if (!showLists) return false;
     if (!l.dueDate) return false;
+
+    // Date range filter
+    if (!isInDateRange(l.dueDate)) return false;
+
     if (!selectedClients[l.clientId]) return false;
     if (l.projectId && !selectedProjects[l.projectId]) return false;
     if (searchQuery && !l.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -12445,7 +12591,7 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
                 </div>
                 <span className="lv-checkbox-label">Show past events</span>
               </div>
-              <div 
+              <div
                 className={`lv-checkbox-item ${myItemsOnly ? 'checked' : ''}`}
                 onClick={() => setMyItemsOnly(!myItemsOnly)}
               >
@@ -12456,7 +12602,141 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
               </div>
             </div>
           </div>
-          
+
+          {/* Date Range Filter */}
+          <div className="lv-filter-section">
+            <div className="lv-filter-section-header">
+              <span className="lv-filter-section-title">Date Range</span>
+            </div>
+            <div className="lv-checkbox-group">
+              <div
+                className={`lv-checkbox-item ${dateRangeEnabled ? 'checked' : ''}`}
+                onClick={() => setDateRangeEnabled(!dateRangeEnabled)}
+              >
+                <div className={`lv-checkbox ${dateRangeEnabled ? 'checked' : ''}`}>
+                  {dateRangeEnabled && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">Enable date range</span>
+              </div>
+              {dateRangeEnabled && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, paddingLeft: 26 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: '#71717a', minWidth: 35 }}>From</span>
+                    <input
+                      type="date"
+                      value={dateRangeStart}
+                      onChange={(e) => setDateRangeStart(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: 2,
+                        color: '#fff',
+                        fontSize: 12
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: '#71717a', minWidth: 35 }}>To</span>
+                    <input
+                      type="date"
+                      value={dateRangeEnd}
+                      onChange={(e) => setDateRangeEnd(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: 2,
+                        color: '#fff',
+                        fontSize: 12
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Task Status Filter */}
+          {showTasks && (
+            <div className="lv-filter-section">
+              <div className="lv-filter-section-header">
+                <span className="lv-filter-section-title">Task Status</span>
+                <div className="lv-filter-actions">
+                  <button className="lv-filter-action" onClick={selectAllStatuses}>All</button>
+                  <button className="lv-filter-action" onClick={deselectAllStatuses}>None</button>
+                </div>
+              </div>
+              <div className="lv-checkbox-group">
+                {Object.entries(taskStatusConfig).map(([key, config]) => (
+                  <div
+                    key={key}
+                    className={`lv-checkbox-item ${selectedStatuses[key] ? 'checked' : ''}`}
+                    onClick={() => toggleStatus(key)}
+                  >
+                    <div className={`lv-checkbox ${selectedStatuses[key] ? 'checked' : ''}`}>
+                      {selectedStatuses[key] && <Check size={10} color="#fff" />}
+                    </div>
+                    <span style={{ color: config.color, marginRight: 4 }}>{config.icon}</span>
+                    <span className="lv-checkbox-label">{config.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Assigned To Filter */}
+          {showTasks && (
+            <div className="lv-filter-section">
+              <div className="lv-filter-section-header">
+                <span className="lv-filter-section-title">Assigned To</span>
+                <div className="lv-filter-actions">
+                  <button className="lv-filter-action" onClick={selectAllAssignees}>All</button>
+                  <button className="lv-filter-action" onClick={deselectAllAssignees}>None</button>
+                </div>
+              </div>
+              <div className="lv-checkbox-group">
+                <div
+                  className={`lv-checkbox-item ${selectedAssignees['unassigned'] ? 'checked' : ''}`}
+                  onClick={() => toggleAssignee('unassigned')}
+                >
+                  <div className={`lv-checkbox ${selectedAssignees['unassigned'] ? 'checked' : ''}`}>
+                    {selectedAssignees['unassigned'] && <Check size={10} color="#fff" />}
+                  </div>
+                  <span className="lv-checkbox-label" style={{ color: '#71717a', fontStyle: 'italic' }}>Unassigned</span>
+                </div>
+                {teamMembers.map(member => (
+                  <div
+                    key={member.id}
+                    className={`lv-checkbox-item ${selectedAssignees[member.id] ? 'checked' : ''}`}
+                    onClick={() => toggleAssignee(member.id)}
+                  >
+                    <div className={`lv-checkbox ${selectedAssignees[member.id] ? 'checked' : ''}`}>
+                      {selectedAssignees[member.id] && <Check size={10} color="#fff" />}
+                    </div>
+                    <div style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: member.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      color: '#fff',
+                      fontWeight: 600
+                    }}>
+                      {member.name.charAt(0)}
+                    </div>
+                    <span className="lv-checkbox-label">{member.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Clients & Projects */}
           <div className="lv-filter-section">
             <div className="lv-filter-section-header">
