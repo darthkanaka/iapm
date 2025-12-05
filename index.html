@@ -12527,82 +12527,6 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
         </div>
         
         <div className="lv-filter-content">
-          {/* Item Types */}
-          <div className="lv-filter-section">
-            <div className="lv-filter-section-header">
-              <span className="lv-filter-section-title">Item Types</span>
-              <div className="lv-filter-actions">
-                <button className="lv-filter-action" onClick={() => { setShowEvents(true); setShowTasks(true); setShowLists(true); }}>All</button>
-                <button className="lv-filter-action" onClick={() => { setShowEvents(false); setShowTasks(false); setShowLists(false); }}>None</button>
-              </div>
-            </div>
-            <div className="lv-checkbox-group">
-              <div 
-                className={`lv-checkbox-item ${showEvents ? 'checked' : ''}`}
-                onClick={() => setShowEvents(!showEvents)}
-              >
-                <div className={`lv-checkbox ${showEvents ? 'checked' : ''}`}>
-                  {showEvents && <Check size={10} color="#fff" />}
-                </div>
-                <span className="lv-checkbox-label">📅 Events</span>
-              </div>
-              <div 
-                className={`lv-checkbox-item ${showTasks ? 'checked' : ''}`}
-                onClick={() => setShowTasks(!showTasks)}
-              >
-                <div className={`lv-checkbox ${showTasks ? 'checked' : ''}`}>
-                  {showTasks && <Check size={10} color="#fff" />}
-                </div>
-                <span className="lv-checkbox-label">✓ Tasks</span>
-              </div>
-              <div 
-                className={`lv-checkbox-item ${showLists ? 'checked' : ''}`}
-                onClick={() => setShowLists(!showLists)}
-              >
-                <div className={`lv-checkbox ${showLists ? 'checked' : ''}`}>
-                  {showLists && <Check size={10} color="#fff" />}
-                </div>
-                <span className="lv-checkbox-label">📋 Lists</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* View Options */}
-          <div className="lv-filter-section">
-            <div className="lv-filter-section-header">
-              <span className="lv-filter-section-title">View Options</span>
-            </div>
-            <div className="lv-checkbox-group">
-              <div 
-                className={`lv-checkbox-item ${showCompleted ? 'checked' : ''}`}
-                onClick={() => setShowCompleted(!showCompleted)}
-              >
-                <div className={`lv-checkbox ${showCompleted ? 'checked' : ''}`}>
-                  {showCompleted && <Check size={10} color="#fff" />}
-                </div>
-                <span className="lv-checkbox-label">Show completed tasks</span>
-              </div>
-              <div 
-                className={`lv-checkbox-item ${showPastEvents ? 'checked' : ''}`}
-                onClick={() => setShowPastEvents(!showPastEvents)}
-              >
-                <div className={`lv-checkbox ${showPastEvents ? 'checked' : ''}`}>
-                  {showPastEvents && <Check size={10} color="#fff" />}
-                </div>
-                <span className="lv-checkbox-label">Show past events</span>
-              </div>
-              <div
-                className={`lv-checkbox-item ${myItemsOnly ? 'checked' : ''}`}
-                onClick={() => setMyItemsOnly(!myItemsOnly)}
-              >
-                <div className={`lv-checkbox ${myItemsOnly ? 'checked' : ''}`}>
-                  {myItemsOnly && <Check size={10} color="#fff" />}
-                </div>
-                <span className="lv-checkbox-label">My items only</span>
-              </div>
-            </div>
-          </div>
-
           {/* Date Range Filter */}
           <div className="lv-filter-section">
             <div className="lv-filter-section-header">
@@ -12659,6 +12583,46 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
             </div>
           </div>
 
+          {/* Item Types */}
+          <div className="lv-filter-section">
+            <div className="lv-filter-section-header">
+              <span className="lv-filter-section-title">Item Types</span>
+              <div className="lv-filter-actions">
+                <button className="lv-filter-action" onClick={() => { setShowEvents(true); setShowTasks(true); setShowLists(true); }}>All</button>
+                <button className="lv-filter-action" onClick={() => { setShowEvents(false); setShowTasks(false); setShowLists(false); }}>None</button>
+              </div>
+            </div>
+            <div className="lv-checkbox-group">
+              <div
+                className={`lv-checkbox-item ${showEvents ? 'checked' : ''}`}
+                onClick={() => setShowEvents(!showEvents)}
+              >
+                <div className={`lv-checkbox ${showEvents ? 'checked' : ''}`}>
+                  {showEvents && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">📅 Events</span>
+              </div>
+              <div
+                className={`lv-checkbox-item ${showTasks ? 'checked' : ''}`}
+                onClick={() => setShowTasks(!showTasks)}
+              >
+                <div className={`lv-checkbox ${showTasks ? 'checked' : ''}`}>
+                  {showTasks && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">✓ Tasks</span>
+              </div>
+              <div
+                className={`lv-checkbox-item ${showLists ? 'checked' : ''}`}
+                onClick={() => setShowLists(!showLists)}
+              >
+                <div className={`lv-checkbox ${showLists ? 'checked' : ''}`}>
+                  {showLists && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">📋 Lists</span>
+              </div>
+            </div>
+          </div>
+
           {/* Task Status Filter */}
           {showTasks && (
             <div className="lv-filter-section">
@@ -12681,56 +12645,6 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
                     </div>
                     <span style={{ color: config.color, marginRight: 4 }}>{config.icon}</span>
                     <span className="lv-checkbox-label">{config.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Assigned To Filter */}
-          {showTasks && (
-            <div className="lv-filter-section">
-              <div className="lv-filter-section-header">
-                <span className="lv-filter-section-title">Assigned To</span>
-                <div className="lv-filter-actions">
-                  <button className="lv-filter-action" onClick={selectAllAssignees}>All</button>
-                  <button className="lv-filter-action" onClick={deselectAllAssignees}>None</button>
-                </div>
-              </div>
-              <div className="lv-checkbox-group">
-                <div
-                  className={`lv-checkbox-item ${selectedAssignees['unassigned'] ? 'checked' : ''}`}
-                  onClick={() => toggleAssignee('unassigned')}
-                >
-                  <div className={`lv-checkbox ${selectedAssignees['unassigned'] ? 'checked' : ''}`}>
-                    {selectedAssignees['unassigned'] && <Check size={10} color="#fff" />}
-                  </div>
-                  <span className="lv-checkbox-label" style={{ color: '#71717a', fontStyle: 'italic' }}>Unassigned</span>
-                </div>
-                {teamMembers.map(member => (
-                  <div
-                    key={member.id}
-                    className={`lv-checkbox-item ${selectedAssignees[member.id] ? 'checked' : ''}`}
-                    onClick={() => toggleAssignee(member.id)}
-                  >
-                    <div className={`lv-checkbox ${selectedAssignees[member.id] ? 'checked' : ''}`}>
-                      {selectedAssignees[member.id] && <Check size={10} color="#fff" />}
-                    </div>
-                    <div style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: '50%',
-                      background: member.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 10,
-                      color: '#fff',
-                      fontWeight: 600
-                    }}>
-                      {member.name.charAt(0)}
-                    </div>
-                    <span className="lv-checkbox-label">{member.name}</span>
                   </div>
                 ))}
               </div>
@@ -12788,9 +12702,95 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
               ))}
             </div>
           </div>
+
+          {/* Assigned To Filter */}
+          {showTasks && (
+            <div className="lv-filter-section">
+              <div className="lv-filter-section-header">
+                <span className="lv-filter-section-title">Assigned To</span>
+                <div className="lv-filter-actions">
+                  <button className="lv-filter-action" onClick={selectAllAssignees}>All</button>
+                  <button className="lv-filter-action" onClick={deselectAllAssignees}>None</button>
+                </div>
+              </div>
+              <div className="lv-checkbox-group">
+                <div
+                  className={`lv-checkbox-item ${selectedAssignees['unassigned'] ? 'checked' : ''}`}
+                  onClick={() => toggleAssignee('unassigned')}
+                >
+                  <div className={`lv-checkbox ${selectedAssignees['unassigned'] ? 'checked' : ''}`}>
+                    {selectedAssignees['unassigned'] && <Check size={10} color="#fff" />}
+                  </div>
+                  <span className="lv-checkbox-label" style={{ color: '#71717a', fontStyle: 'italic' }}>Unassigned</span>
+                </div>
+                {teamMembers.map(member => (
+                  <div
+                    key={member.id}
+                    className={`lv-checkbox-item ${selectedAssignees[member.id] ? 'checked' : ''}`}
+                    onClick={() => toggleAssignee(member.id)}
+                  >
+                    <div className={`lv-checkbox ${selectedAssignees[member.id] ? 'checked' : ''}`}>
+                      {selectedAssignees[member.id] && <Check size={10} color="#fff" />}
+                    </div>
+                    <div style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: member.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      color: '#fff',
+                      fontWeight: 600
+                    }}>
+                      {member.name.charAt(0)}
+                    </div>
+                    <span className="lv-checkbox-label">{member.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* View Options */}
+          <div className="lv-filter-section">
+            <div className="lv-filter-section-header">
+              <span className="lv-filter-section-title">View Options</span>
+            </div>
+            <div className="lv-checkbox-group">
+              <div
+                className={`lv-checkbox-item ${showCompleted ? 'checked' : ''}`}
+                onClick={() => setShowCompleted(!showCompleted)}
+              >
+                <div className={`lv-checkbox ${showCompleted ? 'checked' : ''}`}>
+                  {showCompleted && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">Show completed tasks</span>
+              </div>
+              <div
+                className={`lv-checkbox-item ${showPastEvents ? 'checked' : ''}`}
+                onClick={() => setShowPastEvents(!showPastEvents)}
+              >
+                <div className={`lv-checkbox ${showPastEvents ? 'checked' : ''}`}>
+                  {showPastEvents && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">Show past events</span>
+              </div>
+              <div
+                className={`lv-checkbox-item ${myItemsOnly ? 'checked' : ''}`}
+                onClick={() => setMyItemsOnly(!myItemsOnly)}
+              >
+                <div className={`lv-checkbox ${myItemsOnly ? 'checked' : ''}`}>
+                  {myItemsOnly && <Check size={10} color="#fff" />}
+                </div>
+                <span className="lv-checkbox-label">My items only</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      
+
       {/* Main Content */}
       <div className="lv-main">
         {sortedDays.length === 0 ? (
