@@ -28,10 +28,19 @@
     window.ReactDOM.createRoot = createRoot;
     window.lucideReact = LucideReact;
 
-    // Initialize Supabase client
+    // Initialize Supabase client with realtime options for better connection stability
     const SUPABASE_URL = 'https://rnzhhwcoxengwmixzaws.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJuemhod2NveGVuZ3dtaXh6YXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MDg5MzgsImV4cCI6MjA4MDM4NDkzOH0.8eH9g3lKKMVIdiGBhEO6O0DhICv6o3X0wtE9Ift2ERw';
-    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        },
+        heartbeatIntervalMs: 15000,
+        reconnectAfterMs: (tries) => Math.min(1000 * Math.pow(2, tries), 30000),
+        timeout: 20000
+      }
+    });
 
     // Now load and run Babel after React is available
     const babelScript = document.createElement('script');
@@ -1853,6 +1862,35 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     if (!currentTeamMember?.id) return;
 
     const supabase = window.supabase;
+    const retryTimeouts = new Map(); // Track retry timeouts for cleanup
+
+    // Helper to handle subscription status and retry on errors
+    const handleSubscriptionStatus = (channelName, channel, status, retryCount = 0) => {
+      console.log(`[Realtime] ${channelName} subscription status:`, status);
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        const maxRetries = 5;
+        if (retryCount < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          console.log(`[Realtime] ${channelName} error, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+
+          const timeoutId = setTimeout(() => {
+            channel.subscribe((newStatus) => {
+              handleSubscriptionStatus(channelName, channel, newStatus, retryCount + 1);
+            });
+          }, delay);
+          retryTimeouts.set(channelName, timeoutId);
+        } else {
+          console.error(`[Realtime] ${channelName} failed after ${maxRetries} retries`);
+        }
+      } else if (status === 'SUBSCRIBED') {
+        // Clear any pending retry timeout on successful subscription
+        if (retryTimeouts.has(channelName)) {
+          clearTimeout(retryTimeouts.get(channelName));
+          retryTimeouts.delete(channelName);
+        }
+      }
+    };
 
     // Helper to transform snake_case to camelCase for tasks
     const transformTask = (task) => ({
@@ -1936,9 +1974,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setTasks(prev => prev.filter(t => t.id !== payload.old.id));
         }
       })
-      .subscribe((status) => {
-        console.log('[Realtime] Tasks subscription status:', status);
-      });
+      .subscribe((status) => handleSubscriptionStatus('Tasks', tasksChannel, status));
 
     // Subscribe to events
     const eventsChannel = supabase
@@ -1972,9 +2008,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setEvents(prev => prev.filter(e => e.id !== payload.old.id));
         }
       })
-      .subscribe((status) => {
-        console.log('[Realtime] Events subscription status:', status);
-      });
+      .subscribe((status) => handleSubscriptionStatus('Events', eventsChannel, status));
 
     // Subscribe to event_attendees for attendee changes
     const attendeesChannel = supabase
@@ -1995,7 +2029,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           }));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Attendees', attendeesChannel, status));
 
     // Subscribe to lists
     const listsChannel = supabase
@@ -2016,7 +2050,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setLists(prev => prev.filter(l => l.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Lists', listsChannel, status));
 
     // Subscribe to notes
     const notesChannel = supabase
@@ -2036,7 +2070,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setNotes(prev => prev.filter(n => n.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Notes', notesChannel, status));
 
     // Subscribe to note_replies
     const repliesChannel = supabase
@@ -2067,7 +2101,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           })));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Replies', repliesChannel, status));
 
     // Subscribe to notifications for current user
     const notificationsChannel = supabase
@@ -2086,7 +2120,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Notifications', notificationsChannel, status));
 
     // Subscribe to clients
     const clientsChannel = supabase
@@ -2121,7 +2155,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           setClients(prev => prev.filter(c => c.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Clients', clientsChannel, status));
 
     // Subscribe to projects
     const projectsChannel = supabase
@@ -2178,10 +2212,14 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           }));
         }
       })
-      .subscribe();
+      .subscribe((status) => handleSubscriptionStatus('Projects', projectsChannel, status));
 
     // Cleanup subscriptions on unmount
     return () => {
+      // Clear any pending retry timeouts
+      retryTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      retryTimeouts.clear();
+
       supabase.removeChannel(tasksChannel);
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(attendeesChannel);
