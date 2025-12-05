@@ -2251,11 +2251,12 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       due_date: task.dueDate instanceof Date ? task.dueDate.toISOString() : task.dueDate || null,
       is_completed: task.isCompleted || false,
       list_id: task.listId || null,
-      list_order: task.listOrder || null,
-      created_by: currentUser?.id,
-      status: task.status || 'todo',
-      blocked_reason: task.blockedReason || null
+      list_order: task.listOrder ?? null,
+      created_by: currentUser?.id
     };
+    // Only add status/blocked_reason if they exist (column may not exist in older schemas)
+    if (task.status) dbTask.status = task.status;
+    if (task.blockedReason) dbTask.blocked_reason = task.blockedReason;
 
     console.log('Adding task to Supabase:', dbTask);
 
