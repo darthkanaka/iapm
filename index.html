@@ -8059,6 +8059,7 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
           position: relative;
           border-left: 1px solid rgba(255, 255, 255, 0.06);
           box-sizing: border-box;
+          height: 100%;
         }
         
         .wk-day-column.week-start {
@@ -8184,14 +8185,15 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
         }
 
         .wk-items-container {
-          position: absolute;
-          top: 4px;
-          left: 4px;
-          right: 4px;
+          position: sticky;
+          top: 0;
+          margin: 0 4px;
           display: flex;
           flex-direction: column;
           gap: 2px;
           z-index: 10;
+          padding: 4px 0;
+          background: linear-gradient(to bottom, rgba(10, 10, 14, 0.98) 0%, rgba(10, 10, 14, 0.95) 85%, transparent 100%);
         }
 
         .wk-list {
