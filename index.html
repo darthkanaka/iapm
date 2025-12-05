@@ -28,10 +28,19 @@
     window.ReactDOM.createRoot = createRoot;
     window.lucideReact = LucideReact;
 
-    // Initialize Supabase client
+    // Initialize Supabase client with realtime options for better connection stability
     const SUPABASE_URL = 'https://rnzhhwcoxengwmixzaws.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJuemhod2NveGVuZ3dtaXh6YXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MDg5MzgsImV4cCI6MjA4MDM4NDkzOH0.8eH9g3lKKMVIdiGBhEO6O0DhICv6o3X0wtE9Ift2ERw';
-    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        },
+        heartbeatIntervalMs: 15000,
+        reconnectAfterMs: (tries) => Math.min(1000 * Math.pow(2, tries), 30000),
+        timeout: 20000
+      }
+    });
 
     // Now load and run Babel after React is available
     const babelScript = document.createElement('script');
