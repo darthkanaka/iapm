@@ -2023,7 +2023,13 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       .channel('notes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setNotes(prev => [transformNote(payload.new), ...prev]);
+          // Check for duplicate before adding
+          setNotes(prev => {
+            if (prev.some(n => n.id === payload.new.id)) {
+              return prev; // Already exists, skip
+            }
+            return [transformNote(payload.new), ...prev];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setNotes(prev => prev.map(n => n.id === payload.new.id ? { ...transformNote(payload.new), replies: n.replies } : n));
         } else if (payload.eventType === 'DELETE') {
@@ -2709,7 +2715,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       replies: []
     };
 
-    setNotes(prev => [newNote, ...prev]);
+    // Note: Don't add to local state - realtime subscription will handle it
+    // This prevents duplicate notes from appearing
 
     // Create notifications for mentioned users
     const mentionNotifs = mentions
@@ -2726,6 +2733,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   };
 
   const addReply = async (noteId, content) => {
+    console.log('addReply called with noteId:', noteId, 'content:', content);
     const mentions = extractMentions(content);
 
     const dbReply = {
@@ -2734,6 +2742,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       content,
       mentions
     };
+    console.log('Inserting reply to Supabase:', dbReply);
 
     const { data: newReplyData, error } = await window.supabase
       .from('note_replies')
@@ -2741,6 +2750,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       .select()
       .single();
 
+    console.log('Reply insert result:', { data: newReplyData, error });
     if (error) {
       console.error('Error adding reply:', error);
       return;
@@ -12814,14 +12824,24 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   
   // Handle add project note reply
   const handleAddProjectNoteReply = () => {
-    if (!projectNoteReplyContent.trim() || !selectedProjectNote) return;
+    console.log('handleAddProjectNoteReply called', { projectNoteReplyContent, selectedProjectNote });
+    if (!projectNoteReplyContent.trim() || !selectedProjectNote) {
+      console.log('handleAddProjectNoteReply early return:', { hasContent: !!projectNoteReplyContent.trim(), hasSelectedNote: !!selectedProjectNote });
+      return;
+    }
+    console.log('Calling addReply with noteId:', selectedProjectNote.id);
     addReply(selectedProjectNote.id, projectNoteReplyContent);
     setProjectNoteReplyContent('');
   };
   
   // Handle add reply
   const handleAddReply = () => {
-    if (!replyContent.trim() || !selectedNote) return;
+    console.log('handleAddReply called', { replyContent, selectedNote, selectedNoteId });
+    if (!replyContent.trim() || !selectedNote) {
+      console.log('handleAddReply early return:', { hasContent: !!replyContent.trim(), hasSelectedNote: !!selectedNote });
+      return;
+    }
+    console.log('Calling addReply with noteId:', selectedNote.id);
     addReply(selectedNote.id, replyContent);
     setReplyContent('');
   };
