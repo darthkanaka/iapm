@@ -2205,6 +2205,16 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Default to Team view on initial load
+  const [initialViewSet, setInitialViewSet] = React.useState(false);
+  React.useEffect(() => {
+    if (!initialViewSet && internal.team) {
+      setSelectedClient(internal.team);
+      setActiveView('client');
+      setInitialViewSet(true);
+    }
+  }, [internal.team, initialViewSet]);
+
   const navigateToClient = (clientId, projectId = null) => {
     // Check if it's the personal space (by UUID or is_personal flag)
     if (internal.personal && (clientId === internal.personal.id || clientId === 'personal')) {
