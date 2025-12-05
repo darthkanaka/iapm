@@ -3070,6 +3070,13 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
+  // Connection indicator computed values
+  const connectionIndicatorVisible = realtimeStatus !== 'connected';
+  const connectionIndicatorMessage =
+    realtimeStatus === 'connecting' ? 'Connecting...' :
+    realtimeStatus === 'reconnecting' ? 'Reconnecting...' :
+    realtimeStatus === 'error' ? 'Connection lost' : '';
+
   // Show loading state while data is being fetched
   if (dataLoading) {
     return (
@@ -15167,13 +15174,9 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
       )}
 
       {/* Connection Status Indicator */}
-      <div className={`connection-indicator ${realtimeStatus !== 'connected' ? 'visible' : ''}`}>
-        <span className={`connection-indicator-dot ${realtimeStatus}`}></span>
-        <span>
-          {realtimeStatus === 'connecting' && 'Connecting...'}
-          {realtimeStatus === 'reconnecting' && 'Reconnecting...'}
-          {realtimeStatus === 'error' && 'Connection lost'}
-        </span>
+      <div className={'connection-indicator' + (connectionIndicatorVisible ? ' visible' : '')}>
+        <span className={'connection-indicator-dot ' + realtimeStatus}></span>
+        <span>{connectionIndicatorMessage}</span>
       </div>
     </div>
   );
