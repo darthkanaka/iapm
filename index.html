@@ -2251,40 +2251,48 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       due_date: task.dueDate instanceof Date ? task.dueDate.toISOString() : task.dueDate || null,
       is_completed: task.isCompleted || false,
       list_id: task.listId || null,
-      list_order: task.listOrder || null,
+      list_order: task.listOrder ?? null,
       created_by: currentUser?.id
     };
+    // Only add status/blocked_reason if they exist (column may not exist in older schemas)
+    if (task.status) dbTask.status = task.status;
+    if (task.blockedReason) dbTask.blocked_reason = task.blockedReason;
 
     console.log('Adding task to Supabase:', dbTask);
 
-    const { data: newTask, error } = await window.supabase
-      .from('tasks')
-      .insert(dbTask)
-      .select()
-      .single();
+    try {
+      const { data: newTask, error } = await window.supabase
+        .from('tasks')
+        .insert(dbTask)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error adding task:', error);
-      alert('Error saving task: ' + error.message);
-      return;
-    }
+      if (error) {
+        console.error('Error adding task:', error);
+        alert('Error saving task: ' + error.message);
+        return;
+      }
 
-    console.log('Task saved successfully:', newTask);
+      console.log('Task saved successfully:', newTask);
 
-    // Note: Local state update is handled by the realtime subscription
-    // to avoid race condition duplicates
+      // Note: Local state update is handled by the realtime subscription
+      // to avoid race condition duplicates
 
-    // Notify assignee if different from creator
-    if (newTask.assigned_to && newTask.assigned_to !== currentUser.id) {
-      const notif = createNotification(
-        'task_assigned',
-        currentUser.id,
-        newTask.assigned_to,
-        'task',
-        newTask.id,
-        newTask.title
-      );
-      addNotification(notif);
+      // Notify assignee if different from creator
+      if (newTask.assigned_to && newTask.assigned_to !== currentUser.id) {
+        const notif = createNotification(
+          'task_assigned',
+          currentUser.id,
+          newTask.assigned_to,
+          'task',
+          newTask.id,
+          newTask.title
+        );
+        addNotification(notif);
+      }
+    } catch (err) {
+      console.error('Unexpected error adding task:', err);
+      alert('Unexpected error saving task: ' + err.message);
     }
   };
 
@@ -2446,36 +2454,47 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
     if (updates.listId !== undefined) dbUpdates.list_id = updates.listId;
     if (updates.listOrder !== undefined) dbUpdates.list_order = updates.listOrder;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.blockedReason !== undefined) dbUpdates.blocked_reason = updates.blockedReason;
 
-    const { error } = await window.supabase
-      .from('tasks')
-      .update(dbUpdates)
-      .eq('id', taskId);
+    console.log('Sending update to Supabase:', taskId, dbUpdates);
 
-    if (error) {
-      console.error('Error updating task:', error);
-      alert('Error updating task: ' + error.message);
-      return;
+    try {
+      const { error } = await window.supabase
+        .from('tasks')
+        .update(dbUpdates)
+        .eq('id', taskId);
+
+      if (error) {
+        console.error('Error updating task:', error);
+        alert('Error updating task: ' + error.message);
+        return;
+      }
+
+      console.log('Task updated successfully:', taskId);
+
+      // Check if assignment changed
+      if (updates.assignedTo && oldTask && updates.assignedTo !== oldTask.assignedTo) {
+        const notif = createNotification(
+          'task_assigned',
+          currentUser.id,
+          updates.assignedTo,
+          'task',
+          taskId,
+          updates.title || oldTask.title
+        );
+        addNotification(notif);
+      }
+
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, ...updates } : t
+      ));
+      // Close the modal after update
+      setSelectedTask(null);
+    } catch (err) {
+      console.error('Unexpected error updating task:', err);
+      alert('Unexpected error updating task: ' + err.message);
     }
-
-    // Check if assignment changed
-    if (updates.assignedTo && oldTask && updates.assignedTo !== oldTask.assignedTo) {
-      const notif = createNotification(
-        'task_assigned',
-        currentUser.id,
-        updates.assignedTo,
-        'task',
-        taskId,
-        updates.title || oldTask.title
-      );
-      addNotification(notif);
-    }
-
-    setTasks(prev => prev.map(t =>
-      t.id === taskId ? { ...t, ...updates } : t
-    ));
-    // Close the modal after update
-    setSelectedTask(null);
   };
 
   const deleteTask = async (taskId) => {
