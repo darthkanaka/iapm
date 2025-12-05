@@ -8440,6 +8440,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [scrollTrigger, setScrollTrigger] = React.useState(0); // Increment to force scroll
   const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 6-hour view
   const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date without re-renders
+  const lastScrollUpdate = React.useRef(0); // Throttle scroll updates
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
@@ -8531,8 +8532,13 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   
   const nowPosition = getPosition(currentTime);
   
-  // Handle scroll to update visible date indicator
+  // Handle scroll to update visible date indicator (throttled for performance)
   const handleTimelineScroll = (e) => {
+    const now = Date.now();
+    // Only update state every 100ms to prevent excessive re-renders
+    if (now - lastScrollUpdate.current < 100) return;
+    lastScrollUpdate.current = now;
+
     const scrollLeft = e.target.scrollLeft;
     // Calculate what time is at the CENTER of the viewport (not left edge)
     const centerScrollLeft = scrollLeft + (containerWidth / 2);
@@ -9327,12 +9333,16 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           height: 100%;
           overflow-x: auto;
           overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          will-change: scroll-position;
         }
-        
+
         .tl-content {
           display: flex;
           flex-direction: column;
           min-height: 100%;
+          transform: translateZ(0);
+          backface-visibility: hidden;
         }
         
         .tl-ruler {
@@ -9397,8 +9407,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         .tl-tracks {
           flex: 1;
           position: relative;
+          transform: translateZ(0);
+          contain: layout style;
         }
-        
+
         .tl-now-line {
           position: absolute;
           top: 0;
@@ -9406,19 +9418,23 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           width: 2px;
           background: #ef4444;
           z-index: 50;
-          box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
         }
         
         .tl-track {
           height: ${ROW_HEIGHT}px;
           position: relative;
           border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          /* Use CSS for hourly grid lines instead of DOM elements */
+          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+          background-size: ${pixelsPerHour}px 100%;
         }
-        
+
         .tl-track.client {
-          background: rgba(255, 255, 255, 0.02);
+          background-color: rgba(255, 255, 255, 0.02);
+          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+          background-size: ${pixelsPerHour}px 100%;
         }
-        
+
         .tl-past {
           position: absolute;
           top: 0;
@@ -9427,19 +9443,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           background: rgba(0, 0, 0, 0.3);
           pointer-events: none;
         }
-        
-        .tl-grid {
+
+        .tl-grid-day {
           position: absolute;
           top: 0;
           bottom: 0;
-          width: 1px;
-          background: rgba(255, 255, 255, 0.03);
-          pointer-events: none;
-        }
-        
-        .tl-grid.new-day {
           width: 2px;
           background: rgba(99, 102, 241, 0.15);
+          pointer-events: none;
         }
         
         .tl-event {
@@ -9453,15 +9464,13 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           gap: 6px;
           cursor: pointer;
           overflow: hidden;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.1);
-          transition: all 0.15s ease;
           z-index: 10;
+          will-change: transform;
         }
-        
+
         .tl-event:hover {
-          transform: scale(1.02);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+          filter: brightness(1.1);
           z-index: 15;
         }
         
@@ -10185,8 +10194,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
               {rows.map((row, i) => (
                 <div key={i} className={`tl-track ${row.type}`}>
                   <div className="tl-past" style={{ width: nowPosition }} />
-                  {hourMarkers.map((m, j) => (
-                    <div key={j} className={`tl-grid ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
+                  {/* Only render day boundary markers - hourly grid is CSS background */}
+                  {hourMarkers.filter(m => m.isNewDay).map((m, j) => (
+                    <div key={j} className="tl-grid-day" style={{ left: m.left }} />
                   ))}
 
                   {/* Events */}
