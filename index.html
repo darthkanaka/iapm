@@ -7673,7 +7673,7 @@ function TimelineDatePicker({ onSelect, onClose, currentTime }) {
 }
 
 // ==================== WEEKLY CALENDAR VIEW ====================
-function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, targetDate, scrollTrigger, onEventClick, onTaskClick, toggleTaskComplete, visibleDateRef }) {
+function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTime, targetDate, scrollTrigger, onEventClick, onTaskClick, onListClick, toggleTaskComplete, getListProgress, visibleDateRef }) {
   const scrollRef = React.useRef(null);
   const timeScrollRef = React.useRef(null);
   const headerScrollRef = React.useRef(null);
@@ -7880,7 +7880,22 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
     const project = client?.projects.find(p => p.id === task.projectId);
     return { client, project };
   };
-  
+
+  // Get lists for a specific day
+  const getListsForDay = (date) => {
+    return (lists || []).filter(l => {
+      if (!l.dueDate) return false;
+      const listDate = new Date(l.dueDate);
+      return listDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const getListInfo = (list) => {
+    const client = allSpaces.find(s => s.id === list.clientId);
+    const project = client?.projects.find(p => p.id === list.projectId);
+    return { client, project };
+  };
+
   // Format hour label
   const formatHour = (hour) => {
     if (hour === 0) return '12 AM';
@@ -8167,6 +8182,54 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
           overflow: hidden;
           text-overflow: ellipsis;
         }
+
+        .wk-items-container {
+          position: absolute;
+          top: 4px;
+          left: 4px;
+          right: 4px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          z-index: 10;
+        }
+
+        .wk-list {
+          height: 22px;
+          border-radius: 6px;
+          padding: 0 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          transition: all 0.15s;
+          background: rgba(10, 10, 14, 0.95);
+          border: 2px solid;
+          font-size: 11px;
+        }
+
+        .wk-list:hover {
+          transform: scale(1.02);
+        }
+
+        .wk-list-icon {
+          font-size: 10px;
+          flex-shrink: 0;
+        }
+
+        .wk-list-title {
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+        }
+
+        .wk-list-progress {
+          font-size: 9px;
+          opacity: 0.7;
+          flex-shrink: 0;
+        }
       `}</style>
       
       {/* Header */}
@@ -8223,12 +8286,13 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
             {allDays.map((day, dayIndex) => {
               const dayEvents = getEventsForDay(day);
               const dayTasks = getTasksForDay(day);
+              const dayLists = getListsForDay(day);
               const isTodayCol = isToday(day);
               const isWeekStartCol = isWeekStart(day);
-              
+
               return (
-                <div 
-                  key={dayIndex} 
+                <div
+                  key={dayIndex}
                   className={`wk-day-column ${isTodayCol ? 'today' : ''} ${isWeekStartCol ? 'week-start' : ''}`}
                   style={{ width: DAY_WIDTH }}
                 >
@@ -8236,7 +8300,64 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
                   {isTodayCol && (
                     <div className="wk-now-line" style={{ top: currentHourPosition }} />
                   )}
-                  
+
+                  {/* Tasks and Lists container at top */}
+                  {(dayTasks.length > 0 || dayLists.length > 0) && (
+                    <div className="wk-items-container">
+                      {/* Tasks */}
+                      {dayTasks.map(task => {
+                        const info = getTaskInfo(task);
+                        const color = info.project?.color || info.client?.color || '#6366f1';
+
+                        return (
+                          <div
+                            key={task.id}
+                            className={`wk-task ${task.isCompleted ? 'completed' : ''}`}
+                            style={{
+                              position: 'relative',
+                              top: 'auto',
+                              borderColor: color,
+                              color: color
+                            }}
+                            onClick={() => onTaskClick && onTaskClick(task)}
+                            title={`Task: ${task.title}`}
+                          >
+                            <div
+                              className={`wk-task-check ${task.isCompleted ? 'checked' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                            >
+                              {task.isCompleted && <Check size={10} color="#fff" />}
+                            </div>
+                            <span className="wk-task-title">{task.title}</span>
+                          </div>
+                        );
+                      })}
+                      {/* Lists */}
+                      {dayLists.map(list => {
+                        const info = getListInfo(list);
+                        const color = info.project?.color || info.client?.color || '#6366f1';
+                        const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+
+                        return (
+                          <div
+                            key={list.id}
+                            className="wk-list"
+                            style={{
+                              borderColor: color,
+                              color: color
+                            }}
+                            onClick={() => onListClick && onListClick(list)}
+                            title={`List: ${list.title}`}
+                          >
+                            <span className="wk-list-icon">📋</span>
+                            <span className="wk-list-title">{list.title}</span>
+                            <span className="wk-list-progress">{progress.completed}/{progress.total}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Events */}
                   {dayEvents.map(event => {
                     const info = getEventInfo(event);
@@ -8245,7 +8366,7 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
                     const endHour = event.endTime.getHours() + event.endTime.getMinutes() / 60;
                     const top = startHour * HOUR_HEIGHT;
                     const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20);
-                    
+
                     return (
                       <div
                         key={event.id}
@@ -8264,36 +8385,6 @@ function WeeklyCalendarView({ events, tasks, clients, internal, currentTime, tar
                             {event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                           </div>
                         )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Tasks */}
-                  {dayTasks.map(task => {
-                    const info = getTaskInfo(task);
-                    const color = info.project?.color || info.client?.color || '#6366f1';
-                    const taskHour = task.dueDate.getHours() + task.dueDate.getMinutes() / 60;
-                    const top = taskHour * HOUR_HEIGHT;
-                    
-                    return (
-                      <div
-                        key={task.id}
-                        className={`wk-task ${task.isCompleted ? 'completed' : ''}`}
-                        style={{
-                          top,
-                          borderColor: color,
-                          color: color
-                        }}
-                        onClick={() => onTaskClick && onTaskClick(task)}
-                        title={`Task: ${task.title}\nDue: ${task.dueDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
-                      >
-                        <div 
-                          className={`wk-task-check ${task.isCompleted ? 'checked' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                        >
-                          {task.isCompleted && <Check size={10} color="#fff" />}
-                        </div>
-                        <span className="wk-task-title">{task.title}</span>
                       </div>
                     );
                   })}
@@ -10085,6 +10176,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         <WeeklyCalendarView
           events={events}
           tasks={tasks}
+          lists={lists}
           clients={clients}
           internal={internal}
           currentTime={currentTime}
@@ -10092,7 +10184,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           scrollTrigger={scrollTrigger}
           onEventClick={onEventClick}
           onTaskClick={onTaskClick}
+          onListClick={onListClick}
           toggleTaskComplete={toggleTaskComplete}
+          getListProgress={getListProgress}
           visibleDateRef={weekVisibleDateRef}
         />
       )}
