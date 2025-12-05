@@ -11482,20 +11482,22 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
                       </div>
                       {info && (
                         <div className="cal-event-meta">
-                          <button 
-                            className="cal-event-badge" 
+                          <button
+                            className="cal-event-badge"
                             style={{ background: info.client.color }}
                             onClick={(e) => { e.stopPropagation(); navigateToClient(info.client.id); }}
                           >
                             {info.client.name}
                           </button>
-                          <button 
-                            className="cal-event-badge" 
+                          {info.project && (
+                          <button
+                            className="cal-event-badge"
                             style={{ background: info.project.color }}
                             onClick={(e) => { e.stopPropagation(); navigateToClient(info.client.id, info.project.id); }}
                           >
                             {info.project.name}
                           </button>
+                          )}
                         </div>
                       )}
                     </div>
