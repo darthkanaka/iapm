@@ -7854,11 +7854,10 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
     });
   };
   
-  // Get tasks for a specific day
+  // Get tasks for a specific day (includes list tasks with due dates)
   const getTasksForDay = (date) => {
     return tasks.filter(t => {
-      if (!t.dueDate) return false; // Skip tasks without due dates (list items)
-      if (t.listId) return false; // Skip list items
+      if (!t.dueDate) return false; // Skip tasks without due dates
       const taskDate = new Date(t.dueDate);
       return taskDate.toDateString() === date.toDateString();
     });
@@ -8321,7 +8320,16 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                               borderColor: color,
                               color: color
                             }}
-                            onClick={() => onTaskClick && onTaskClick(task)}
+                            onClick={() => {
+                              if (task.listId && lists) {
+                                const list = lists.find(l => l.id === task.listId);
+                                if (list && onListClick) {
+                                  onListClick(list);
+                                  return;
+                                }
+                              }
+                              onTaskClick && onTaskClick(task);
+                            }}
                             title={`Task: ${task.title}`}
                           >
                             <div
@@ -8331,6 +8339,7 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                               {task.isCompleted && <Check size={10} color="#fff" />}
                             </div>
                             <span className="wk-task-title">{task.title}</span>
+                            {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 4, flexShrink: 0 }} />}
                           </div>
                         );
                       })}
@@ -8531,9 +8540,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     return events.filter(e => e.projectId === projectId);
   };
   
-  // Get tasks for a project (tasks show at their due time)
+  // Get tasks for a project (includes list tasks with due dates)
   const getProjectTasks = (projectId) => {
-    return tasks.filter(t => t.projectId === projectId && t.dueDate && !t.listId);
+    return tasks.filter(t => t.projectId === projectId && t.dueDate);
   };
   
   // Get all events for a client (all projects combined + client-level events)
@@ -8547,9 +8556,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     return events.filter(e => e.clientId === clientId && !e.projectId);
   };
   
-  // Get all tasks for a client (excluding list items without due dates)
+  // Get all tasks for a client (includes list tasks with due dates)
   const getClientTasks = (client) => {
-    return tasks.filter(t => t.clientId === client.id && t.dueDate && !t.listId);
+    return tasks.filter(t => t.clientId === client.id && t.dueDate);
   };
   
   // Get lists for a project
@@ -8645,8 +8654,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   allSpaces.forEach(client => {
     const isCollapsed = collapsedClients[client.id];
     
-    // Get tasks and lists for client row
-    const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate && !t.listId);
+    // Get tasks and lists for client row (includes list tasks with due dates)
+    const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
     const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
     
     // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
@@ -10003,7 +10012,17 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                       <div 
                         key={task.id}
                         className={`tl-popover-item ${task.isCompleted ? 'completed' : ''}`}
-                        onClick={() => { setItemsPopover(null); onTaskClick && onTaskClick(task); }}
+                        onClick={() => {
+                          setItemsPopover(null);
+                          if (task.listId && lists) {
+                            const list = lists.find(l => l.id === task.listId);
+                            if (list && onListClick) {
+                              onListClick(list);
+                              return;
+                            }
+                          }
+                          onTaskClick && onTaskClick(task);
+                        }}
                       >
                         <div 
                           className={`tl-popover-task-check ${task.isCompleted ? 'checked' : ''}`}
@@ -10012,7 +10031,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                           {task.isCompleted && <Check size={10} color="#fff" />}
                         </div>
                         <div className="tl-popover-item-info">
-                          <div className="tl-popover-item-title">{task.title}</div>
+                          <div className="tl-popover-item-title" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {task.title}
+                            {task.listId && <List size={12} style={{ opacity: 0.6, flexShrink: 0 }} />}
+                          </div>
                           {assignee && <div className="tl-popover-item-meta">{assignee.name}</div>}
                         </div>
                       </div>
@@ -10096,7 +10118,16 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                       className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
                       style={{ borderColor: color }}
                       title={task.title}
-                      onClick={() => onTaskClick && onTaskClick(task)}
+                      onClick={() => {
+                        if (task.listId && lists) {
+                          const list = lists.find(l => l.id === task.listId);
+                          if (list && onListClick) {
+                            onListClick(list);
+                            return;
+                          }
+                        }
+                        onTaskClick && onTaskClick(task);
+                      }}
                     >
                       <div
                         className="tl-badge-check"
@@ -10106,6 +10137,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                         {task.isCompleted && <Check size={8} color="#fff" />}
                       </div>
                       <span className="tl-badge-title">{task.title}</span>
+                      {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
                     </div>
                   ))}
                 </div>
@@ -10235,10 +10267,9 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
     });
   };
   
-  // Get tasks for a specific date (only standalone tasks, not list items)
+  // Get tasks for a specific date (includes list tasks with due dates)
   const getTasksForDate = (date) => {
     return tasks.filter(t => {
-      if (t.listId) return false; // Exclude list items
       if (!t.dueDate) return false;
       const taskDate = new Date(t.dueDate);
       return taskDate.getFullYear() === date.getFullYear() &&
@@ -11284,11 +11315,20 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
                   const assignee = teamMembers.find(m => m.id === task.assignedTo);
                   
                   return (
-                    <div 
-                      key={task.id} 
+                    <div
+                      key={task.id}
                       className={`cal-task-card ${task.isCompleted ? 'completed' : ''}`}
                       style={{ borderColor: clientColor, cursor: 'pointer' }}
-                      onClick={() => onTaskClick(task)}
+                      onClick={() => {
+                        if (task.listId && lists) {
+                          const list = lists.find(l => l.id === task.listId);
+                          if (list && onListClick) {
+                            onListClick(list);
+                            return;
+                          }
+                        }
+                        onTaskClick(task);
+                      }}
                     >
                       <div 
                         className={`cal-task-check ${task.isCompleted ? 'checked' : ''}`}
@@ -11298,7 +11338,10 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
                         {task.isCompleted && <Check size={12} color="#fff" />}
                       </div>
                       <div className="cal-task-info">
-                        <div className="cal-task-title">{task.title}</div>
+                        <div className="cal-task-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {task.title}
+                          {task.listId && <List size={12} style={{ opacity: 0.6, flexShrink: 0 }} />}
+                        </div>
                         <div className="cal-task-badges">
                           {info && (
                             <button 
@@ -12323,10 +12366,19 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
                       
                       if (type === 'task') {
                         return (
-                          <div 
+                          <div
                             key={item.id}
                             className={`lv-item ${item.isCompleted ? 'completed' : ''}`}
-                            onClick={() => onTaskClick && onTaskClick(item)}
+                            onClick={() => {
+                              if (item.listId && lists) {
+                                const list = lists.find(l => l.id === item.listId);
+                                if (list && onListClick) {
+                                  onListClick(list);
+                                  return;
+                                }
+                              }
+                              onTaskClick && onTaskClick(item);
+                            }}
                           >
                             <div 
                               className={`lv-task-checkbox ${item.isCompleted ? 'completed' : ''}`}
@@ -12339,8 +12391,9 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
                             </div>
                             <div className="lv-item-content">
                               <div className="lv-item-header">
-                                <span className={`lv-item-title ${item.isCompleted ? 'completed' : ''}`}>
+                                <span className={`lv-item-title ${item.isCompleted ? 'completed' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                   {item.title}
+                                  {item.listId && <List size={12} style={{ opacity: 0.6, flexShrink: 0 }} />}
                                 </span>
                               </div>
                               <div className="lv-item-meta">
