@@ -1444,7 +1444,20 @@ const getTaskStatusBadge = (task) => {
 };
 
 // ==================== CONNECTION INDICATOR ====================
-function ConnectionIndicator({ status }) {
+function ConnectionIndicator() {
+  const [status, setStatus] = React.useState('connecting');
+
+  React.useEffect(() => {
+    const checkStatus = () => {
+      const newStatus = window.__realtimeStatus || 'connecting';
+      setStatus(newStatus);
+    };
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 500);
+    return () => clearInterval(interval);
+  }, []);
+
   if (status === 'connected') return null;
 
   const message =
@@ -1464,7 +1477,6 @@ function ConnectionIndicator({ status }) {
 function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   // Data loading state
   const [dataLoading, setDataLoading] = React.useState(true);
-  const [realtimeStatus, setRealtimeStatus] = React.useState('connecting'); // 'connected', 'connecting', 'reconnecting', 'error'
   const [clients, setClients] = React.useState([]);
   const [internal, setInternal] = React.useState({
     personal: null,
@@ -1892,13 +1904,13 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       const reconnectingCount = statuses.filter(s => s === 'reconnecting').length;
 
       if (connectedCount === totalChannels) {
-        setRealtimeStatus('connected');
+        window.__realtimeStatus = 'connected';
       } else if (errorCount > 0) {
-        setRealtimeStatus('error');
+        window.__realtimeStatus = 'error';
       } else if (reconnectingCount > 0) {
-        setRealtimeStatus('reconnecting');
+        window.__realtimeStatus = 'reconnecting';
       } else {
-        setRealtimeStatus('connecting');
+        window.__realtimeStatus = 'connecting';
       }
     };
 
@@ -15184,7 +15196,7 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
       )}
 
       {/* Connection Status Indicator */}
-      <ConnectionIndicator status={realtimeStatus} />
+      <ConnectionIndicator />
     </div>
   );
 }
