@@ -11385,10 +11385,10 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
                           } else {
                             const info = getEventInfo(item);
                             return (
-                              <div 
+                              <div
                                 key={`event-${item.id}`}
                                 className="cal-day-event"
-                                style={{ background: info?.project?.color || '#6366f1' }}
+                                style={{ background: info?.project?.color || info?.client?.color || '#6366f1' }}
                               >
                                 {item.title}
                               </div>
