@@ -7918,10 +7918,18 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
   
   // Get project/client info for coloring
   const getEventInfo = (event) => {
+    // First try to find by projectId
     for (const space of allSpaces) {
       const project = space.projects.find(p => p.id === event.projectId);
       if (project) {
         return { client: space, project };
+      }
+    }
+    // If no project, find by clientId
+    if (event.clientId) {
+      const client = allSpaces.find(s => s.id === event.clientId);
+      if (client) {
+        return { client, project: null };
       }
     }
     return { client: null, project: null };
@@ -9632,9 +9640,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         .tl-fixed-badges-row {
           height: ${ROW_HEIGHT}px;
           display: flex;
-          align-items: center;
+          align-items: stretch;
           gap: 3px;
-          padding-left: 8px;
+          padding: 8px 8px;
           pointer-events: auto;
         }
 
@@ -9651,17 +9659,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           display: flex;
           align-items: center;
           gap: 4px;
-          padding: 4px 8px;
-          border-radius: 4px;
+          padding: 0 10px;
+          border-radius: 6px;
           border: 1.5px solid;
           background: rgba(10, 10, 14, 0.95);
           cursor: pointer;
           font-size: 11px;
           white-space: nowrap;
           pointer-events: auto;
-          transition: all 0.15s ease;
-          max-width: 80px;
-          height: 24px;
+          max-width: 100px;
         }
 
         .tl-badge:hover {
@@ -10476,10 +10482,18 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   
   // Get project/client info for an event
   const getEventInfo = (event) => {
+    // First try to find by projectId
     for (const client of allSpaces) {
       const project = client.projects.find(p => p.id === event.projectId);
       if (project) {
         return { client, project };
+      }
+    }
+    // If no project, find by clientId
+    if (event.clientId) {
+      const client = allSpaces.find(c => c.id === event.clientId);
+      if (client) {
+        return { client, project: null };
       }
     }
     return null;
