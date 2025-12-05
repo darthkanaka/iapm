@@ -2736,137 +2736,134 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     console.log('addReply called with noteId:', noteId, 'content:', content);
     const mentions = extractMentions(content);
 
+    // Don't include mentions in insert - let it default, similar to task status fix
     const dbReply = {
       note_id: noteId,
       author_id: currentUser.id,
-      content,
-      mentions
+      content
     };
     console.log('Inserting reply to Supabase:', dbReply);
 
-    const { data: newReplyData, error } = await window.supabase
-      .from('note_replies')
-      .insert(dbReply)
-      .select()
-      .single();
+    try {
+      console.log('Starting Supabase insert for reply...');
+      const { data: newReplyData, error } = await window.supabase
+        .from('note_replies')
+        .insert(dbReply)
+        .select()
+        .single();
 
-    console.log('Reply insert result:', { data: newReplyData, error });
-    if (error) {
-      console.error('Error adding reply:', error);
-      return;
-    }
-
-    const newReply = {
-      id: newReplyData.id,
-      authorId: newReplyData.author_id,
-      content: newReplyData.content,
-      mentions: newReplyData.mentions || [],
-      createdAt: new Date(newReplyData.created_at)
-    };
-
-    // Find the note to get context
-    const parentNote = notes.find(n => n.id === noteId);
-    const client = parentNote ? [...clients, internal.personal, internal.team].find(c => c.id === parentNote.clientId) : null;
-
-    setNotes(prev => prev.map(note =>
-      note.id === noteId
-        ? { ...note, replies: [...note.replies, newReply] }
-        : note
-    ));
-    
-    // Collect all people who should be notified about this reply:
-    // 1. People mentioned in this reply
-    // 2. The original note author
-    // 3. People who were mentioned in the original note
-    // 4. People who were mentioned in previous replies
-    const notificationsToSend = [];
-    const alreadyNotified = new Set([currentUser.id]); // Don't notify self
-    
-    // 1. Notify people mentioned in this reply
-    mentions.forEach(userId => {
-      if (!alreadyNotified.has(userId)) {
-        const notif = createNotification(
-          'mentioned',
-          currentUser.id,
-          userId,
-          'note',
-          noteId,
-          client?.name || 'a reply'
-        );
-        if (notif) notificationsToSend.push(notif);
-        alreadyNotified.add(userId);
+      console.log('Reply insert result:', { data: newReplyData, error });
+      if (error) {
+        console.error('Error adding reply:', error);
+        alert('Error adding reply: ' + error.message);
+        return;
       }
-    });
-    
-    // 2. Notify the original note author
-    if (parentNote && parentNote.authorId && !alreadyNotified.has(parentNote.authorId)) {
-      const notif = createNotification(
-        'reply',
-        currentUser.id,
-        parentNote.authorId,
-        'note',
-        noteId,
-        client?.name || 'your note'
-      );
-      if (notif) notificationsToSend.push(notif);
-      alreadyNotified.add(parentNote.authorId);
-    }
-    
-    // 3. Notify people mentioned in the original note (thread participants)
-    if (parentNote?.mentions) {
-      parentNote.mentions.forEach(userId => {
+
+      // Note: Don't add to local state - realtime subscription will handle it
+      // This prevents duplicate replies from appearing
+      console.log('Reply added successfully, id:', newReplyData.id);
+
+      // Find the note to get context for notifications
+      const parentNote = notes.find(n => n.id === noteId);
+      const client = parentNote ? [...clients, internal.personal, internal.team].find(c => c.id === parentNote.clientId) : null;
+
+      // Collect all people who should be notified about this reply:
+      // 1. People mentioned in this reply
+      // 2. The original note author
+      // 3. People who were mentioned in the original note
+      // 4. People who were mentioned in previous replies
+      const notificationsToSend = [];
+      const alreadyNotified = new Set([currentUser.id]); // Don't notify self
+
+      // 1. Notify people mentioned in this reply
+      mentions.forEach(userId => {
         if (!alreadyNotified.has(userId)) {
           const notif = createNotification(
-            'thread_reply',
+            'mentioned',
             currentUser.id,
             userId,
             'note',
             noteId,
-            client?.name || 'a thread you\'re in'
+            client?.name || 'a reply'
           );
           if (notif) notificationsToSend.push(notif);
           alreadyNotified.add(userId);
         }
       });
+
+      // 2. Notify the original note author
+      if (parentNote && parentNote.authorId && !alreadyNotified.has(parentNote.authorId)) {
+        const notif = createNotification(
+          'reply',
+          currentUser.id,
+          parentNote.authorId,
+          'note',
+          noteId,
+          client?.name || 'your note'
+        );
+        if (notif) notificationsToSend.push(notif);
+        alreadyNotified.add(parentNote.authorId);
+      }
+
+      // 3. Notify people mentioned in the original note (thread participants)
+      if (parentNote?.mentions) {
+        parentNote.mentions.forEach(userId => {
+          if (!alreadyNotified.has(userId)) {
+            const notif = createNotification(
+              'thread_reply',
+              currentUser.id,
+              userId,
+              'note',
+              noteId,
+              client?.name || 'a thread you\'re in'
+            );
+            if (notif) notificationsToSend.push(notif);
+            alreadyNotified.add(userId);
+          }
+        });
+      }
+
+      // 4. Notify people mentioned in previous replies (thread participants)
+      if (parentNote?.replies) {
+        parentNote.replies.forEach(reply => {
+          // Notify reply authors
+          if (reply.authorId && !alreadyNotified.has(reply.authorId)) {
+            const notif = createNotification(
+              'thread_reply',
+              currentUser.id,
+              reply.authorId,
+              'note',
+              noteId,
+              client?.name || 'a thread you\'re in'
+            );
+            if (notif) notificationsToSend.push(notif);
+            alreadyNotified.add(reply.authorId);
+          }
+          // Notify people mentioned in previous replies
+          if (reply.mentions) {
+            reply.mentions.forEach(userId => {
+              if (!alreadyNotified.has(userId)) {
+                const notif = createNotification(
+                  'thread_reply',
+                  currentUser.id,
+                  userId,
+                  'note',
+                  noteId,
+                  client?.name || 'a thread you\'re in'
+                );
+                if (notif) notificationsToSend.push(notif);
+                alreadyNotified.add(userId);
+              }
+            });
+          }
+        });
+      }
+
+      addNotifications(notificationsToSend);
+    } catch (err) {
+      console.error('Unexpected error adding reply:', err);
+      alert('Unexpected error adding reply: ' + err.message);
     }
-    
-    // 4. Notify people mentioned in previous replies (thread participants)
-    if (parentNote?.replies) {
-      parentNote.replies.forEach(reply => {
-        // Notify reply authors
-        if (reply.authorId && !alreadyNotified.has(reply.authorId)) {
-          const notif = createNotification(
-            'thread_reply',
-            currentUser.id,
-            reply.authorId,
-            'note',
-            noteId,
-            client?.name || 'a thread you\'re in'
-          );
-          if (notif) notificationsToSend.push(notif);
-          alreadyNotified.add(reply.authorId);
-        }
-        // Notify people mentioned in previous replies
-        if (reply.mentions) {
-          reply.mentions.forEach(userId => {
-            if (!alreadyNotified.has(userId)) {
-              const notif = createNotification(
-                'thread_reply',
-                currentUser.id,
-                userId,
-                'note',
-                noteId,
-                client?.name || 'a thread you\'re in'
-              );
-              if (notif) notificationsToSend.push(notif);
-              alreadyNotified.add(userId);
-            }
-          });
-        }
-      });
-    }
-    
-    addNotifications(notificationsToSend);
   };
 
   const addClient = async (name, color, details = '') => {
