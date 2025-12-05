@@ -8565,9 +8565,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const toggleCollapse = (clientId) => {
     setCollapsedClients(prev => ({ ...prev, [clientId]: !prev[clientId] }));
   };
-  
-  // Calculate timeline dimensions
-  const pixelsPerHour = containerWidth / HOURS_VISIBLE;
+
+  // Calculate timeline dimensions - round to avoid floating point drift
+  const pixelsPerHour = Math.round(containerWidth / HOURS_VISIBLE);
   
   // Time range - start 12 hours ago
   const rangeStart = new Date(currentTime.getTime() - 12 * 60 * 60 * 1000);
@@ -8650,7 +8650,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     }, 300);
   };
   
-  // Generate hour markers
+  // Generate hour markers - use integer positions for pixel-perfect alignment
   const hourMarkers = [];
   for (let h = 0; h < TOTAL_HOURS; h++) {
     const time = new Date(rangeStart.getTime() + h * 60 * 60 * 1000);
@@ -8659,7 +8659,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       label: time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
       isNewDay: time.getHours() === 0,
       date: time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      left: h * pixelsPerHour
+      left: h * pixelsPerHour // pixelsPerHour is already rounded
     });
   }
   
