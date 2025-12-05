@@ -9547,15 +9547,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           height: ${ROW_HEIGHT}px;
           position: relative;
           border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-          /* Use CSS for hourly grid lines instead of DOM elements */
-          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-          background-size: ${pixelsPerHour}px 100%;
         }
 
         .tl-track.client {
           background-color: rgba(255, 255, 255, 0.02);
-          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-          background-size: ${pixelsPerHour}px 100%;
         }
 
         .tl-past {
