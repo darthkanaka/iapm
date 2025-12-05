@@ -1443,6 +1443,23 @@ const getTaskStatusBadge = (task) => {
   return null;
 };
 
+// ==================== CONNECTION INDICATOR ====================
+function ConnectionIndicator({ status }) {
+  if (status === 'connected') return null;
+
+  const message =
+    status === 'connecting' ? 'Connecting...' :
+    status === 'reconnecting' ? 'Reconnecting...' :
+    status === 'error' ? 'Connection lost' : '';
+
+  return (
+    <div className="connection-indicator visible">
+      <span className={'connection-indicator-dot ' + status}></span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
 // ==================== MAIN APP ====================
 function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   // Data loading state
@@ -3069,13 +3086,6 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       console.error('Error adding project:', err);
     }
   };
-
-  // Connection indicator computed values
-  const connectionIndicatorVisible = realtimeStatus !== 'connected';
-  const connectionIndicatorMessage =
-    realtimeStatus === 'connecting' ? 'Connecting...' :
-    realtimeStatus === 'reconnecting' ? 'Reconnecting...' :
-    realtimeStatus === 'error' ? 'Connection lost' : '';
 
   // Show loading state while data is being fetched
   if (dataLoading) {
@@ -15174,10 +15184,7 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
       )}
 
       {/* Connection Status Indicator */}
-      <div className={'connection-indicator' + (connectionIndicatorVisible ? ' visible' : '')}>
-        <span className={'connection-indicator-dot ' + realtimeStatus}></span>
-        <span>{connectionIndicatorMessage}</span>
-      </div>
+      <ConnectionIndicator status={realtimeStatus} />
     </div>
   );
 }
