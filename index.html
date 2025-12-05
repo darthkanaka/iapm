@@ -4720,6 +4720,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
   const [endHour, setEndHour] = React.useState(initialTime.endHour);
   const [endMinute, setEndMinute] = React.useState(initialTime.endMinute);
   const [endAmpm, setEndAmpm] = React.useState(initialTime.endAmpm);
+  const [isAllDay, setIsAllDay] = React.useState(isExistingEvent ? (event.allDay || false) : false);
   const [location, setLocation] = React.useState(isExistingEvent ? (event.location || '') : '');
   const [eventDescription, setEventDescription] = React.useState(isExistingEvent ? (event.notes || '') : '');
   const [attendees, setAttendees] = React.useState(getInitialAttendees);
@@ -4844,15 +4845,25 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
 
     setIsSaving(true);
 
-    const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
-    const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
+    // For all-day events, use 12am to 12am (midnight to midnight)
+    let startTimeDate, endTimeDate;
+    if (isAllDay) {
+      startTimeDate = new Date(`${date}T00:00:00`);
+      endTimeDate = new Date(`${date}T23:59:59`);
+    } else {
+      const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
+      const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
+      startTimeDate = new Date(`${date}T${startTimeStr}`);
+      endTimeDate = new Date(`${date}T${endTimeStr}`);
+    }
 
     const eventData = {
       clientId,
       projectId: projectId || null,
       title: title.trim(),
-      startTime: new Date(`${date}T${startTimeStr}`),
-      endTime: new Date(`${date}T${endTimeStr}`),
+      startTime: startTimeDate,
+      endTime: endTimeDate,
+      allDay: isAllDay,
       location: location.trim(),
       notes: eventDescription.trim(),
       attendees: attendees,
@@ -5616,7 +5627,19 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
-              
+
+              <div className="event-modal-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  id="allday-toggle"
+                  checked={isAllDay}
+                  onChange={(e) => setIsAllDay(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <label htmlFor="allday-toggle" style={{ cursor: 'pointer', fontSize: 13 }}>All day event</label>
+              </div>
+
+              {!isAllDay && (
               <div className="event-modal-field">
                 <label className="event-modal-label">Time</label>
                 <div className="event-modal-time-row">
@@ -5691,7 +5714,8 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                   </div>
                 </div>
               </div>
-              
+              )}
+
               <div className="event-modal-field">
                 <label className="event-modal-label">Notes (optional)</label>
                 <MentionTextarea
@@ -7865,14 +7889,24 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
     }, 50);
   };
   
-  // Get events for a specific day
+  // Get timed events for a specific day (excludes all-day events)
   const getEventsForDay = (date) => {
     return events.filter(e => {
+      if (e.allDay) return false; // All-day events go in sticky container
       const eventDate = new Date(e.startTime);
       return eventDate.toDateString() === date.toDateString();
     });
   };
-  
+
+  // Get all-day events for a specific day
+  const getAllDayEventsForDay = (date) => {
+    return events.filter(e => {
+      if (!e.allDay) return false;
+      const eventDate = new Date(e.startTime);
+      return eventDate.toDateString() === date.toDateString();
+    });
+  };
+
   // Get tasks for a specific day (includes list tasks with due dates)
   const getTasksForDay = (date) => {
     return tasks.filter(t => {
@@ -8250,6 +8284,30 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
           opacity: 0.7;
           flex-shrink: 0;
         }
+
+        .wk-allday {
+          height: 22px;
+          border-radius: 6px;
+          padding: 0 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          color: #fff;
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        .wk-allday:hover {
+          filter: brightness(1.1);
+        }
+
+        .wk-allday-title {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+        }
       `}</style>
       
       {/* Header */}
@@ -8305,6 +8363,7 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
             {/* Day columns */}
             {allDays.map((day, dayIndex) => {
               const dayEvents = getEventsForDay(day);
+              const dayAllDayEvents = getAllDayEventsForDay(day);
               const dayTasks = getTasksForDay(day);
               const dayLists = getListsForDay(day);
               const isTodayCol = isToday(day);
@@ -8321,9 +8380,27 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                     <div className="wk-now-line" style={{ top: currentHourPosition }} />
                   )}
 
-                  {/* Tasks and Lists container at top */}
-                  {(dayTasks.length > 0 || dayLists.length > 0) && (
+                  {/* All-day events, Tasks and Lists container at top */}
+                  {(dayAllDayEvents.length > 0 || dayTasks.length > 0 || dayLists.length > 0) && (
                     <div className="wk-items-container">
+                      {/* All-day events first */}
+                      {dayAllDayEvents.map(event => {
+                        const info = getEventInfo(event);
+                        const color = info.project?.color || info.client?.color || '#6366f1';
+
+                        return (
+                          <div
+                            key={event.id}
+                            className="wk-allday"
+                            style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
+                            onClick={() => onEventClick && onEventClick(event)}
+                            title={`All day: ${event.title}`}
+                          >
+                            <Calendar size={12} style={{ flexShrink: 0 }} />
+                            <span className="wk-allday-title">{event.title}</span>
+                          </div>
+                        );
+                      })}
                       {/* Tasks */}
                       {dayTasks.map(task => {
                         const info = getTaskInfo(task);
@@ -8439,8 +8516,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
   const [scrollTrigger, setScrollTrigger] = React.useState(0); // Increment to force scroll
   const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 6-hour view
-  const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date without re-renders
-  const lastScrollUpdate = React.useRef(0); // Throttle scroll updates
+  const visibleDateRef = React.useRef(new Date()); // Track visible date during scroll without re-renders
+  const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date
+  const scrollEndTimeout = React.useRef(null); // Debounce scroll end for state update
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
@@ -8532,19 +8610,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   
   const nowPosition = getPosition(currentTime);
   
-  // Handle scroll to update visible date indicator (throttled for performance)
+  // Handle scroll to update visible date indicator (debounced for performance)
   const handleTimelineScroll = (e) => {
-    const now = Date.now();
-    // Only update state every 100ms to prevent excessive re-renders
-    if (now - lastScrollUpdate.current < 100) return;
-    lastScrollUpdate.current = now;
-
     const scrollLeft = e.target.scrollLeft;
     // Calculate what time is at the CENTER of the viewport (not left edge)
     const centerScrollLeft = scrollLeft + (containerWidth / 2);
     const hoursFromStart = centerScrollLeft / pixelsPerHour;
     const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
-    setVisibleDate(viewportDate);
+
+    // Update ref immediately (no re-render)
+    visibleDateRef.current = viewportDate;
+
+    // Debounce state update - only update when scrolling stops
+    clearTimeout(scrollEndTimeout.current);
+    scrollEndTimeout.current = setTimeout(() => {
+      setVisibleDate(viewportDate);
+    }, 150);
   };
   
   // Generate hour markers
@@ -8560,25 +8641,41 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     });
   }
   
-  // Get events for a project
+  // Get events for a project (excludes all-day events - they show in badges)
   const getProjectEvents = (projectId) => {
-    return events.filter(e => e.projectId === projectId);
+    return events.filter(e => e.projectId === projectId && !e.allDay);
   };
-  
+
+  // Get all-day events for a project
+  const getProjectAllDayEvents = (projectId) => {
+    return events.filter(e => e.projectId === projectId && e.allDay);
+  };
+
   // Get tasks for a project (includes list tasks with due dates)
   const getProjectTasks = (projectId) => {
     return tasks.filter(t => t.projectId === projectId && t.dueDate);
   };
-  
-  // Get all events for a client (all projects combined + client-level events)
+
+  // Get all events for a client (all projects combined + client-level events, excludes all-day)
   const getClientEvents = (client) => {
     const projectIds = client.projects.map(p => p.id);
-    return events.filter(e => projectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId));
+    return events.filter(e => (projectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)) && !e.allDay);
   };
-  
-  // Get client-level events (no project)
+
+  // Get all all-day events for a client
+  const getClientAllDayEvents = (client) => {
+    const projectIds = client.projects.map(p => p.id);
+    return events.filter(e => (projectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)) && e.allDay);
+  };
+
+  // Get client-level events (no project, excludes all-day)
   const getClientLevelEvents = (clientId) => {
-    return events.filter(e => e.clientId === clientId && !e.projectId);
+    return events.filter(e => e.clientId === clientId && !e.projectId && !e.allDay);
+  };
+
+  // Get client-level all-day events
+  const getClientLevelAllDayEvents = (clientId) => {
+    return events.filter(e => e.clientId === clientId && !e.projectId && e.allDay);
   };
   
   // Get all tasks for a client (includes list tasks with due dates)
@@ -8682,28 +8779,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     // Get tasks and lists for client row (includes list tasks with due dates)
     const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
     const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
-    
+    const clientRowAllDayEvents = isCollapsed ? getClientAllDayEvents(client) : getClientLevelAllDayEvents(client.id);
+
     // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
     rows.push({
       type: 'client',
       client,
       isCollapsed,
       events: isCollapsed ? getClientEvents(client) : getClientLevelEvents(client.id),
+      allDayEvents: clientRowAllDayEvents,
       tasks: clientRowTasks,
       lists: clientRowLists,
       groupedItems: groupItemsByDay(clientRowTasks, clientRowLists)
     });
-    
+
     // Project rows (if not collapsed)
     if (!isCollapsed) {
       client.projects.forEach(project => {
         const projectTasks = getProjectTasks(project.id);
         const projectLists = getProjectLists(project.id);
+        const projectAllDayEvents = getProjectAllDayEvents(project.id);
         rows.push({
           type: 'project',
           client,
           project,
           events: getProjectEvents(project.id),
+          allDayEvents: projectAllDayEvents,
           tasks: projectTasks,
           lists: projectLists,
           groupedItems: groupItemsByDay(projectTasks, projectLists)
@@ -9555,6 +9656,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           border-style: dashed;
         }
 
+        .tl-badge-allday {
+          border-radius: 4px;
+          color: #fff;
+          font-weight: 500;
+        }
+
         .tl-badge-fraction {
           font-weight: 600;
           font-size: 10px;
@@ -10113,33 +10220,36 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
             {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </div>
 
-          {/* Fixed badges overlay - shows tasks/lists for visible date */}
+          {/* Fixed badges overlay - shows all-day events/tasks/lists for visible date */}
           <div className="tl-fixed-badges-container">
             <div className="tl-fixed-badges-header" />
             {rows.map((row, i) => {
-              // Filter tasks and lists for the visible date (skip those without due dates)
+              // Filter items for the visible date
               const visibleDateStr = visibleDate.toDateString();
+              const dayAllDayEvents = (row.allDayEvents || []).filter(e => {
+                const eventDate = new Date(e.startTime);
+                return eventDate.toDateString() === visibleDateStr;
+              });
               const dayTasks = row.tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr);
               const dayLists = row.lists.filter(l => l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr);
               const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
 
               return (
                 <div key={i} className={`tl-fixed-badges-row ${row.type}`}>
-                  {dayLists.map(list => {
-                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                    return (
-                      <div
-                        key={`fixed-list-${list.id}`}
-                        className="tl-badge tl-badge-list"
-                        style={{ borderColor: color, background: `${color}15` }}
-                        title={`${list.title}\n${progress.completed}/${progress.total} completed`}
-                        onClick={() => onListClick && onListClick(list)}
-                      >
-                        <List size={12} />
-                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
-                      </div>
-                    );
-                  })}
+                  {/* All-day events first */}
+                  {dayAllDayEvents.map(event => (
+                    <div
+                      key={`fixed-allday-${event.id}`}
+                      className="tl-badge tl-badge-allday"
+                      style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
+                      title={event.title}
+                      onClick={() => onEventClick && onEventClick(event)}
+                    >
+                      <Calendar size={10} />
+                      <span className="tl-badge-title">{event.title}</span>
+                    </div>
+                  ))}
+                  {/* Tasks */}
                   {dayTasks.map(task => (
                     <div
                       key={`fixed-task-${task.id}`}
@@ -10168,6 +10278,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                       {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
                     </div>
                   ))}
+                  {/* Lists */}
+                  {dayLists.map(list => {
+                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                    return (
+                      <div
+                        key={`fixed-list-${list.id}`}
+                        className="tl-badge tl-badge-list"
+                        style={{ borderColor: color, background: `${color}15` }}
+                        title={`${list.title}\n${progress.completed}/${progress.total} completed`}
+                        onClick={() => onListClick && onListClick(list)}
+                      >
+                        <List size={12} />
+                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
