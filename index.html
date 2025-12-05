@@ -8511,6 +8511,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [collapsedClients, setCollapsedClients] = React.useState({});
   const [viewMode, setViewMode] = React.useState('day'); // 'day' or 'week'
   const scrollContainerRef = React.useRef(null);
+  const dateIndicatorRef = React.useRef(null); // Direct DOM ref for date indicator
+  const badgesContainerRef = React.useRef(null); // Direct DOM ref for badges
   const [containerWidth, setContainerWidth] = React.useState(800);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
@@ -8610,7 +8612,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   
   const nowPosition = getPosition(currentTime);
   
-  // Handle scroll to update visible date indicator (debounced for performance)
+  // Handle scroll to update visible date indicator (real-time DOM updates)
   const handleTimelineScroll = (e) => {
     const scrollLeft = e.target.scrollLeft;
     // Calculate what time is at the CENTER of the viewport (not left edge)
@@ -8618,14 +8620,34 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     const hoursFromStart = centerScrollLeft / pixelsPerHour;
     const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
 
-    // Update ref immediately (no re-render)
+    // Update ref immediately
     visibleDateRef.current = viewportDate;
 
-    // Debounce state update - only update when scrolling stops
+    // Update date indicator directly via DOM (real-time, no re-render)
+    if (dateIndicatorRef.current) {
+      dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    // Update badges visibility directly via DOM (real-time)
+    if (badgesContainerRef.current) {
+      const newDateStr = viewportDate.toDateString();
+      const rows = badgesContainerRef.current.querySelectorAll('.tl-fixed-badges-row');
+      rows.forEach(row => {
+        const badges = row.querySelectorAll('.tl-badge');
+        badges.forEach(badge => {
+          const badgeDateStr = badge.dataset.date;
+          if (badgeDateStr) {
+            badge.style.display = badgeDateStr === newDateStr ? 'flex' : 'none';
+          }
+        });
+      });
+    }
+
+    // Still debounce state update for React consistency
     clearTimeout(scrollEndTimeout.current);
     scrollEndTimeout.current = setTimeout(() => {
       setVisibleDate(viewportDate);
-    }, 150);
+    }, 300);
   };
   
   // Generate hour markers
@@ -10216,76 +10238,89 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         {/* Scrollable area with fixed date overlay */}
         <div className="tl-scroll-wrapper">
           {/* Fixed date indicator - positioned outside scroll for true fixed behavior */}
-          <div className="tl-fixed-date">
+          <div className="tl-fixed-date" ref={dateIndicatorRef}>
             {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </div>
 
-          {/* Fixed badges overlay - shows all-day events/tasks/lists for visible date */}
-          <div className="tl-fixed-badges-container">
+          {/* Fixed badges overlay - renders ALL items with data-date, JS shows/hides in real-time */}
+          <div className="tl-fixed-badges-container" ref={badgesContainerRef}>
             <div className="tl-fixed-badges-header" />
             {rows.map((row, i) => {
-              // Filter items for the visible date
-              const visibleDateStr = visibleDate.toDateString();
-              const dayAllDayEvents = (row.allDayEvents || []).filter(e => {
-                const eventDate = new Date(e.startTime);
-                return eventDate.toDateString() === visibleDateStr;
-              });
-              const dayTasks = row.tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr);
-              const dayLists = row.lists.filter(l => l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr);
               const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+              const currentDateStr = visibleDate.toDateString();
 
               return (
                 <div key={i} className={`tl-fixed-badges-row ${row.type}`}>
-                  {/* All-day events first */}
-                  {dayAllDayEvents.map(event => (
-                    <div
-                      key={`fixed-allday-${event.id}`}
-                      className="tl-badge tl-badge-allday"
-                      style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
-                      title={event.title}
-                      onClick={() => onEventClick && onEventClick(event)}
-                    >
-                      <Calendar size={10} />
-                      <span className="tl-badge-title">{event.title}</span>
-                    </div>
-                  ))}
-                  {/* Tasks */}
-                  {dayTasks.map(task => (
-                    <div
-                      key={`fixed-task-${task.id}`}
-                      className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
-                      style={{ borderColor: color }}
-                      title={task.title}
-                      onClick={() => {
-                        if (task.listId && lists) {
-                          const list = lists.find(l => l.id === task.listId);
-                          if (list && onListClick) {
-                            onListClick(list);
-                            return;
-                          }
-                        }
-                        onTaskClick && onTaskClick(task);
-                      }}
-                    >
+                  {/* All-day events */}
+                  {(row.allDayEvents || []).map(event => {
+                    const eventDateStr = new Date(event.startTime).toDateString();
+                    return (
                       <div
-                        className="tl-badge-check"
-                        style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
-                        onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                        key={`fixed-allday-${event.id}`}
+                        className="tl-badge tl-badge-allday"
+                        data-date={eventDateStr}
+                        style={{
+                          background: `linear-gradient(135deg, ${color}dd, ${color}99)`,
+                          display: eventDateStr === currentDateStr ? 'flex' : 'none'
+                        }}
+                        title={event.title}
+                        onClick={() => onEventClick && onEventClick(event)}
                       >
-                        {task.isCompleted && <Check size={8} color="#fff" />}
+                        <Calendar size={10} />
+                        <span className="tl-badge-title">{event.title}</span>
                       </div>
-                      <span className="tl-badge-title">{task.title}</span>
-                      {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {/* Tasks */}
+                  {row.tasks.filter(t => t.dueDate).map(task => {
+                    const taskDateStr = new Date(task.dueDate).toDateString();
+                    return (
+                      <div
+                        key={`fixed-task-${task.id}`}
+                        className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
+                        data-date={taskDateStr}
+                        style={{
+                          borderColor: color,
+                          display: taskDateStr === currentDateStr ? 'flex' : 'none'
+                        }}
+                        title={task.title}
+                        onClick={() => {
+                          if (task.listId && lists) {
+                            const list = lists.find(l => l.id === task.listId);
+                            if (list && onListClick) {
+                              onListClick(list);
+                              return;
+                            }
+                          }
+                          onTaskClick && onTaskClick(task);
+                        }}
+                      >
+                        <div
+                          className="tl-badge-check"
+                          style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
+                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                        >
+                          {task.isCompleted && <Check size={8} color="#fff" />}
+                        </div>
+                        <span className="tl-badge-title">{task.title}</span>
+                        {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
+                      </div>
+                    );
+                  })}
                   {/* Lists */}
-                  {dayLists.map(list => {
+                  {(row.lists || []).filter(l => l.dueDate).map(list => {
+                    const listDateStr = new Date(list.dueDate).toDateString();
                     const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
                     return (
                       <div
                         key={`fixed-list-${list.id}`}
                         className="tl-badge tl-badge-list"
-                        style={{ borderColor: color, background: `${color}15` }}
+                        data-date={listDateStr}
+                        style={{
+                          borderColor: color,
+                          background: `${color}15`,
+                          display: listDateStr === currentDateStr ? 'flex' : 'none'
+                        }}
                         title={`${list.title}\n${progress.completed}/${progress.total} completed`}
                         onClick={() => onListClick && onListClick(list)}
                       >
