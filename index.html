@@ -1447,6 +1447,7 @@ const getTaskStatusBadge = (task) => {
 function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   // Data loading state
   const [dataLoading, setDataLoading] = React.useState(true);
+  const [realtimeStatus, setRealtimeStatus] = React.useState('connecting'); // 'connected', 'connecting', 'reconnecting', 'error'
   const [clients, setClients] = React.useState([]);
   const [internal, setInternal] = React.useState({
     personal: null,
@@ -1863,6 +1864,26 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     const supabase = window.supabase;
     const retryTimeouts = new Map(); // Track retry timeouts for cleanup
+    const channelStatuses = new Map(); // Track status of each channel
+    const totalChannels = 9; // Number of subscription channels
+
+    // Update overall realtime status based on individual channel statuses
+    const updateOverallStatus = () => {
+      const statuses = Array.from(channelStatuses.values());
+      const connectedCount = statuses.filter(s => s === 'connected').length;
+      const errorCount = statuses.filter(s => s === 'error').length;
+      const reconnectingCount = statuses.filter(s => s === 'reconnecting').length;
+
+      if (connectedCount === totalChannels) {
+        setRealtimeStatus('connected');
+      } else if (errorCount > 0) {
+        setRealtimeStatus('error');
+      } else if (reconnectingCount > 0) {
+        setRealtimeStatus('reconnecting');
+      } else {
+        setRealtimeStatus('connecting');
+      }
+    };
 
     // Helper to handle subscription status and retry on errors
     const handleSubscriptionStatus = (channelName, channel, status, retryCount = 0) => {
@@ -1871,6 +1892,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         const maxRetries = 5;
         if (retryCount < maxRetries) {
+          channelStatuses.set(channelName, 'reconnecting');
+          updateOverallStatus();
+
           const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
           console.log(`[Realtime] ${channelName} error, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
 
@@ -1882,8 +1906,13 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           retryTimeouts.set(channelName, timeoutId);
         } else {
           console.error(`[Realtime] ${channelName} failed after ${maxRetries} retries`);
+          channelStatuses.set(channelName, 'error');
+          updateOverallStatus();
         }
       } else if (status === 'SUBSCRIBED') {
+        channelStatuses.set(channelName, 'connected');
+        updateOverallStatus();
+
         // Clear any pending retry timeout on successful subscription
         if (retryTimeouts.has(channelName)) {
           clearTimeout(retryTimeouts.get(channelName));
@@ -3072,6 +3101,47 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           overflow: hidden;
         }
         
+        /* Connection Status Indicator */
+        .connection-indicator {
+          position: fixed;
+          bottom: 16px;
+          right: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: rgba(39, 39, 42, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          font-size: 12px;
+          color: #a1a1aa;
+          z-index: 1000;
+          backdrop-filter: blur(8px);
+          transition: all 0.3s ease;
+          opacity: 0;
+          transform: translateY(10px);
+          pointer-events: none;
+        }
+        .connection-indicator.visible {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+        .connection-indicator-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .connection-indicator-dot.connected { background: #22c55e; }
+        .connection-indicator-dot.connecting { background: #eab308; animation: pulse 1.5s infinite; }
+        .connection-indicator-dot.reconnecting { background: #f97316; animation: pulse 1s infinite; }
+        .connection-indicator-dot.error { background: #ef4444; }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
         /* Sidebar */
         .sidebar {
           width: ${sidebarCollapsed ? '56px' : '240px'};
@@ -15085,7 +15155,7 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
       
       {/* Task Modal (Create) */}
       {showAddTaskModal && (
-        <TaskModal 
+        <TaskModal
           onClose={() => setShowAddTaskModal(false)}
           onSave={addTask}
           clients={clients}
@@ -15095,6 +15165,16 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           defaultProjectId={addTaskDefaults.projectId}
         />
       )}
+
+      {/* Connection Status Indicator */}
+      <div className={`connection-indicator ${realtimeStatus !== 'connected' ? 'visible' : ''}`}>
+        <span className={`connection-indicator-dot ${realtimeStatus}`}></span>
+        <span>
+          {realtimeStatus === 'connecting' && 'Connecting...'}
+          {realtimeStatus === 'reconnecting' && 'Reconnecting...'}
+          {realtimeStatus === 'error' && 'Connection lost'}
+        </span>
+      </div>
     </div>
   );
 }
