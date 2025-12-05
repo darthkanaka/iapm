@@ -4720,6 +4720,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
   const [endHour, setEndHour] = React.useState(initialTime.endHour);
   const [endMinute, setEndMinute] = React.useState(initialTime.endMinute);
   const [endAmpm, setEndAmpm] = React.useState(initialTime.endAmpm);
+  const [isAllDay, setIsAllDay] = React.useState(isExistingEvent ? (event.allDay || false) : false);
   const [location, setLocation] = React.useState(isExistingEvent ? (event.location || '') : '');
   const [eventDescription, setEventDescription] = React.useState(isExistingEvent ? (event.notes || '') : '');
   const [attendees, setAttendees] = React.useState(getInitialAttendees);
@@ -4844,15 +4845,25 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
 
     setIsSaving(true);
 
-    const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
-    const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
+    // For all-day events, use 12am to 12am (midnight to midnight)
+    let startTimeDate, endTimeDate;
+    if (isAllDay) {
+      startTimeDate = new Date(`${date}T00:00:00`);
+      endTimeDate = new Date(`${date}T23:59:59`);
+    } else {
+      const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
+      const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
+      startTimeDate = new Date(`${date}T${startTimeStr}`);
+      endTimeDate = new Date(`${date}T${endTimeStr}`);
+    }
 
     const eventData = {
       clientId,
       projectId: projectId || null,
       title: title.trim(),
-      startTime: new Date(`${date}T${startTimeStr}`),
-      endTime: new Date(`${date}T${endTimeStr}`),
+      startTime: startTimeDate,
+      endTime: endTimeDate,
+      allDay: isAllDay,
       location: location.trim(),
       notes: eventDescription.trim(),
       attendees: attendees,
@@ -5616,7 +5627,19 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
-              
+
+              <div className="event-modal-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  id="allday-toggle"
+                  checked={isAllDay}
+                  onChange={(e) => setIsAllDay(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <label htmlFor="allday-toggle" style={{ cursor: 'pointer', fontSize: 13 }}>All day event</label>
+              </div>
+
+              {!isAllDay && (
               <div className="event-modal-field">
                 <label className="event-modal-label">Time</label>
                 <div className="event-modal-time-row">
@@ -5691,7 +5714,8 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                   </div>
                 </div>
               </div>
-              
+              )}
+
               <div className="event-modal-field">
                 <label className="event-modal-label">Notes (optional)</label>
                 <MentionTextarea
