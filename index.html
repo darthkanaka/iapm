@@ -6795,9 +6795,9 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
           <div className="task-modal-footer">
             <div className="task-modal-footer-left">
               {isExistingTask && onDelete && (
-                <button 
-                  className="task-modal-btn task-modal-btn-danger" 
-                  onClick={() => { onDelete(task.id); onClose(); }}
+                <button
+                  className="task-modal-btn task-modal-btn-danger"
+                  onClick={() => onDelete(task.id)}
                 >
                   Delete Task
                 </button>
