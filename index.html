@@ -2051,9 +2051,15 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
             mentions: payload.new.mentions || [],
             createdAt: new Date(payload.new.created_at)
           };
-          setNotes(prev => prev.map(n =>
-            n.id === noteId ? { ...n, replies: [...n.replies, newReply] } : n
-          ));
+          // Check for duplicate before adding
+          setNotes(prev => prev.map(n => {
+            if (n.id !== noteId) return n;
+            // Check if reply already exists
+            if (n.replies.some(r => r.id === newReply.id)) {
+              return n; // Already exists, skip
+            }
+            return { ...n, replies: [...n.replies, newReply] };
+          }));
         } else if (payload.eventType === 'DELETE') {
           setNotes(prev => prev.map(n => ({
             ...n,
