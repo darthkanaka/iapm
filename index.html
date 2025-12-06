@@ -8975,6 +8975,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const scrollContainerRef = React.useRef(null);
   const dateIndicatorRef = React.useRef(null); // Direct DOM ref for date indicator
   const badgesContainerRef = React.useRef(null); // Direct DOM ref for badges
+  const lastBadgeDateRef = React.useRef(null); // Track last badge date to avoid unnecessary updates
   const [containerWidth, setContainerWidth] = React.useState(800);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
@@ -9090,9 +9091,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Update badges visibility directly via DOM (real-time)
-    if (badgesContainerRef.current) {
-      const newDateStr = viewportDate.toDateString();
+    // Update badges visibility directly via DOM (only when date changes)
+    const newDateStr = viewportDate.toDateString();
+    if (badgesContainerRef.current && newDateStr !== lastBadgeDateRef.current) {
+      lastBadgeDateRef.current = newDateStr;
       const rows = badgesContainerRef.current.querySelectorAll('.tl-fixed-badges-row');
       rows.forEach(row => {
         const badges = row.querySelectorAll('.tl-badge');
