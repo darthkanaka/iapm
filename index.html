@@ -210,7 +210,7 @@
   <div id="root"></div>
   
   <script type="text/babel" data-type="module">
-const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2 } = lucideReact;
+const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2, Settings, FolderInput, Webhook, Send } = lucideReact;
 
 // ==================== AUTH CONTEXT & PROVIDER ====================
 const AuthContext = React.createContext(null);
@@ -1511,7 +1511,82 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   // Notifications system
   const [notifications, setNotifications] = React.useState([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
-  
+
+  // Webhook configuration (persisted in localStorage)
+  const [webhookUrl, setWebhookUrl] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('iapm_webhook_url') || '';
+    }
+    return '';
+  });
+  const [showWebhookSettings, setShowWebhookSettings] = React.useState(false);
+
+  // Save webhook URL to localStorage when it changes
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iapm_webhook_url', webhookUrl);
+    }
+  }, [webhookUrl]);
+
+  // Send notification to webhook endpoint
+  const sendNotificationWebhook = async (notification, additionalContext = {}) => {
+    if (!webhookUrl) return; // No webhook configured
+
+    const actor = teamMembers.find(m => m.id === notification.actorId);
+    const recipient = teamMembers.find(m => m.id === notification.recipientId);
+
+    // Build rich payload for N8N
+    const payload = {
+      // Core notification data
+      type: notification.type,
+      message: notification.message,
+      timestamp: notification.createdAt || new Date().toISOString(),
+
+      // Actor (who triggered the notification)
+      actor: {
+        id: notification.actorId,
+        name: actor?.name || 'Unknown',
+        email: actor?.email || null,
+        color: actor?.color || '#6366f1'
+      },
+
+      // Recipient (who receives the notification)
+      recipient: {
+        id: notification.recipientId,
+        name: recipient?.name || 'Unknown',
+        email: recipient?.email || null,
+        color: recipient?.color || '#6366f1'
+      },
+
+      // Entity details (what the notification is about)
+      entity: {
+        type: notification.entityType,
+        id: notification.entityId,
+        title: notification.entityTitle,
+        ...additionalContext
+      },
+
+      // App metadata
+      source: 'iapm',
+      version: '1.0'
+    };
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        mode: 'no-cors' // Allow cross-origin requests to N8N
+      });
+      console.log('Webhook sent:', notification.type);
+    } catch (err) {
+      console.error('Webhook error:', err);
+      // Don't block the app if webhook fails
+    }
+  };
+
   // Generate notification from activity
   const createNotification = (type, actorId, recipientId, entityType, entityId, entityTitle, extraData = {}) => {
     if (actorId === recipientId) return null; // Don't notify yourself
@@ -1598,6 +1673,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     };
 
     setNotifications(prev => [localNotif, ...prev]);
+
+    // Send to webhook
+    sendNotificationWebhook(localNotif);
   };
 
   const addNotifications = async (notifs) => {
@@ -1639,6 +1717,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }));
 
     setNotifications(prev => [...localNotifs, ...prev]);
+
+    // Send each to webhook
+    localNotifs.forEach(notif => sendNotificationWebhook(notif));
   };
 
   // Mark notification as read
@@ -3688,7 +3769,166 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           color: #71717a;
           font-size: 13px;
         }
-        
+
+        .settings-btn {
+          background: transparent;
+          border: none;
+          color: #71717a;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #a1a1aa;
+        }
+
+        .webhook-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .webhook-modal {
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 24px;
+          width: 90%;
+          max-width: 500px;
+        }
+
+        .webhook-modal h3 {
+          margin: 0 0 8px 0;
+          font-size: 18px;
+          color: #f4f4f5;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .webhook-modal-desc {
+          color: #71717a;
+          font-size: 13px;
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
+
+        .webhook-field {
+          margin-bottom: 20px;
+        }
+
+        .webhook-label {
+          display: block;
+          font-size: 12px;
+          color: #a1a1aa;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .webhook-input {
+          width: 100%;
+          padding: 12px 14px;
+          border-radius: 8px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+          font-size: 14px;
+          font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .webhook-input:focus {
+          outline: none;
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .webhook-input::placeholder {
+          color: #52525b;
+        }
+
+        .webhook-status {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 13px;
+          margin-bottom: 20px;
+        }
+
+        .webhook-status.active {
+          background: rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+        }
+
+        .webhook-status.inactive {
+          background: rgba(113, 113, 122, 0.1);
+          border: 1px solid rgba(113, 113, 122, 0.2);
+          color: #71717a;
+        }
+
+        .webhook-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .webhook-btn {
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .webhook-btn-secondary {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+        }
+
+        .webhook-btn-secondary:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+        }
+
+        .webhook-btn-primary {
+          background: rgba(99, 102, 241, 0.2);
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          color: #818cf8;
+        }
+
+        .webhook-btn-primary:hover {
+          background: rgba(99, 102, 241, 0.3);
+        }
+
+        .webhook-btn-test {
+          background: rgba(34, 197, 94, 0.15);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          color: #22c55e;
+        }
+
+        .webhook-btn-test:hover {
+          background: rgba(34, 197, 94, 0.25);
+        }
+
+        .webhook-btn-test:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         .content {
           flex: 1;
           padding: 24px 32px;
@@ -3874,8 +4114,16 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           </h1>
           
           <div className="header-actions">
+            <button
+              className="settings-btn"
+              onClick={() => setShowWebhookSettings(true)}
+              title="Webhook Settings"
+            >
+              <Settings size={18} />
+            </button>
+
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 className="notification-btn"
                 onClick={() => setShowNotifications(!showNotifications)}
               >
@@ -4119,6 +4367,95 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           />
         )}
       </main>
+      {/* Webhook Settings Modal */}
+      {showWebhookSettings && (
+        <div className="webhook-modal-overlay" onClick={() => setShowWebhookSettings(false)}>
+          <div className="webhook-modal" onClick={e => e.stopPropagation()}>
+            <h3><Webhook size={20} /> Webhook Settings</h3>
+            <p className="webhook-modal-desc">
+              Configure a webhook URL to send notification data to external services like N8N, Zapier, or custom endpoints.
+              All notifications will be POSTed to this URL in JSON format.
+            </p>
+
+            <div className={`webhook-status ${webhookUrl ? 'active' : 'inactive'}`}>
+              {webhookUrl ? (
+                <>
+                  <Check size={16} />
+                  <span>Webhook is active</span>
+                </>
+              ) : (
+                <>
+                  <X size={16} />
+                  <span>Webhook is not configured</span>
+                </>
+              )}
+            </div>
+
+            <div className="webhook-field">
+              <label className="webhook-label">Webhook URL</label>
+              <input
+                type="url"
+                className="webhook-input"
+                placeholder="https://your-n8n-instance.com/webhook/..."
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+              />
+            </div>
+
+            <div className="webhook-actions">
+              <button
+                className="webhook-btn webhook-btn-test"
+                disabled={!webhookUrl}
+                onClick={async () => {
+                  const testPayload = {
+                    type: 'test',
+                    message: 'This is a test notification from IAPM',
+                    timestamp: new Date().toISOString(),
+                    actor: {
+                      id: currentUser?.id,
+                      name: currentUser?.name || 'Test User',
+                      email: null,
+                      color: currentUser?.color || '#6366f1'
+                    },
+                    recipient: {
+                      id: currentUser?.id,
+                      name: currentUser?.name || 'Test User',
+                      email: null,
+                      color: currentUser?.color || '#6366f1'
+                    },
+                    entity: {
+                      type: 'test',
+                      id: 'test-id',
+                      title: 'Test Notification'
+                    },
+                    source: 'iapm',
+                    version: '1.0'
+                  };
+                  try {
+                    await fetch(webhookUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(testPayload),
+                      mode: 'no-cors'
+                    });
+                    alert('Test notification sent! Check your webhook endpoint.');
+                  } catch (err) {
+                    alert('Error sending test: ' + err.message);
+                  }
+                }}
+              >
+                <Send size={14} /> Test Webhook
+              </button>
+              <button
+                className="webhook-btn webhook-btn-secondary"
+                onClick={() => setShowWebhookSettings(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
