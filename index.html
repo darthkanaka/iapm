@@ -10006,6 +10006,29 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           background: #ef4444;
           z-index: 50;
         }
+
+        .tl-hour-grid {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .tl-hour-line {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tl-hour-line.new-day {
+          width: 2px;
+          background: rgba(99, 102, 241, 0.2);
+        }
         
         .tl-track {
           height: ${ROW_HEIGHT}px;
@@ -10026,15 +10049,6 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           pointer-events: none;
         }
 
-        .tl-grid-day {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 2px;
-          background: rgba(99, 102, 241, 0.15);
-          pointer-events: none;
-        }
-        
         .tl-event {
           position: absolute;
           top: 8px;
@@ -10808,14 +10822,16 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
             
             {/* Tracks */}
             <div className="tl-tracks">
+              {/* Hour grid lines - single overlay for performance */}
+              <div className="tl-hour-grid">
+                {hourMarkers.map((m, i) => (
+                  <div key={i} className={`tl-hour-line ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
+                ))}
+              </div>
               <div className="tl-now-line" style={{ left: nowPosition }} />
               {rows.map((row, i) => (
                 <div key={i} className={`tl-track ${row.type}`}>
                   <div className="tl-past" style={{ width: nowPosition }} />
-                  {/* Only render day boundary markers - hourly grid is CSS background */}
-                  {hourMarkers.filter(m => m.isNewDay).map((m, j) => (
-                    <div key={j} className="tl-grid-day" style={{ left: m.left }} />
-                  ))}
 
                   {/* Events */}
                   {row.events.map(event => {
