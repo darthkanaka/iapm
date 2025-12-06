@@ -2978,6 +2978,57 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
+  const deleteNote = async (noteId) => {
+    try {
+      // Delete the note (replies will cascade due to foreign key)
+      const { error } = await window.supabase
+        .from('notes')
+        .delete()
+        .eq('id', noteId);
+
+      if (error) {
+        console.error('Error deleting note:', error);
+        alert('Error deleting note: ' + error.message);
+        return false;
+      }
+
+      // Update local state
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      return true;
+    } catch (err) {
+      console.error('Unexpected error deleting note:', err);
+      alert('Unexpected error deleting note: ' + err.message);
+      return false;
+    }
+  };
+
+  const deleteReply = async (noteId, replyId) => {
+    try {
+      const { error } = await window.supabase
+        .from('note_replies')
+        .delete()
+        .eq('id', replyId);
+
+      if (error) {
+        console.error('Error deleting reply:', error);
+        alert('Error deleting reply: ' + error.message);
+        return false;
+      }
+
+      // Update local state - remove reply from the note
+      setNotes(prev => prev.map(note =>
+        note.id === noteId
+          ? { ...note, replies: note.replies.filter(r => r.id !== replyId) }
+          : note
+      ));
+      return true;
+    } catch (err) {
+      console.error('Unexpected error deleting reply:', err);
+      alert('Unexpected error deleting reply: ' + err.message);
+      return false;
+    }
+  };
+
   const addClient = async (name, color, details = '') => {
     try {
       const { data: newClient, error } = await supabase
@@ -3963,6 +4014,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               addList={addList}
               addNote={addNote}
               addReply={addReply}
+              deleteNote={deleteNote}
+              deleteReply={deleteReply}
               addProject={addProject}
               deleteProject={deleteProject}
               deleteClient={deleteClient}
@@ -13462,7 +13515,7 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
 }
 
 // ==================== CLIENT VIEW ====================
-function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, deleteNote, deleteReply, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [selectedProject, setSelectedProject] = React.useState(null);
   const [showAddNote, setShowAddNote] = React.useState(false);
@@ -13488,6 +13541,8 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const [addTaskDefaults, setAddTaskDefaults] = React.useState({ clientId: '', projectId: '' });
   const [projectToDelete, setProjectToDelete] = React.useState(null);
   const [showDeleteClientModal, setShowDeleteClientModal] = React.useState(false);
+  const [noteToDelete, setNoteToDelete] = React.useState(null); // { noteId, replyId? } for confirmation
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Handle initial project selection and reset state when switching clients
   React.useEffect(() => {
@@ -13649,6 +13704,32 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const openAddTaskModal = (projectId = null) => {
     setAddTaskDefaults({ clientId: client.id, projectId: projectId || '' });
     setShowAddTaskModal(true);
+  };
+
+  // Handle delete note/reply confirmation
+  const handleDeleteConfirm = async () => {
+    if (!noteToDelete || isDeleting) return;
+
+    setIsDeleting(true);
+    let success = false;
+
+    if (noteToDelete.replyId) {
+      // Delete a reply
+      success = await deleteReply(noteToDelete.noteId, noteToDelete.replyId);
+    } else {
+      // Delete the entire note
+      success = await deleteNote(noteToDelete.noteId);
+      // If we deleted the currently selected note, close the thread view
+      if (success && selectedNoteId === noteToDelete.noteId) {
+        setSelectedNoteId(null);
+      }
+      if (success && selectedProjectNoteId === noteToDelete.noteId) {
+        setSelectedProjectNoteId(null);
+      }
+    }
+
+    setIsDeleting(false);
+    setNoteToDelete(null);
   };
 
   return (
@@ -14170,7 +14251,94 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           border-radius: 10px;
           font-weight: 500;
         }
-        
+
+        .cv-note-delete-btn {
+          opacity: 0;
+          background: none;
+          border: none;
+          color: #71717a;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+          margin-left: auto;
+        }
+
+        .cv-note-card:hover .cv-note-delete-btn,
+        .cv-reply:hover .cv-note-delete-btn {
+          opacity: 1;
+        }
+
+        .cv-note-delete-btn:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .cv-delete-note-modal {
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 24px;
+          max-width: 400px;
+          width: 90%;
+        }
+
+        .cv-delete-note-modal h4 {
+          margin: 0 0 12px 0;
+          font-size: 16px;
+          color: #f4f4f5;
+        }
+
+        .cv-delete-note-modal p {
+          color: #a1a1aa;
+          font-size: 14px;
+          margin: 0 0 20px 0;
+        }
+
+        .cv-delete-note-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .cv-delete-note-actions button {
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .cv-delete-note-cancel {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+        }
+
+        .cv-delete-note-cancel:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+        }
+
+        .cv-delete-note-confirm {
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+        }
+
+        .cv-delete-note-confirm:hover {
+          background: rgba(239, 68, 68, 0.3);
+        }
+
+        .cv-delete-note-confirm:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         .cv-thread-overlay {
           position: fixed;
           top: 0;
@@ -14967,9 +15135,22 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                         <span className="cv-note-author">{author?.name || 'Unknown'}</span>
                         <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
                         {project && (
-                          <span className="cv-task-badge" style={{ background: project.color, color: '#fff', marginLeft: 'auto' }}>
+                          <span className="cv-task-badge" style={{ background: project.color, color: '#fff', marginLeft: project ? 'auto' : '0' }}>
                             {project.name}
                           </span>
+                        )}
+                        {note.authorId === currentUser?.id && (
+                          <button
+                            className="cv-note-delete-btn"
+                            style={{ marginLeft: project ? '8px' : 'auto' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNoteToDelete({ noteId: note.id });
+                            }}
+                            title="Delete note"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         )}
                       </div>
                       <div className="cv-note-content">{renderMentionText(note.content)}</div>
@@ -15309,6 +15490,18 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                                   </div>
                                   <span className="cv-note-author">{author?.name || 'Unknown'}</span>
                                   <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
+                                  {note.authorId === currentUser?.id && (
+                                    <button
+                                      className="cv-note-delete-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setNoteToDelete({ noteId: note.id });
+                                      }}
+                                      title="Delete note"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
                                 </div>
                                 <div className="cv-note-content">{renderMentionText(note.content)}</div>
                                 {note.replies?.length > 0 && (
@@ -15513,6 +15706,18 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                               </div>
                               <span className="cv-note-author">{getMember(reply.authorId)?.name || 'Unknown'}</span>
                               <span className="cv-note-time">{formatRelativeTime(reply.createdAt)}</span>
+                              {reply.authorId === currentUser?.id && (
+                                <button
+                                  className="cv-note-delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNoteToDelete({ noteId: selectedProjectNote.id, replyId: reply.id });
+                                  }}
+                                  title="Delete reply"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
                             </div>
                             <div className="cv-note-content">{renderMentionText(reply.content)}</div>
                           </div>
@@ -15574,6 +15779,18 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                         <div className="cv-reply-header">
                           <span className="cv-reply-author">{replyAuthor?.name || 'Unknown'}</span>
                           <span className="cv-reply-time">{formatRelativeTime(reply.createdAt)}</span>
+                          {reply.authorId === currentUser?.id && (
+                            <button
+                              className="cv-note-delete-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNoteToDelete({ noteId: selectedNote.id, replyId: reply.id });
+                              }}
+                              title="Delete reply"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                         <div className="cv-reply-text">{renderMentionText(reply.content)}</div>
                       </div>
@@ -15640,6 +15857,32 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           onClose={() => setShowDeleteClientModal(false)}
           onConfirm={() => deleteClient(client.id)}
         />
+      )}
+
+      {/* Delete Note/Reply Confirmation Modal */}
+      {noteToDelete && (
+        <div className="cv-thread-overlay" onClick={() => setNoteToDelete(null)}>
+          <div className="cv-delete-note-modal" onClick={e => e.stopPropagation()}>
+            <h4>{noteToDelete.replyId ? 'Delete Reply?' : 'Delete Note?'}</h4>
+            <p>
+              {noteToDelete.replyId
+                ? 'This reply will be permanently deleted.'
+                : 'This note and all its replies will be permanently deleted.'}
+            </p>
+            <div className="cv-delete-note-actions">
+              <button className="cv-delete-note-cancel" onClick={() => setNoteToDelete(null)}>
+                Cancel
+              </button>
+              <button
+                className="cv-delete-note-confirm"
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Event Modal (Create) */}
