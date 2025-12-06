@@ -13519,9 +13519,24 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   
   // Get notes for a specific project
   const getProjectNotes = (projectId) => notes.filter(n => n.projectId === projectId);
-  
+
   // Get client-level notes (no projectId)
   const clientLevelNotes = notes.filter(n => !n.projectId);
+
+  // Get last activity date for a note (most recent of note creation or any reply)
+  const getLastActivity = (note) => {
+    if (!note.replies || note.replies.length === 0) {
+      return note.createdAt;
+    }
+    const lastReplyDate = note.replies.reduce((latest, reply) =>
+      reply.createdAt > latest ? reply.createdAt : latest
+    , note.createdAt);
+    return lastReplyDate;
+  };
+
+  // Sort notes by last activity (most recent first)
+  const sortByActivity = (notesArray) =>
+    [...notesArray].sort((a, b) => getLastActivity(b) - getLastActivity(a));
   
   // Get lists for a specific project
   const getProjectLists = (projectId) => (lists || []).filter(l => l.projectId === projectId);
@@ -13539,12 +13554,12 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   // Sort upcoming by date
   upcomingEvents.sort((a, b) => a.startTime - b.startTime);
   
-  // Sort notes by date (newest first)
-  // Sort notes by date (newest first) - only client-level notes (not project-specific)
-  const sortedNotes = [...clientLevelNotes].sort((a, b) => b.createdAt - a.createdAt);
+  // Sort notes by last activity (most recent activity first)
+  // Client-level notes only (not project-specific)
+  const sortedNotes = sortByActivity(clientLevelNotes);
 
-  // All notes sorted by date (for Overview tab - includes both client-level and project notes)
-  const allSortedNotes = [...notes].sort((a, b) => b.createdAt - a.createdAt);
+  // All notes sorted by last activity (for Overview tab - includes both client-level and project notes)
+  const allSortedNotes = sortByActivity(notes);
   
   // Get team member by id
   const getMember = (id) => teamMembers.find(m => m.id === id);
@@ -15234,7 +15249,7 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   const projectTasks = getProjectTasks(selectedProject.id).filter(t => !t.isCompleted);
                   const projectEvents = getProjectEvents(selectedProject.id).filter(e => e.endTime >= new Date());
                   const projectNotes = getProjectNotes(selectedProject.id);
-                  const sortedProjectNotes = [...projectNotes].sort((a, b) => b.createdAt - a.createdAt);
+                  const sortedProjectNotes = sortByActivity(projectNotes);
                   
                   return (
                     <div className="cv-project-detail-split">
