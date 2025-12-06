@@ -3099,6 +3099,98 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
+  const deleteProject = async (projectId) => {
+    try {
+      // Delete all associated data first (tasks, events, lists, notes)
+      // Tasks
+      await supabase.from('tasks').delete().eq('project_id', projectId);
+      // Events (attendees will cascade)
+      await supabase.from('events').delete().eq('project_id', projectId);
+      // Lists
+      await supabase.from('lists').delete().eq('project_id', projectId);
+      // Notes (replies will cascade)
+      await supabase.from('notes').delete().eq('project_id', projectId);
+
+      // Delete the project
+      const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      if (error) throw error;
+
+      // Update local state
+      const removeProjectFromList = (projects) => (projects || []).filter(p => p.id !== projectId);
+
+      setClients(prev => prev.map(c => ({
+        ...c,
+        projects: removeProjectFromList(c.projects)
+      })));
+      setInternal(prev => ({
+        personal: prev.personal ? { ...prev.personal, projects: removeProjectFromList(prev.personal.projects) } : null,
+        team: prev.team ? { ...prev.team, projects: removeProjectFromList(prev.team.projects) } : null
+      }));
+      if (selectedClient) {
+        setSelectedClient(prev => ({ ...prev, projects: removeProjectFromList(prev.projects) }));
+      }
+      setTasks(prev => prev.filter(t => t.projectId !== projectId));
+      setEvents(prev => prev.filter(e => e.projectId !== projectId));
+      setLists(prev => prev.filter(l => l.projectId !== projectId));
+      setNotes(prev => prev.filter(n => n.projectId !== projectId));
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      throw err;
+    }
+  };
+
+  const deleteClient = async (clientId) => {
+    try {
+      // Get all projects for this client first
+      const clientProjects = clients.find(c => c.id === clientId)?.projects || [];
+      const projectIds = clientProjects.map(p => p.id);
+
+      // Delete all associated data
+      // Tasks (by client or by project)
+      await supabase.from('tasks').delete().eq('client_id', clientId);
+      for (const projectId of projectIds) {
+        await supabase.from('tasks').delete().eq('project_id', projectId);
+      }
+      // Events (attendees will cascade)
+      await supabase.from('events').delete().eq('client_id', clientId);
+      for (const projectId of projectIds) {
+        await supabase.from('events').delete().eq('project_id', projectId);
+      }
+      // Lists
+      await supabase.from('lists').delete().eq('client_id', clientId);
+      for (const projectId of projectIds) {
+        await supabase.from('lists').delete().eq('project_id', projectId);
+      }
+      // Notes (replies will cascade)
+      await supabase.from('notes').delete().eq('client_id', clientId);
+      for (const projectId of projectIds) {
+        await supabase.from('notes').delete().eq('project_id', projectId);
+      }
+      // Projects
+      for (const projectId of projectIds) {
+        await supabase.from('projects').delete().eq('id', projectId);
+      }
+
+      // Delete the client
+      const { error } = await supabase.from('clients').delete().eq('id', clientId);
+      if (error) throw error;
+
+      // Update local state
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      if (selectedClient?.id === clientId) {
+        setSelectedClient(null);
+        setActiveView('timeline');
+      }
+      setTasks(prev => prev.filter(t => t.clientId !== clientId && !projectIds.includes(t.projectId)));
+      setEvents(prev => prev.filter(e => e.clientId !== clientId && !projectIds.includes(e.projectId)));
+      setLists(prev => prev.filter(l => l.clientId !== clientId && !projectIds.includes(l.projectId)));
+      setNotes(prev => prev.filter(n => n.clientId !== clientId && !projectIds.includes(n.projectId)));
+    } catch (err) {
+      console.error('Error deleting client:', err);
+      throw err;
+    }
+  };
+
   // Show loading state while data is being fetched
   if (dataLoading) {
     return (
@@ -3872,6 +3964,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               addNote={addNote}
               addReply={addReply}
               addProject={addProject}
+              deleteProject={deleteProject}
+              deleteClient={deleteClient}
               updateClient={updateClient}
               currentUser={currentUser}
               onEventClick={setSelectedEvent}
@@ -3940,6 +4034,206 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           />
         )}
       </main>
+    </div>
+  );
+}
+
+// ==================== CONFIRM DELETE MODAL ====================
+function ConfirmDeleteModal({ title, itemName, itemType, affectedItems, onClose, onConfirm }) {
+  const [confirmText, setConfirmText] = React.useState('');
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const canDelete = confirmText.toLowerCase() === 'delete';
+
+  const handleConfirm = async () => {
+    if (!canDelete) return;
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (err) {
+      console.error('Error deleting:', err);
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+        <style>{`
+          .confirm-delete-modal h2 {
+            color: #fafafa;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+          }
+          .confirm-delete-warning {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+          }
+          .confirm-delete-warning-icon {
+            color: #ef4444;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+          }
+          .confirm-delete-warning p {
+            color: #fca5a5;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+          }
+          .confirm-delete-affected {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+          }
+          .confirm-delete-affected-title {
+            color: #a1a1aa;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .confirm-delete-affected-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .confirm-delete-affected-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 13px;
+            color: #d4d4d8;
+          }
+          .confirm-delete-affected-item span {
+            color: #fafafa;
+            font-weight: 500;
+          }
+          .confirm-delete-input-section {
+            margin-bottom: 20px;
+          }
+          .confirm-delete-input-label {
+            color: #a1a1aa;
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: block;
+          }
+          .confirm-delete-input-label code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #fafafa;
+          }
+          .confirm-delete-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fafafa;
+            font-size: 14px;
+          }
+          .confirm-delete-input:focus {
+            outline: none;
+            border-color: #ef4444;
+          }
+          .confirm-delete-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+          }
+          .confirm-delete-btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+          }
+          .confirm-delete-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #a1a1aa;
+          }
+          .confirm-delete-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fafafa;
+          }
+          .confirm-delete-btn-delete {
+            background: #ef4444;
+            color: white;
+          }
+          .confirm-delete-btn-delete:hover:not(:disabled) {
+            background: #dc2626;
+          }
+          .confirm-delete-btn-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        `}</style>
+        <div className="confirm-delete-modal">
+          <h2>{title}</h2>
+
+          <div className="confirm-delete-warning">
+            <div className="confirm-delete-warning-icon">
+              <span>⚠</span> This action cannot be undone
+            </div>
+            <p>
+              You are about to permanently delete <strong>{itemName}</strong> and all of its associated data.
+            </p>
+          </div>
+
+          {affectedItems && affectedItems.length > 0 && (
+            <div className="confirm-delete-affected">
+              <div className="confirm-delete-affected-title">Will be permanently deleted:</div>
+              <div className="confirm-delete-affected-list">
+                {affectedItems.map((item, i) => (
+                  <div key={i} className="confirm-delete-affected-item">
+                    <span>{item.count}</span> {item.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="confirm-delete-input-section">
+            <label className="confirm-delete-input-label">
+              Type <code>DELETE</code> to confirm:
+            </label>
+            <input
+              type="text"
+              className="confirm-delete-input"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type DELETE here"
+              autoFocus
+            />
+          </div>
+
+          <div className="confirm-delete-actions">
+            <button className="confirm-delete-btn confirm-delete-btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="confirm-delete-btn confirm-delete-btn-delete"
+              onClick={handleConfirm}
+              disabled={!canDelete || isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete ' + itemType}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -13116,7 +13410,7 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
 }
 
 // ==================== CLIENT VIEW ====================
-function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, addProject, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [selectedProject, setSelectedProject] = React.useState(null);
   const [showAddNote, setShowAddNote] = React.useState(false);
@@ -13140,7 +13434,9 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const [addEventDefaults, setAddEventDefaults] = React.useState({ clientId: '', projectId: '' });
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [addTaskDefaults, setAddTaskDefaults] = React.useState({ clientId: '', projectId: '' });
-  
+  const [projectToDelete, setProjectToDelete] = React.useState(null);
+  const [showDeleteClientModal, setShowDeleteClientModal] = React.useState(false);
+
   // Handle initial project selection and reset state when switching clients
   React.useEffect(() => {
     setEditedDetails(client.details || '');
@@ -13317,7 +13613,26 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           font-size: 13px;
           color: #71717a;
         }
-        
+
+        .cv-delete-client-btn {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #71717a;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+          transition: all 0.15s;
+        }
+        .cv-delete-client-btn:hover {
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+        }
+
         .cv-details-section {
           margin-bottom: 20px;
           flex-shrink: 0;
@@ -13599,13 +13914,40 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           border-color: rgba(99, 102, 241, 0.3);
         }
         
+        .cv-project-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 4px;
+        }
+
         .cv-project-name {
           font-size: 14px;
           font-weight: 600;
           color: #e4e4e7;
-          margin-bottom: 4px;
         }
-        
+
+        .cv-project-delete-btn {
+          background: transparent;
+          border: none;
+          color: #52525b;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: all 0.15s;
+        }
+        .cv-project:hover .cv-project-delete-btn {
+          opacity: 1;
+        }
+        .cv-project-delete-btn:hover {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+        }
+
         .cv-project-stats {
           display: flex;
           gap: 12px;
@@ -14419,6 +14761,15 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
             {client.projects.length} {client.isInternal ? 'categories' : 'projects'} • {totalEvents} events • {tasks.length} tasks
           </div>
         </div>
+        {!client.isInternal && deleteClient && (
+          <button
+            className="cv-delete-client-btn"
+            onClick={() => setShowDeleteClientModal(true)}
+            title="Delete client"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
       </div>
       
       {/* Client Details Section */}
@@ -14778,17 +15129,38 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                 const projectEvents = getProjectEvents(project.id);
                 const projectTasks = getProjectTasks(project.id);
                 const projectLists = getProjectLists(project.id);
+                const projectNotes = notes.filter(n => n.projectId === project.id);
                 const upcomingProjectEvents = projectEvents.filter(e => e.endTime >= new Date());
                 const pendingProjectTasks = projectTasks.filter(t => !t.isCompleted);
                 const isSelected = selectedProject?.id === project.id;
                 return (
-                  <div 
+                  <div
                     key={project.id}
                     className={`cv-project ${isSelected ? 'selected' : ''}`}
                     style={{ borderLeftColor: project.color }}
                     onClick={() => setSelectedProject(isSelected ? null : project)}
                   >
-                    <div className="cv-project-name">{project.name}</div>
+                    <div className="cv-project-header">
+                      <div className="cv-project-name">{project.name}</div>
+                      {deleteProject && (
+                        <button
+                          className="cv-project-delete-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProjectToDelete({
+                              ...project,
+                              taskCount: projectTasks.length,
+                              eventCount: projectEvents.length,
+                              listCount: projectLists.length,
+                              noteCount: projectNotes.length
+                            });
+                          }}
+                          title="Delete project"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                     <div className="cv-project-stats">
                       <span>{upcomingProjectEvents.length} upcoming events</span>
                       <span>{pendingProjectTasks.length} pending tasks</span>
@@ -15161,13 +15533,48 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
       
       {/* Add Project Modal */}
       {showAddProject && (
-        <AddProjectModal 
+        <AddProjectModal
           client={client}
           onClose={() => setShowAddProject(false)}
           onAdd={addProject}
         />
       )}
-      
+
+      {/* Delete Project Confirmation Modal */}
+      {projectToDelete && (
+        <ConfirmDeleteModal
+          title="Delete Project"
+          itemName={projectToDelete.name}
+          itemType="Project"
+          affectedItems={[
+            { count: projectToDelete.taskCount, label: 'tasks' },
+            { count: projectToDelete.eventCount, label: 'events' },
+            { count: projectToDelete.listCount, label: 'lists' },
+            { count: projectToDelete.noteCount, label: 'notes' }
+          ].filter(item => item.count > 0)}
+          onClose={() => setProjectToDelete(null)}
+          onConfirm={() => deleteProject(projectToDelete.id)}
+        />
+      )}
+
+      {/* Delete Client Confirmation Modal */}
+      {showDeleteClientModal && (
+        <ConfirmDeleteModal
+          title="Delete Client"
+          itemName={client.name}
+          itemType="Client"
+          affectedItems={[
+            { count: client.projects?.length || 0, label: 'projects' },
+            { count: tasks.length, label: 'tasks' },
+            { count: events.length, label: 'events' },
+            { count: lists.length, label: 'lists' },
+            { count: notes.length, label: 'notes' }
+          ].filter(item => item.count > 0)}
+          onClose={() => setShowDeleteClientModal(false)}
+          onConfirm={() => deleteClient(client.id)}
+        />
+      )}
+
       {/* Event Modal (Create) */}
       {showAddEventModal && (
         <EventModal 
