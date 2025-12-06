@@ -8975,7 +8975,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const scrollContainerRef = React.useRef(null);
   const dateIndicatorRef = React.useRef(null); // Direct DOM ref for date indicator
   const badgesContainerRef = React.useRef(null); // Direct DOM ref for badges
-  const lastBadgeDateRef = React.useRef(null); // Track last badge date to avoid unnecessary updates
+  const lastBadgeDateRef = React.useRef(new Date().toDateString()); // Track last badge date - initialize to today to avoid first-scroll expense
+  const lastFormattedDateRef = React.useRef(null); // Cache formatted date string to avoid toLocaleDateString on every scroll
   const [containerWidth, setContainerWidth] = React.useState(800);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
@@ -9086,25 +9087,31 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     // Update ref immediately
     visibleDateRef.current = viewportDate;
 
-    // Update date indicator directly via DOM (real-time, no re-render)
-    if (dateIndicatorRef.current) {
-      dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    }
-
-    // Update badges visibility directly via DOM (only when date changes)
+    // Only update DOM when date actually changes (avoid expensive toLocaleDateString on every scroll)
     const newDateStr = viewportDate.toDateString();
-    if (badgesContainerRef.current && newDateStr !== lastBadgeDateRef.current) {
+    if (newDateStr !== lastBadgeDateRef.current) {
+      // Cache the formatted date string
+      lastFormattedDateRef.current = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       lastBadgeDateRef.current = newDateStr;
-      const rows = badgesContainerRef.current.querySelectorAll('.tl-fixed-badges-row');
-      rows.forEach(row => {
-        const badges = row.querySelectorAll('.tl-badge');
-        badges.forEach(badge => {
-          const badgeDateStr = badge.dataset.date;
-          if (badgeDateStr) {
-            badge.style.display = badgeDateStr === newDateStr ? 'flex' : 'none';
-          }
+
+      // Update date indicator
+      if (dateIndicatorRef.current) {
+        dateIndicatorRef.current.textContent = lastFormattedDateRef.current;
+      }
+
+      // Update badges visibility
+      if (badgesContainerRef.current) {
+        const rows = badgesContainerRef.current.querySelectorAll('.tl-fixed-badges-row');
+        rows.forEach(row => {
+          const badges = row.querySelectorAll('.tl-badge');
+          badges.forEach(badge => {
+            const badgeDateStr = badge.dataset.date;
+            if (badgeDateStr) {
+              badge.style.display = badgeDateStr === newDateStr ? 'flex' : 'none';
+            }
+          });
         });
-      });
+      }
     }
 
     // Still debounce state update for React consistency
@@ -9922,6 +9929,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           overflow-y: hidden;
           -webkit-overflow-scrolling: touch;
           will-change: scroll-position;
+          contain: layout style;
         }
 
         .tl-content {
