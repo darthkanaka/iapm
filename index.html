@@ -9108,11 +9108,17 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Debounced state update for view sync and badges
+    // No state updates during scroll - only ref updates (matches 7-day view pattern)
+    // View sync happens on switch via visibleDateRef
+
+    // Update badges only after scrolling stops (scroll-end detection)
     clearTimeout(badgeDateUpdateTimeout.current);
     badgeDateUpdateTimeout.current = setTimeout(() => {
-      setVisibleDate(viewportDate);
-    }, 150);
+      // Only update state if date actually changed (avoids unnecessary re-renders)
+      if (viewportDate.toDateString() !== visibleDate.toDateString()) {
+        setVisibleDate(viewportDate);
+      }
+    }, 250);
 
     // Clear scroll source after sync completes
     clearTimeout(scrollingRef.scrollTimeout);
@@ -10574,8 +10580,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           }}>8-Hour</button>
           <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== 'week') {
-              // When switching from day to week, use state (updated by scroll handler)
-              setTargetDate(visibleDate);
+              // When switching from day to week, use ref (snap to current position)
+              setTargetDate(new Date(visibleDateRef.current));
               setScrollTrigger(prev => prev + 1);
               setViewMode('week');
             }
