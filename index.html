@@ -3029,6 +3029,37 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
+  const updateNote = async (noteId, updates) => {
+    try {
+      const dbUpdates = {};
+      if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+      if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+
+      const { error } = await window.supabase
+        .from('notes')
+        .update(dbUpdates)
+        .eq('id', noteId);
+
+      if (error) {
+        console.error('Error updating note:', error);
+        alert('Error updating note: ' + error.message);
+        return false;
+      }
+
+      // Update local state
+      setNotes(prev => prev.map(note =>
+        note.id === noteId
+          ? { ...note, ...updates }
+          : note
+      ));
+      return true;
+    } catch (err) {
+      console.error('Unexpected error updating note:', err);
+      alert('Unexpected error updating note: ' + err.message);
+      return false;
+    }
+  };
+
   const addClient = async (name, color, details = '') => {
     try {
       const { data: newClient, error } = await supabase
@@ -4016,6 +4047,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               addReply={addReply}
               deleteNote={deleteNote}
               deleteReply={deleteReply}
+              updateNote={updateNote}
               addProject={addProject}
               deleteProject={deleteProject}
               deleteClient={deleteClient}
@@ -13515,7 +13547,7 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
 }
 
 // ==================== CLIENT VIEW ====================
-function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, deleteNote, deleteReply, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, deleteNote, deleteReply, updateNote, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [selectedProject, setSelectedProject] = React.useState(null);
   const [showAddNote, setShowAddNote] = React.useState(false);
@@ -13543,6 +13575,13 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const [showDeleteClientModal, setShowDeleteClientModal] = React.useState(false);
   const [noteToDelete, setNoteToDelete] = React.useState(null); // { noteId, replyId? } for confirmation
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [noteToMove, setNoteToMove] = React.useState(null); // note object for move modal
+  const [moveTargetClient, setMoveTargetClient] = React.useState('');
+  const [moveTargetProject, setMoveTargetProject] = React.useState('');
+  const [isMoving, setIsMoving] = React.useState(false);
+
+  // All spaces for move modal dropdown
+  const allSpaces = [internal.personal, internal.team, ...clients];
 
   // Handle initial project selection and reset state when switching clients
   React.useEffect(() => {
@@ -13730,6 +13769,49 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
 
     setIsDeleting(false);
     setNoteToDelete(null);
+  };
+
+  // Open move note modal
+  const openMoveNoteModal = (note) => {
+    setNoteToMove(note);
+    setMoveTargetClient(note.clientId);
+    setMoveTargetProject(note.projectId || '');
+  };
+
+  // Handle move note
+  const handleMoveNote = async () => {
+    if (!noteToMove || isMoving) return;
+    if (!moveTargetClient) {
+      alert('Please select a destination');
+      return;
+    }
+
+    setIsMoving(true);
+    const success = await updateNote(noteToMove.id, {
+      clientId: moveTargetClient,
+      projectId: moveTargetProject || null
+    });
+
+    if (success) {
+      // Close thread views if the moved note was selected
+      if (selectedNoteId === noteToMove.id) {
+        setSelectedNoteId(null);
+      }
+      if (selectedProjectNoteId === noteToMove.id) {
+        setSelectedProjectNoteId(null);
+      }
+    }
+
+    setIsMoving(false);
+    setNoteToMove(null);
+    setMoveTargetClient('');
+    setMoveTargetProject('');
+  };
+
+  // Get projects for selected client in move modal
+  const getMoveTargetProjects = () => {
+    const targetClient = allSpaces.find(s => s.id === moveTargetClient);
+    return targetClient?.projects || [];
   };
 
   return (
@@ -14337,6 +14419,119 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
         .cv-delete-note-confirm:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        .cv-move-note-modal {
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 24px;
+          max-width: 420px;
+          width: 90%;
+        }
+
+        .cv-move-note-modal h4 {
+          margin: 0 0 16px 0;
+          font-size: 16px;
+          color: #f4f4f5;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .cv-move-note-field {
+          margin-bottom: 16px;
+        }
+
+        .cv-move-note-label {
+          display: block;
+          font-size: 12px;
+          color: #71717a;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .cv-move-note-select {
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 6px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+          font-size: 14px;
+          font-family: inherit;
+          cursor: pointer;
+        }
+
+        .cv-move-note-select:focus {
+          outline: none;
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .cv-move-note-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+          margin-top: 20px;
+        }
+
+        .cv-move-note-btn {
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .cv-move-note-cancel {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+        }
+
+        .cv-move-note-cancel:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+        }
+
+        .cv-move-note-confirm {
+          background: rgba(99, 102, 241, 0.2);
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          color: #818cf8;
+        }
+
+        .cv-move-note-confirm:hover {
+          background: rgba(99, 102, 241, 0.3);
+        }
+
+        .cv-move-note-confirm:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .cv-note-move-btn {
+          opacity: 0;
+          background: none;
+          border: none;
+          color: #71717a;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .cv-note-card:hover .cv-note-move-btn {
+          opacity: 1;
+        }
+
+        .cv-note-move-btn:hover {
+          background: rgba(99, 102, 241, 0.15);
+          color: #818cf8;
         }
 
         .cv-thread-overlay {
@@ -15140,17 +15335,30 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                           </span>
                         )}
                         {note.authorId === currentUser?.id && (
-                          <button
-                            className="cv-note-delete-btn"
-                            style={{ marginLeft: project ? '8px' : 'auto' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNoteToDelete({ noteId: note.id });
-                            }}
-                            title="Delete note"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <>
+                            <button
+                              className="cv-note-move-btn"
+                              style={{ marginLeft: project ? '8px' : 'auto' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openMoveNoteModal(note);
+                              }}
+                              title="Move note"
+                            >
+                              <FolderInput size={14} />
+                            </button>
+                            <button
+                              className="cv-note-delete-btn"
+                              style={{ marginLeft: '4px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNoteToDelete({ noteId: note.id });
+                              }}
+                              title="Delete note"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
                         )}
                       </div>
                       <div className="cv-note-content">{renderMentionText(note.content)}</div>
@@ -15491,16 +15699,30 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                                   <span className="cv-note-author">{author?.name || 'Unknown'}</span>
                                   <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
                                   {note.authorId === currentUser?.id && (
-                                    <button
-                                      className="cv-note-delete-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setNoteToDelete({ noteId: note.id });
-                                      }}
-                                      title="Delete note"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
+                                    <>
+                                      <button
+                                        className="cv-note-move-btn"
+                                        style={{ marginLeft: 'auto' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openMoveNoteModal(note);
+                                        }}
+                                        title="Move note"
+                                      >
+                                        <FolderInput size={14} />
+                                      </button>
+                                      <button
+                                        className="cv-note-delete-btn"
+                                        style={{ marginLeft: '4px' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setNoteToDelete({ noteId: note.id });
+                                        }}
+                                        title="Delete note"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                                 <div className="cv-note-content">{renderMentionText(note.content)}</div>
@@ -15879,6 +16101,67 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                 disabled={isDeleting}
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Note Modal */}
+      {noteToMove && (
+        <div className="cv-thread-overlay" onClick={() => setNoteToMove(null)}>
+          <div className="cv-move-note-modal" onClick={e => e.stopPropagation()}>
+            <h4><FolderInput size={18} /> Move Note</h4>
+
+            <div className="cv-move-note-field">
+              <label className="cv-move-note-label">Destination</label>
+              <select
+                className="cv-move-note-select"
+                value={moveTargetClient}
+                onChange={(e) => {
+                  setMoveTargetClient(e.target.value);
+                  setMoveTargetProject('');
+                }}
+              >
+                <option value="">Select a client or space...</option>
+                <optgroup label="Internal Spaces">
+                  <option value={internal.personal?.id}>{internal.personal?.name}</option>
+                  <option value={internal.team?.id}>{internal.team?.name}</option>
+                </optgroup>
+                <optgroup label="Clients">
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
+            {moveTargetClient && getMoveTargetProjects().length > 0 && (
+              <div className="cv-move-note-field">
+                <label className="cv-move-note-label">Project (optional)</label>
+                <select
+                  className="cv-move-note-select"
+                  value={moveTargetProject}
+                  onChange={(e) => setMoveTargetProject(e.target.value)}
+                >
+                  <option value="">No project (client-level)</option>
+                  {getMoveTargetProjects().map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="cv-move-note-actions">
+              <button className="cv-move-note-btn cv-move-note-cancel" onClick={() => setNoteToMove(null)}>
+                Cancel
+              </button>
+              <button
+                className="cv-move-note-btn cv-move-note-confirm"
+                onClick={handleMoveNote}
+                disabled={isMoving || !moveTargetClient}
+              >
+                {isMoving ? 'Moving...' : 'Move Note'}
               </button>
             </div>
           </div>
