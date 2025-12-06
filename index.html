@@ -8973,9 +8973,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [collapsedClients, setCollapsedClients] = React.useState({});
   const [viewMode, setViewMode] = React.useState('day'); // 'day' or 'week'
   const scrollContainerRef = React.useRef(null);
+  const rulerScrollRef = React.useRef(null); // Synced header scroll for ruler
+  const scrollingRef = React.useRef(null); // Track which element is scrolling to prevent feedback
   const dateIndicatorRef = React.useRef(null); // Direct DOM ref for date indicator
-  const badgesContainerRef = React.useRef(null); // Direct DOM ref for badges
-  const lastBadgeDateRef = React.useRef(null); // Track last badge date to avoid unnecessary updates
   const [containerWidth, setContainerWidth] = React.useState(800);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
@@ -8983,7 +8983,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 6-hour view
   const visibleDateRef = React.useRef(new Date()); // Track visible date during scroll without re-renders
   const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date
-  const scrollEndTimeout = React.useRef(null); // Debounce scroll end for state update
+  const badgeDateUpdateTimeout = React.useRef(null); // Debounce badge date updates
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
@@ -9075,43 +9075,54 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   
   const nowPosition = getPosition(currentTime);
   
-  // Handle scroll to update visible date indicator (real-time DOM updates)
+  // Handle scroll with sync between ruler and content (like WeeklyCalendarView pattern)
   const handleTimelineScroll = (e) => {
-    const scrollLeft = e.target.scrollLeft;
-    // Calculate what time is at the CENTER of the viewport (not left edge)
+    const source = e.target;
+
+    // If we're currently syncing from another source, ignore this event
+    if (scrollingRef.current && scrollingRef.current !== source) {
+      return;
+    }
+
+    // Mark this element as the scroll source
+    scrollingRef.current = source;
+
+    // Sync horizontal scroll between ruler and content
+    if (source === scrollContainerRef.current && rulerScrollRef.current) {
+      rulerScrollRef.current.scrollLeft = source.scrollLeft;
+    } else if (source === rulerScrollRef.current && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = source.scrollLeft;
+    }
+
+    // Calculate visible date from center of viewport
+    const scrollLeft = scrollContainerRef.current ? scrollContainerRef.current.scrollLeft : source.scrollLeft;
     const centerScrollLeft = scrollLeft + (containerWidth / 2);
     const hoursFromStart = centerScrollLeft / pixelsPerHour;
     const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
 
-    // Update ref immediately
+    // Update ref immediately (no re-render)
     visibleDateRef.current = viewportDate;
 
-    // Update date indicator directly via DOM (real-time, no re-render)
+    // Update date indicator directly via textContent (very fast, no layout)
     if (dateIndicatorRef.current) {
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Update badges visibility directly via DOM (only when date changes)
+    // Debounced state update for badges - only when date changes
     const newDateStr = viewportDate.toDateString();
-    if (badgesContainerRef.current && newDateStr !== lastBadgeDateRef.current) {
-      lastBadgeDateRef.current = newDateStr;
-      const rows = badgesContainerRef.current.querySelectorAll('.tl-fixed-badges-row');
-      rows.forEach(row => {
-        const badges = row.querySelectorAll('.tl-badge');
-        badges.forEach(badge => {
-          const badgeDateStr = badge.dataset.date;
-          if (badgeDateStr) {
-            badge.style.display = badgeDateStr === newDateStr ? 'flex' : 'none';
-          }
-        });
-      });
+    const currentDateStr = visibleDate.toDateString();
+    if (newDateStr !== currentDateStr) {
+      clearTimeout(badgeDateUpdateTimeout.current);
+      badgeDateUpdateTimeout.current = setTimeout(() => {
+        setVisibleDate(viewportDate);
+      }, 100);
     }
 
-    // Still debounce state update for React consistency
-    clearTimeout(scrollEndTimeout.current);
-    scrollEndTimeout.current = setTimeout(() => {
-      setVisibleDate(viewportDate);
-    }, 300);
+    // Clear scroll source after sync completes
+    clearTimeout(scrollingRef.scrollTimeout);
+    scrollingRef.scrollTimeout = setTimeout(() => {
+      scrollingRef.current = null;
+    }, 50);
   };
   
   // Generate hour markers - use integer positions for pixel-perfect alignment
@@ -9228,9 +9239,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       const targetPosition = getPosition(targetDate);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollLeft = scrollPos;
+      if (rulerScrollRef.current) {
+        rulerScrollRef.current.scrollLeft = scrollPos;
+      }
     }
   }, [containerWidth, viewMode, targetDate]);
-  
+
   const scrollToNow = () => {
     const now = new Date();
     setTargetDate(now);
@@ -9239,6 +9253,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     if (viewMode === 'day' && scrollContainerRef.current) {
       const scrollPos = Math.max(0, nowPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      if (rulerScrollRef.current) {
+        rulerScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      }
     }
   };
 
@@ -9253,6 +9270,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       const targetPosition = getPosition(newTarget);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      if (rulerScrollRef.current) {
+        rulerScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      }
     }
     setShowDatePicker(false);
   };
@@ -9894,42 +9914,78 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         
         .tl-scroll-wrapper {
           flex: 1;
-          position: relative;
+          display: flex;
+          flex-direction: column;
           overflow: hidden;
           min-width: 0;
         }
-        
-        .tl-fixed-date {
+
+        .tl-header {
+          display: flex;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          flex-shrink: 0;
+          position: relative;
+        }
+
+        .tl-header-date {
           position: absolute;
           left: 0;
           top: 0;
+          bottom: 0;
           z-index: 15;
-          background: rgba(10, 10, 14, 0.95);
-          padding: 4px 12px;
+          background: rgba(10, 10, 14, 0.98);
+          padding: 0 12px;
           font-size: 12px;
           font-weight: 600;
           color: #a78bfa;
-          border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+          display: flex;
+          align-items: center;
           border-right: 1px solid rgba(99, 102, 241, 0.3);
-          border-radius: 0 0 8px 0;
-          backdrop-filter: blur(8px);
           pointer-events: none;
         }
-        
-        .tl-scroll {
-          height: 100%;
+
+        .tl-ruler-scroll {
+          flex: 1;
           overflow-x: auto;
           overflow-y: hidden;
+        }
+
+        .tl-ruler-scroll::-webkit-scrollbar {
+          display: none;
+        }
+
+        .tl-body {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .tl-scroll {
+          flex: 1;
+          overflow-x: auto;
+          overflow-y: auto;
           -webkit-overflow-scrolling: touch;
-          will-change: scroll-position;
+        }
+
+        .tl-scroll::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .tl-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tl-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
         }
 
         .tl-content {
           display: flex;
           flex-direction: column;
           min-height: 100%;
-          transform: translateZ(0);
-          backface-visibility: hidden;
         }
         
         .tl-ruler {
@@ -10034,6 +10090,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           height: ${ROW_HEIGHT}px;
           position: relative;
           border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          display: flex;
+          align-items: stretch;
         }
 
         .tl-track.client {
@@ -10090,39 +10148,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           white-space: nowrap;
         }
 
-        /* Floating badges for tasks and lists - fixed overlay */
-        .tl-fixed-badges-container {
-          position: absolute;
+        /* Sticky badges container within each track */
+        .tl-track-badges {
+          position: sticky;
           left: 0;
           top: 0;
           bottom: 0;
           z-index: 20;
-          pointer-events: none;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .tl-fixed-badges-header {
-          height: ${RULER_HEIGHT}px;
-          flex-shrink: 0;
-        }
-
-        .tl-fixed-badges-row {
-          height: ${ROW_HEIGHT}px;
-          display: flex;
-          align-items: stretch;
-          gap: 3px;
-          padding: 8px 8px;
-          pointer-events: auto;
-        }
-
-        .tl-label-badges {
           display: flex;
           align-items: center;
-          gap: 3px;
-          margin-left: auto;
-          padding-left: 4px;
+          gap: 4px;
+          padding: 0 8px;
+          background: linear-gradient(90deg, rgba(10, 10, 14, 0.98) 0%, rgba(10, 10, 14, 0.95) 70%, transparent 100%);
+          pointer-events: auto;
+          height: 100%;
           flex-shrink: 0;
+          min-width: fit-content;
         }
 
         .tl-badge {
@@ -10706,109 +10747,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           ))}
         </div>
 
-        {/* Scrollable area with fixed date overlay */}
+        {/* Scrollable area with synced header/content (like WeeklyCalendarView) */}
         <div className="tl-scroll-wrapper">
-          {/* Fixed date indicator - positioned outside scroll for true fixed behavior */}
-          <div className="tl-fixed-date" ref={dateIndicatorRef}>
-            {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-          </div>
-
-          {/* Fixed badges overlay - renders ALL items with data-date, JS shows/hides in real-time */}
-          <div className="tl-fixed-badges-container" ref={badgesContainerRef}>
-            <div className="tl-fixed-badges-header" />
-            {rows.map((row, i) => {
-              const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
-              const currentDateStr = visibleDate.toDateString();
-
-              return (
-                <div key={i} className={`tl-fixed-badges-row ${row.type}`}>
-                  {/* All-day events */}
-                  {(row.allDayEvents || []).map(event => {
-                    const eventDateStr = new Date(event.startTime).toDateString();
-                    return (
-                      <div
-                        key={`fixed-allday-${event.id}`}
-                        className="tl-badge tl-badge-allday"
-                        data-date={eventDateStr}
-                        style={{
-                          background: `linear-gradient(135deg, ${color}dd, ${color}99)`,
-                          display: eventDateStr === currentDateStr ? 'flex' : 'none'
-                        }}
-                        title={event.title}
-                        onClick={() => onEventClick && onEventClick(event)}
-                      >
-                        <Calendar size={10} />
-                        <span className="tl-badge-title">{event.title}</span>
-                      </div>
-                    );
-                  })}
-                  {/* Tasks */}
-                  {row.tasks.filter(t => t.dueDate).map(task => {
-                    const taskDateStr = new Date(task.dueDate).toDateString();
-                    return (
-                      <div
-                        key={`fixed-task-${task.id}`}
-                        className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
-                        data-date={taskDateStr}
-                        style={{
-                          borderColor: color,
-                          display: taskDateStr === currentDateStr ? 'flex' : 'none'
-                        }}
-                        title={task.title}
-                        onClick={() => {
-                          if (task.listId && lists) {
-                            const list = lists.find(l => l.id === task.listId);
-                            if (list && onListClick) {
-                              onListClick(list);
-                              return;
-                            }
-                          }
-                          onTaskClick && onTaskClick(task);
-                        }}
-                      >
-                        <div
-                          className="tl-badge-check"
-                          style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
-                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                        >
-                          {task.isCompleted && <Check size={8} color="#fff" />}
-                        </div>
-                        <span className="tl-badge-title">{task.title}</span>
-                        {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
-                      </div>
-                    );
-                  })}
-                  {/* Lists */}
-                  {(row.lists || []).filter(l => l.dueDate).map(list => {
-                    const listDateStr = new Date(list.dueDate).toDateString();
-                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                    return (
-                      <div
-                        key={`fixed-list-${list.id}`}
-                        className="tl-badge tl-badge-list"
-                        data-date={listDateStr}
-                        style={{
-                          borderColor: color,
-                          background: `${color}15`,
-                          display: listDateStr === currentDateStr ? 'flex' : 'none'
-                        }}
-                        title={`${list.title}\n${progress.completed}/${progress.total} completed`}
-                        onClick={() => onListClick && onListClick(list)}
-                      >
-                        <List size={12} />
-                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="tl-scroll" ref={scrollContainerRef} onScroll={handleTimelineScroll}>
-            <div className="tl-content" style={{ width: totalWidth }}>
-              {/* Ruler */}
-              <div className="tl-ruler">
+          {/* Header with synced ruler scroll */}
+          <div className="tl-header">
+            <div className="tl-header-date" ref={dateIndicatorRef}>
+              {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </div>
+            <div className="tl-ruler-scroll" ref={rulerScrollRef} onScroll={handleTimelineScroll}>
+              <div className="tl-ruler" style={{ width: totalWidth }}>
                 {hourMarkers.map((m, i) => (
                   <div key={i} className={`tl-hour ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }}>
                     <span className="tl-hour-time">{m.label}</span>
@@ -10819,51 +10766,136 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   <span className="tl-now-label">NOW</span>
                 </div>
               </div>
-            
-            {/* Tracks */}
-            <div className="tl-tracks">
-              {/* Hour grid lines - single overlay for performance */}
-              <div className="tl-hour-grid">
-                {hourMarkers.map((m, i) => (
-                  <div key={i} className={`tl-hour-line ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
-                ))}
-              </div>
-              <div className="tl-now-line" style={{ left: nowPosition }} />
-              {rows.map((row, i) => (
-                <div key={i} className={`tl-track ${row.type}`}>
-                  <div className="tl-past" style={{ width: nowPosition }} />
+            </div>
+          </div>
 
-                  {/* Events */}
-                  {row.events.map(event => {
-                    const left = getPosition(event.startTime);
-                    const width = Math.max(getPosition(event.endTime) - left, 30);
-                    const color = row.type === 'client' 
-                      ? row.client.color 
-                      : row.project?.color || row.client.color;
-                    const isPast = event.endTime < currentTime;
-                    
+          {/* Body with main scrollable content */}
+          <div className="tl-body">
+            <div className="tl-scroll" ref={scrollContainerRef} onScroll={handleTimelineScroll}>
+              <div className="tl-content" style={{ width: totalWidth }}>
+                {/* Tracks */}
+                <div className="tl-tracks">
+                  {/* Hour grid lines - single overlay for performance */}
+                  <div className="tl-hour-grid">
+                    {hourMarkers.map((m, i) => (
+                      <div key={i} className={`tl-hour-line ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
+                    ))}
+                  </div>
+                  <div className="tl-now-line" style={{ left: nowPosition }} />
+                  {rows.map((row, i) => {
+                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+
+                    // Get items for current visible date for sticky badges
+                    const visibleDateStr = visibleDate.toDateString();
+                    const visibleAllDayEvents = (row.allDayEvents || []).filter(e =>
+                      new Date(e.startTime).toDateString() === visibleDateStr
+                    );
+                    const visibleTasks = row.tasks.filter(t =>
+                      t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr
+                    );
+                    const visibleLists = (row.lists || []).filter(l =>
+                      l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr
+                    );
+                    const hasBadges = visibleAllDayEvents.length > 0 || visibleTasks.length > 0 || visibleLists.length > 0;
+
                     return (
-                      <div
-                        key={event.id}
-                        className={`tl-event ${isPast ? 'past' : ''}`}
-                        style={{ 
-                          left, 
-                          width, 
-                          background: `linear-gradient(135deg, ${color}dd, ${color}99)` 
-                        }}
-                        title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
-                        onClick={() => onEventClick && onEventClick(event)}
-                      >
-                        {width > 60 && <span className="tl-event-title">{event.title}</span>}
-                        {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
+                      <div key={i} className={`tl-track ${row.type}`}>
+                        <div className="tl-past" style={{ width: nowPosition }} />
+
+                        {/* Sticky badges container */}
+                        {hasBadges && (
+                          <div className="tl-track-badges">
+                            {/* All-day events */}
+                            {visibleAllDayEvents.map(event => (
+                              <div
+                                key={`badge-allday-${event.id}`}
+                                className="tl-badge tl-badge-allday"
+                                style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
+                                title={event.title}
+                                onClick={() => onEventClick && onEventClick(event)}
+                              >
+                                <Calendar size={10} />
+                                <span className="tl-badge-title">{event.title}</span>
+                              </div>
+                            ))}
+                            {/* Tasks */}
+                            {visibleTasks.map(task => (
+                              <div
+                                key={`badge-task-${task.id}`}
+                                className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
+                                style={{ borderColor: color }}
+                                title={task.title}
+                                onClick={() => {
+                                  if (task.listId && lists) {
+                                    const list = lists.find(l => l.id === task.listId);
+                                    if (list && onListClick) {
+                                      onListClick(list);
+                                      return;
+                                    }
+                                  }
+                                  onTaskClick && onTaskClick(task);
+                                }}
+                              >
+                                <div
+                                  className="tl-badge-check"
+                                  style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
+                                  onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                                >
+                                  {task.isCompleted && <Check size={8} color="#fff" />}
+                                </div>
+                                <span className="tl-badge-title">{task.title}</span>
+                                {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
+                              </div>
+                            ))}
+                            {/* Lists */}
+                            {visibleLists.map(list => {
+                              const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                              return (
+                                <div
+                                  key={`badge-list-${list.id}`}
+                                  className="tl-badge tl-badge-list"
+                                  style={{ borderColor: color, background: `${color}15` }}
+                                  title={`${list.title}\n${progress.completed}/${progress.total} completed`}
+                                  onClick={() => onListClick && onListClick(list)}
+                                >
+                                  <List size={12} />
+                                  <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Events */}
+                        {row.events.map(event => {
+                          const left = getPosition(event.startTime);
+                          const width = Math.max(getPosition(event.endTime) - left, 30);
+                          const isPast = event.endTime < currentTime;
+
+                          return (
+                            <div
+                              key={event.id}
+                              className={`tl-event ${isPast ? 'past' : ''}`}
+                              style={{
+                                left,
+                                width,
+                                background: `linear-gradient(135deg, ${color}dd, ${color}99)`
+                              }}
+                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
+                              onClick={() => onEventClick && onEventClick(event)}
+                            >
+                              {width > 60 && <span className="tl-event-title">{event.title}</span>}
+                              {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
       )}
