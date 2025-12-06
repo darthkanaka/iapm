@@ -9108,15 +9108,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Debounced state update for badges - only when date changes
-    const newDateStr = viewportDate.toDateString();
-    const currentDateStr = visibleDate.toDateString();
-    if (newDateStr !== currentDateStr) {
-      clearTimeout(badgeDateUpdateTimeout.current);
-      badgeDateUpdateTimeout.current = setTimeout(() => {
-        setVisibleDate(viewportDate);
-      }, 100);
-    }
+    // Debounced state update for view sync and badges
+    clearTimeout(badgeDateUpdateTimeout.current);
+    badgeDateUpdateTimeout.current = setTimeout(() => {
+      setVisibleDate(viewportDate);
+    }, 150);
 
     // Clear scroll source after sync completes
     clearTimeout(scrollingRef.scrollTimeout);
