@@ -4483,7 +4483,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               ) : (
                 <div className="changelog-list">
                   {changelog.map(entry => {
-                    const changedByMember = teamMembers.find(m => m.id === entry.changed_by);
+                    const changedByMember = teamMembers.find(m => m.auth_user_id === entry.changed_by);
                     const data = entry.new_data || entry.old_data || {};
                     const entityTitle = data.title || data.name || data.content?.substring(0, 50) || 'Untitled';
 
