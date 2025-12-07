@@ -210,7 +210,7 @@
   <div id="root"></div>
   
   <script type="text/babel" data-type="module">
-const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2, Settings, FolderInput, Webhook, Send } = lucideReact;
+const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2, Settings, FolderInput, Webhook, Send, History } = lucideReact;
 
 // ==================== AUTH CONTEXT & PROVIDER ====================
 const AuthContext = React.createContext(null);
@@ -1512,78 +1512,79 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const [notifications, setNotifications] = React.useState([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
 
-  // Webhook configuration (persisted in localStorage)
-  const [webhookUrl, setWebhookUrl] = React.useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('iapm_webhook_url') || '';
-    }
-    return '';
-  });
+  // Webhook configuration (persisted in database system_settings table)
+  const [webhookUrl, setWebhookUrl] = React.useState('');
+  const [webhookLoading, setWebhookLoading] = React.useState(true);
   const [showWebhookSettings, setShowWebhookSettings] = React.useState(false);
 
-  // Save webhook URL to localStorage when it changes
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('iapm_webhook_url', webhookUrl);
-    }
-  }, [webhookUrl]);
+  // Changelog for admin users
+  const [changelog, setChangelog] = React.useState([]);
+  const [changelogLoading, setChangelogLoading] = React.useState(false);
 
-  // Send notification to webhook endpoint
-  const sendNotificationWebhook = async (notification, additionalContext = {}) => {
-    if (!webhookUrl) return; // No webhook configured
+  // Load changelog (admin only)
+  const loadChangelog = async () => {
+    if (!currentTeamMember?.is_admin) return;
 
-    const actor = teamMembers.find(m => m.id === notification.actorId);
-    const recipient = teamMembers.find(m => m.id === notification.recipientId);
-
-    // Build rich payload for N8N
-    const payload = {
-      // Core notification data
-      type: notification.type,
-      message: notification.message,
-      timestamp: notification.createdAt || new Date().toISOString(),
-
-      // Actor (who triggered the notification)
-      actor: {
-        id: notification.actorId,
-        name: actor?.name || 'Unknown',
-        email: actor?.email || null,
-        color: actor?.color || '#6366f1'
-      },
-
-      // Recipient (who receives the notification)
-      recipient: {
-        id: notification.recipientId,
-        name: recipient?.name || 'Unknown',
-        email: recipient?.email || null,
-        color: recipient?.color || '#6366f1'
-      },
-
-      // Entity details (what the notification is about)
-      entity: {
-        type: notification.entityType,
-        id: notification.entityId,
-        title: notification.entityTitle,
-        ...additionalContext
-      },
-
-      // App metadata
-      source: 'iapm',
-      version: '1.0'
-    };
-
+    setChangelogLoading(true);
     try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        mode: 'no-cors' // Allow cross-origin requests to N8N
-      });
-      console.log('Webhook sent:', notification.type);
+      const { data, error } = await supabase
+        .from('changelog')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (!error && data) {
+        setChangelog(data);
+      }
     } catch (err) {
-      console.error('Webhook error:', err);
-      // Don't block the app if webhook fails
+      console.error('Error loading changelog:', err);
+    }
+    setChangelogLoading(false);
+  };
+
+  // Load changelog when admin views it
+  React.useEffect(() => {
+    if (activeView === 'changelog' && currentTeamMember?.is_admin) {
+      loadChangelog();
+    }
+  }, [activeView, currentTeamMember?.is_admin]);
+
+  // Load webhook URL from database on mount
+  React.useEffect(() => {
+    const loadWebhookUrl = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'webhook_url')
+          .single();
+
+        if (!error && data) {
+          setWebhookUrl(data.value);
+        }
+      } catch (err) {
+        console.error('Error loading webhook URL:', err);
+      } finally {
+        setWebhookLoading(false);
+      }
+    };
+    loadWebhookUrl();
+  }, []);
+
+  // Save webhook URL to database
+  const saveWebhookUrl = async (newUrl) => {
+    setWebhookUrl(newUrl);
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .update({ value: newUrl, updated_at: new Date().toISOString() })
+        .eq('key', 'webhook_url');
+
+      if (error) {
+        console.error('Error saving webhook URL:', error);
+      }
+    } catch (err) {
+      console.error('Error saving webhook URL:', err);
     }
   };
 
@@ -1673,9 +1674,6 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     };
 
     setNotifications(prev => [localNotif, ...prev]);
-
-    // Send to webhook
-    sendNotificationWebhook(localNotif);
   };
 
   const addNotifications = async (notifs) => {
@@ -1717,9 +1715,6 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }));
 
     setNotifications(prev => [...localNotifs, ...prev]);
-
-    // Send each to webhook
-    localNotifs.forEach(notif => sendNotificationWebhook(notif));
   };
 
   // Mark notification as read
@@ -3929,6 +3924,201 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           cursor: not-allowed;
         }
 
+        /* Changelog View Styles */
+        .changelog-view {
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 8px;
+        }
+
+        .changelog-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 24px;
+        }
+
+        .changelog-header h2 {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 0;
+          font-size: 20px;
+          font-weight: 600;
+          color: #f4f4f5;
+        }
+
+        .btn-refresh {
+          padding: 8px 16px;
+          background: rgba(99, 102, 241, 0.15);
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          border-radius: 6px;
+          color: #818cf8;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .btn-refresh:hover:not(:disabled) {
+          background: rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-refresh:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .changelog-empty {
+          text-align: center;
+          color: #71717a;
+          padding: 48px;
+          font-size: 14px;
+        }
+
+        .changelog-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .changelog-entry {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 8px;
+          padding: 16px;
+        }
+
+        .changelog-meta {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+
+        .changelog-op {
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .changelog-op-insert {
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+        }
+
+        .changelog-op-update {
+          background: rgba(234, 179, 8, 0.15);
+          color: #eab308;
+        }
+
+        .changelog-op-delete {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .changelog-table {
+          color: #a1a1aa;
+          font-size: 12px;
+          font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .changelog-time {
+          color: #71717a;
+          font-size: 12px;
+          margin-left: auto;
+        }
+
+        .changelog-details {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #f4f4f5;
+          font-size: 14px;
+        }
+
+        .changelog-user {
+          color: #71717a;
+          font-size: 13px;
+        }
+
+        .changelog-diff {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .changelog-field {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          margin-bottom: 4px;
+          font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .field-name {
+          color: #a1a1aa;
+          min-width: 80px;
+        }
+
+        .field-old {
+          color: #ef4444;
+          text-decoration: line-through;
+          opacity: 0.7;
+        }
+
+        .field-arrow {
+          color: #71717a;
+        }
+
+        .field-new {
+          color: #22c55e;
+        }
+
+        .changelog-action {
+          color: #a1a1aa;
+          font-size: 14px;
+        }
+
+        .changelog-context {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .changelog-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 4px;
+          font-size: 12px;
+          color: #a1a1aa;
+        }
+
+        .tag-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .tag-complete {
+          background: rgba(34, 197, 94, 0.1);
+          border-color: rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+        }
+
+        .tag-incomplete {
+          background: rgba(234, 179, 8, 0.1);
+          border-color: rgba(234, 179, 8, 0.2);
+          color: #eab308;
+        }
+
         .content {
           flex: 1;
           padding: 24px 32px;
@@ -3989,12 +4179,20 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           >
             <Clock /> {!sidebarCollapsed && 'Calendar'}
           </div>
-          <div 
-            className={`nav-item ${activeView === 'list' ? 'active' : ''}`} 
+          <div
+            className={`nav-item ${activeView === 'list' ? 'active' : ''}`}
             onClick={() => { setActiveView('list'); setSelectedClient(null); }}
           >
             <List /> {!sidebarCollapsed && 'List View'}
           </div>
+          {currentTeamMember?.is_admin && (
+            <div
+              className={`nav-item ${activeView === 'changelog' ? 'active' : ''}`}
+              onClick={() => { setActiveView('changelog'); setSelectedClient(null); }}
+            >
+              <History size={16} /> {!sidebarCollapsed && 'Changelog'}
+            </div>
+          )}
         </nav>
 
         <nav className="nav-section">
@@ -4107,20 +4305,23 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       <main className="main">
         <header className="header">
           <h1 className="header-title">
-            {activeView === 'timeline' ? 'Timeline' : 
+            {activeView === 'timeline' ? 'Timeline' :
              activeView === 'calendar' ? 'Calendar' :
              activeView === 'list' ? 'List View' :
+             activeView === 'changelog' ? 'Changelog' :
              selectedClient?.name || 'Dashboard'}
           </h1>
           
           <div className="header-actions">
-            <button
-              className="settings-btn"
-              onClick={() => setShowWebhookSettings(true)}
-              title="Webhook Settings"
-            >
-              <Settings size={18} />
-            </button>
+            {currentTeamMember?.is_admin && (
+              <button
+                className="settings-btn"
+                onClick={() => setShowWebhookSettings(true)}
+                title="Webhook Settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
 
             <div style={{ position: 'relative' }}>
               <button
@@ -4250,8 +4451,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
             />
           )}
           {activeView === 'list' && (
-            <ListView 
-              clients={clients} 
+            <ListView
+              clients={clients}
               internal={internal}
               events={events}
               tasks={tasks}
@@ -4268,6 +4469,117 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               onListClick={setSelectedList}
               getListProgress={getListProgress}
             />
+          )}
+          {activeView === 'changelog' && currentTeamMember?.is_admin && (
+            <div className="changelog-view">
+              <div className="changelog-header">
+                <h2><History size={20} /> System Changelog</h2>
+                <button className="btn-refresh" onClick={loadChangelog} disabled={changelogLoading}>
+                  {changelogLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+              {changelog.length === 0 && !changelogLoading ? (
+                <div className="changelog-empty">No changes recorded yet.</div>
+              ) : (
+                <div className="changelog-list">
+                  {changelog.map(entry => {
+                    const changedByMember = teamMembers.find(m => m.auth_user_id === entry.changed_by);
+                    const data = entry.new_data || entry.old_data || {};
+                    const entityTitle = data.title || data.name || data.content?.substring(0, 50) || 'Untitled';
+
+                    // Get related client/project names
+                    const relatedClient = clients.find(c => c.id === data.client_id) ||
+                                         internal.personal?.id === data.client_id ? internal.personal :
+                                         internal.team?.id === data.client_id ? internal.team : null;
+                    const relatedProject = relatedClient?.projects?.find(p => p.id === data.project_id);
+
+                    // Get assigned user for tasks
+                    const assignedTo = teamMembers.find(m => m.id === data.assigned_to);
+
+                    // Format action message
+                    const getActionMessage = () => {
+                      const actor = changedByMember?.name || 'Someone';
+                      switch (entry.operation) {
+                        case 'INSERT':
+                          return `${actor} created`;
+                        case 'UPDATE':
+                          return `${actor} updated`;
+                        case 'DELETE':
+                          return `${actor} deleted`;
+                        default:
+                          return actor;
+                      }
+                    };
+
+                    return (
+                      <div key={entry.id} className="changelog-entry">
+                        <div className="changelog-meta">
+                          <span className={`changelog-op changelog-op-${entry.operation.toLowerCase()}`}>
+                            {entry.operation}
+                          </span>
+                          <span className="changelog-table">{entry.table_name}</span>
+                          <span className="changelog-time">
+                            {new Date(entry.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="changelog-details">
+                          <span className="changelog-action">{getActionMessage()}</span>
+                          <strong>"{entityTitle}"</strong>
+                        </div>
+                        <div className="changelog-context">
+                          {relatedClient && (
+                            <span className="changelog-tag">
+                              <span className="tag-dot" style={{ background: relatedClient.color }} />
+                              {relatedClient.name}
+                            </span>
+                          )}
+                          {relatedProject && (
+                            <span className="changelog-tag">
+                              {relatedProject.name}
+                            </span>
+                          )}
+                          {assignedTo && entry.table_name === 'tasks' && (
+                            <span className="changelog-tag">
+                              Assigned to {assignedTo.name}
+                            </span>
+                          )}
+                          {data.start_time && entry.table_name === 'events' && (
+                            <span className="changelog-tag">
+                              {new Date(data.start_time).toLocaleDateString()}
+                            </span>
+                          )}
+                          {data.due_date && entry.table_name === 'tasks' && (
+                            <span className="changelog-tag">
+                              Due {new Date(data.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {data.completed !== undefined && entry.table_name === 'tasks' && (
+                            <span className={`changelog-tag ${data.completed ? 'tag-complete' : 'tag-incomplete'}`}>
+                              {data.completed ? 'Completed' : 'Incomplete'}
+                            </span>
+                          )}
+                        </div>
+                        {entry.operation === 'UPDATE' && entry.old_data && entry.new_data && (
+                          <div className="changelog-diff">
+                            {Object.keys(entry.new_data).filter(key =>
+                              JSON.stringify(entry.new_data[key]) !== JSON.stringify(entry.old_data[key]) &&
+                              !['updated_at', 'created_at', 'id'].includes(key)
+                            ).slice(0, 5).map(key => (
+                              <div key={key} className="changelog-field">
+                                <span className="field-name">{key.replace(/_/g, ' ')}:</span>
+                                <span className="field-old">{JSON.stringify(entry.old_data[key])?.substring(0, 50)}</span>
+                                <span className="field-arrow">→</span>
+                                <span className="field-new">{JSON.stringify(entry.new_data[key])?.substring(0, 50)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
           {activeView === 'client' && selectedClient && (
             <ClientView 
@@ -4373,15 +4685,19 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           <div className="webhook-modal" onClick={e => e.stopPropagation()}>
             <h3><Webhook size={20} /> Webhook Settings</h3>
             <p className="webhook-modal-desc">
-              Configure a webhook URL to send notification data to external services like N8N, Zapier, or custom endpoints.
-              All notifications will be POSTed to this URL in JSON format.
+              Configure a webhook URL to receive a complete changelog of all database changes across all users.
+              Every INSERT, UPDATE, and DELETE is automatically POSTed to this URL via database triggers.
             </p>
 
             <div className={`webhook-status ${webhookUrl ? 'active' : 'inactive'}`}>
-              {webhookUrl ? (
+              {webhookLoading ? (
+                <>
+                  <span>Loading...</span>
+                </>
+              ) : webhookUrl ? (
                 <>
                   <Check size={16} />
-                  <span>Webhook is active</span>
+                  <span>Webhook is active (system-wide)</span>
                 </>
               ) : (
                 <>
@@ -4398,7 +4714,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
                 className="webhook-input"
                 placeholder="https://your-n8n-instance.com/webhook/..."
                 value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
+                onChange={(e) => saveWebhookUrl(e.target.value)}
               />
             </div>
 
