@@ -5721,11 +5721,11 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
 
     setIsSaving(true);
 
-    // For all-day events, use 12am to 12am (midnight to midnight)
+    // For all-day events, use 12:15am to 11:45pm to span full day
     let startTimeDate, endTimeDate;
     if (isAllDay) {
-      startTimeDate = new Date(`${date}T00:00:00`);
-      endTimeDate = new Date(`${date}T23:59:59`);
+      startTimeDate = new Date(`${date}T00:15:00`);
+      endTimeDate = new Date(`${date}T23:45:00`);
     } else {
       const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
       const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
@@ -9402,10 +9402,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
   const [scrollTrigger, setScrollTrigger] = React.useState(0); // Increment to force scroll
-  const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 6-hour view
+  const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 8-hour view
   const visibleDateRef = React.useRef(new Date()); // Track visible date during scroll without re-renders
   const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date
-  const badgeDateUpdateTimeout = React.useRef(null); // Debounce badge date updates
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
@@ -9530,17 +9529,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // No state updates during scroll - only ref updates (matches 7-day view pattern)
-    // View sync happens on switch via visibleDateRef
-
-    // Update badges only after scrolling stops (scroll-end detection)
-    clearTimeout(badgeDateUpdateTimeout.current);
-    badgeDateUpdateTimeout.current = setTimeout(() => {
-      // Only update state if date actually changed (avoids unnecessary re-renders)
-      if (viewportDate.toDateString() !== visibleDate.toDateString()) {
-        setVisibleDate(viewportDate);
-      }
-    }, 250);
+    // Update visibleDate immediately when day changes (so badges update during scroll)
+    // Only triggers re-render when we cross into a new day
+    if (viewportDate.toDateString() !== visibleDate.toDateString()) {
+      setVisibleDate(viewportDate);
+    }
 
     // Clear scroll source after sync completes
     clearTimeout(scrollingRef.scrollTimeout);
@@ -10615,9 +10608,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         }
 
         .tl-badge-allday {
-          border-radius: 4px;
+          border-radius: 6px;
           color: #fff;
           font-weight: 500;
+          height: calc(100% - 16px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .tl-badge-fraction {
