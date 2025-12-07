@@ -210,7 +210,7 @@
   <div id="root"></div>
   
   <script type="text/babel" data-type="module">
-const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2, Settings, FolderInput, Webhook, Send } = lucideReact;
+const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2, Settings, FolderInput, Webhook, Send, History } = lucideReact;
 
 // ==================== AUTH CONTEXT & PROVIDER ====================
 const AuthContext = React.createContext(null);
@@ -1516,6 +1516,38 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const [webhookUrl, setWebhookUrl] = React.useState('');
   const [webhookLoading, setWebhookLoading] = React.useState(true);
   const [showWebhookSettings, setShowWebhookSettings] = React.useState(false);
+
+  // Changelog for admin users
+  const [changelog, setChangelog] = React.useState([]);
+  const [changelogLoading, setChangelogLoading] = React.useState(false);
+
+  // Load changelog (admin only)
+  const loadChangelog = async () => {
+    if (!currentTeamMember?.is_admin) return;
+
+    setChangelogLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('changelog')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (!error && data) {
+        setChangelog(data);
+      }
+    } catch (err) {
+      console.error('Error loading changelog:', err);
+    }
+    setChangelogLoading(false);
+  };
+
+  // Load changelog when admin views it
+  React.useEffect(() => {
+    if (activeView === 'changelog' && currentTeamMember?.is_admin) {
+      loadChangelog();
+    }
+  }, [activeView, currentTeamMember?.is_admin]);
 
   // Load webhook URL from database on mount
   React.useEffect(() => {
@@ -3892,6 +3924,159 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           cursor: not-allowed;
         }
 
+        /* Changelog View Styles */
+        .changelog-view {
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 8px;
+        }
+
+        .changelog-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 24px;
+        }
+
+        .changelog-header h2 {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 0;
+          font-size: 20px;
+          font-weight: 600;
+          color: #f4f4f5;
+        }
+
+        .btn-refresh {
+          padding: 8px 16px;
+          background: rgba(99, 102, 241, 0.15);
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          border-radius: 6px;
+          color: #818cf8;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .btn-refresh:hover:not(:disabled) {
+          background: rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-refresh:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .changelog-empty {
+          text-align: center;
+          color: #71717a;
+          padding: 48px;
+          font-size: 14px;
+        }
+
+        .changelog-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .changelog-entry {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 8px;
+          padding: 16px;
+        }
+
+        .changelog-meta {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+
+        .changelog-op {
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .changelog-op-insert {
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+        }
+
+        .changelog-op-update {
+          background: rgba(234, 179, 8, 0.15);
+          color: #eab308;
+        }
+
+        .changelog-op-delete {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .changelog-table {
+          color: #a1a1aa;
+          font-size: 12px;
+          font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .changelog-time {
+          color: #71717a;
+          font-size: 12px;
+          margin-left: auto;
+        }
+
+        .changelog-details {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #f4f4f5;
+          font-size: 14px;
+        }
+
+        .changelog-user {
+          color: #71717a;
+          font-size: 13px;
+        }
+
+        .changelog-diff {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .changelog-field {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          margin-bottom: 4px;
+          font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .field-name {
+          color: #a1a1aa;
+          min-width: 80px;
+        }
+
+        .field-old {
+          color: #ef4444;
+          text-decoration: line-through;
+          opacity: 0.7;
+        }
+
+        .field-arrow {
+          color: #71717a;
+        }
+
+        .field-new {
+          color: #22c55e;
+        }
+
         .content {
           flex: 1;
           padding: 24px 32px;
@@ -3952,12 +4137,20 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           >
             <Clock /> {!sidebarCollapsed && 'Calendar'}
           </div>
-          <div 
-            className={`nav-item ${activeView === 'list' ? 'active' : ''}`} 
+          <div
+            className={`nav-item ${activeView === 'list' ? 'active' : ''}`}
             onClick={() => { setActiveView('list'); setSelectedClient(null); }}
           >
             <List /> {!sidebarCollapsed && 'List View'}
           </div>
+          {teamMember?.is_admin && (
+            <div
+              className={`nav-item ${activeView === 'changelog' ? 'active' : ''}`}
+              onClick={() => { setActiveView('changelog'); setSelectedClient(null); }}
+            >
+              <History size={16} /> {!sidebarCollapsed && 'Changelog'}
+            </div>
+          )}
         </nav>
 
         <nav className="nav-section">
@@ -4070,20 +4263,23 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       <main className="main">
         <header className="header">
           <h1 className="header-title">
-            {activeView === 'timeline' ? 'Timeline' : 
+            {activeView === 'timeline' ? 'Timeline' :
              activeView === 'calendar' ? 'Calendar' :
              activeView === 'list' ? 'List View' :
+             activeView === 'changelog' ? 'Changelog' :
              selectedClient?.name || 'Dashboard'}
           </h1>
           
           <div className="header-actions">
-            <button
-              className="settings-btn"
-              onClick={() => setShowWebhookSettings(true)}
-              title="Webhook Settings"
-            >
-              <Settings size={18} />
-            </button>
+            {teamMember?.is_admin && (
+              <button
+                className="settings-btn"
+                onClick={() => setShowWebhookSettings(true)}
+                title="Webhook Settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
 
             <div style={{ position: 'relative' }}>
               <button
@@ -4213,8 +4409,8 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
             />
           )}
           {activeView === 'list' && (
-            <ListView 
-              clients={clients} 
+            <ListView
+              clients={clients}
               internal={internal}
               events={events}
               tasks={tasks}
@@ -4231,6 +4427,62 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               onListClick={setSelectedList}
               getListProgress={getListProgress}
             />
+          )}
+          {activeView === 'changelog' && teamMember?.is_admin && (
+            <div className="changelog-view">
+              <div className="changelog-header">
+                <h2><History size={20} /> System Changelog</h2>
+                <button className="btn-refresh" onClick={loadChangelog} disabled={changelogLoading}>
+                  {changelogLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+              {changelog.length === 0 && !changelogLoading ? (
+                <div className="changelog-empty">No changes recorded yet.</div>
+              ) : (
+                <div className="changelog-list">
+                  {changelog.map(entry => {
+                    const changedByMember = teamMembers.find(m => m.id === entry.changed_by);
+                    const entityTitle = entry.new_data?.title || entry.old_data?.title || entry.new_data?.name || entry.old_data?.name || 'Untitled';
+                    return (
+                      <div key={entry.id} className="changelog-entry">
+                        <div className="changelog-meta">
+                          <span className={`changelog-op changelog-op-${entry.operation.toLowerCase()}`}>
+                            {entry.operation}
+                          </span>
+                          <span className="changelog-table">{entry.table_name}</span>
+                          <span className="changelog-time">
+                            {new Date(entry.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="changelog-details">
+                          <strong>{entityTitle}</strong>
+                          {changedByMember && (
+                            <span className="changelog-user">
+                              by {changedByMember.name}
+                            </span>
+                          )}
+                        </div>
+                        {entry.operation === 'UPDATE' && entry.old_data && entry.new_data && (
+                          <div className="changelog-diff">
+                            {Object.keys(entry.new_data).filter(key =>
+                              JSON.stringify(entry.new_data[key]) !== JSON.stringify(entry.old_data[key]) &&
+                              !['updated_at', 'created_at'].includes(key)
+                            ).slice(0, 5).map(key => (
+                              <div key={key} className="changelog-field">
+                                <span className="field-name">{key}:</span>
+                                <span className="field-old">{JSON.stringify(entry.old_data[key])?.substring(0, 50)}</span>
+                                <span className="field-arrow">→</span>
+                                <span className="field-new">{JSON.stringify(entry.new_data[key])?.substring(0, 50)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
           {activeView === 'client' && selectedClient && (
             <ClientView 
