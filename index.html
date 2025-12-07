@@ -4143,7 +4143,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           >
             <List /> {!sidebarCollapsed && 'List View'}
           </div>
-          {teamMember?.is_admin && (
+          {currentTeamMember?.is_admin && (
             <div
               className={`nav-item ${activeView === 'changelog' ? 'active' : ''}`}
               onClick={() => { setActiveView('changelog'); setSelectedClient(null); }}
@@ -4271,7 +4271,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           </h1>
           
           <div className="header-actions">
-            {teamMember?.is_admin && (
+            {currentTeamMember?.is_admin && (
               <button
                 className="settings-btn"
                 onClick={() => setShowWebhookSettings(true)}
@@ -4428,7 +4428,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               getListProgress={getListProgress}
             />
           )}
-          {activeView === 'changelog' && teamMember?.is_admin && (
+          {activeView === 'changelog' && currentTeamMember?.is_admin && (
             <div className="changelog-view">
               <div className="changelog-header">
                 <h2><History size={20} /> System Changelog</h2>
