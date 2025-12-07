@@ -6061,9 +6061,12 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
 
     setIsSaving(true);
 
-    // For all-day events, use 12:15am to 11:45pm to span full day(s)
+    // For all-day events OR multi-day events, use 12:15am to 11:45pm to span full day(s)
+    const isMultiDay = date !== endDate;
+    const treatAsAllDay = isAllDay || isMultiDay;
+
     let startTimeDate, endTimeDate;
-    if (isAllDay) {
+    if (treatAsAllDay) {
       startTimeDate = new Date(`${date}T00:15:00`);
       endTimeDate = new Date(`${endDate}T23:45:00`);
     } else {
@@ -6079,7 +6082,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
       title: title.trim(),
       startTime: startTimeDate,
       endTime: endTimeDate,
-      allDay: isAllDay,
+      allDay: treatAsAllDay, // Multi-day events are treated as all-day
       location: location.trim(),
       notes: eventDescription.trim(),
       attendees: attendees,
@@ -6856,6 +6859,8 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                 </div>
               </div>
 
+              {/* Only show all-day checkbox for single-day events */}
+              {date === endDate && (
               <div className="event-modal-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
@@ -6866,8 +6871,17 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                 />
                 <label htmlFor="allday-toggle" style={{ cursor: 'pointer', fontSize: 13 }}>All day event</label>
               </div>
+              )}
 
-              {!isAllDay && (
+              {/* Show message for multi-day events */}
+              {date !== endDate && (
+              <div className="event-modal-field" style={{ padding: '8px 12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: 6, border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                <span style={{ fontSize: 12, color: '#a78bfa' }}>Multi-day events span full days (12:15 AM - 11:45 PM)</span>
+              </div>
+              )}
+
+              {/* Only show time pickers for single-day, non-all-day events */}
+              {date === endDate && !isAllDay && (
               <div className="event-modal-field">
                 <label className="event-modal-label">Time</label>
                 <div className="event-modal-time-row">
@@ -11963,37 +11977,26 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                           </div>
                         )}
 
-                        {/* Events */}
-                        {row.events.map(event => {
+                        {/* Events - exclude multi-day events (they show as badges only) */}
+                        {row.events.filter(event => !isMultiDayEvent(event)).map(event => {
                           const left = getPosition(event.startTime);
                           const width = Math.max(getPosition(event.endTime) - left, 30);
                           const isPast = event.endTime < currentTime;
-                          const isMultiDay = isMultiDayEvent(event);
-
-                          // Calculate number of days for multi-day indicator
-                          const getDayCount = () => {
-                            const startDate = new Date(event.startTime);
-                            const endDate = new Date(event.endTime);
-                            startDate.setHours(0, 0, 0, 0);
-                            endDate.setHours(0, 0, 0, 0);
-                            return Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-                          };
 
                           return (
                             <div
                               key={event.id}
-                              className={`tl-event ${isPast ? 'past' : ''} ${isMultiDay ? 'multiday' : ''}`}
+                              className={`tl-event ${isPast ? 'past' : ''}`}
                               style={{
                                 left,
                                 width,
                                 background: `linear-gradient(135deg, ${color}dd, ${color}99)`
                               }}
-                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}${isMultiDay ? ` (${getDayCount()} days)` : ''}`}
+                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
                               onClick={() => onEventClick && onEventClick(event)}
                             >
                               {width > 60 && <span className="tl-event-title">{event.title}</span>}
                               {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
-                              {isMultiDay && width > 180 && <span className="tl-event-multiday">{getDayCount()} days</span>}
                             </div>
                           );
                         })}
