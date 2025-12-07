@@ -10612,6 +10612,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-badge-list {
           border-style: dashed;
+          height: calc(100% - 16px);
         }
 
         .tl-badge-allday {
@@ -10620,6 +10621,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           font-weight: 500;
           height: calc(100% - 16px);
           border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tl-badge-task {
+          height: calc(100% - 16px);
         }
 
         .tl-badge-fraction {
