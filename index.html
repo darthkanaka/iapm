@@ -11822,14 +11822,17 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                     );
 
                     // Multi-day timed events that span the visible date
-                    // DEBUG v2: Show first 3 events from row.events as badges with diagnostic info
-                    const visibleMultiDayEvents = row.events.slice(0, 3).map(e => {
-                      const hasEndTime = !!e.endTime;
+                    // DEBUG v3: Show events with actual date info to diagnose
+                    const visibleMultiDayEvents = row.events.slice(0, 5).map(e => {
+                      const startD = e.startTime ? new Date(e.startTime) : null;
+                      const endD = e.endTime ? new Date(e.endTime) : null;
+                      const startStr = startD ? `${startD.getMonth()+1}/${startD.getDate()}` : '?';
+                      const endStr = endD ? `${endD.getMonth()+1}/${endD.getDate()}` : '?';
                       const isMulti = e.endTime ? isMultiDayEvent(e) : false;
                       return {
                         ...e,
                         dayPosition: 'continues',
-                        title: `${e.title} [end:${hasEndTime ? 'Y' : 'N'}, multi:${isMulti ? 'Y' : 'N'}]`
+                        title: `${e.title.substring(0, 15)}.. [${startStr}-${endStr}] ${isMulti ? 'MULTI' : ''}`
                       };
                     });
 
