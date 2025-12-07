@@ -1556,65 +1556,6 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
-  // Send notification to webhook endpoint
-  const sendNotificationWebhook = async (notification, additionalContext = {}) => {
-    if (!webhookUrl) return; // No webhook configured
-
-    const actor = teamMembers.find(m => m.id === notification.actorId);
-    const recipient = teamMembers.find(m => m.id === notification.recipientId);
-
-    // Build rich payload for N8N
-    const payload = {
-      // Core notification data
-      type: notification.type,
-      message: notification.message,
-      timestamp: notification.createdAt || new Date().toISOString(),
-
-      // Actor (who triggered the notification)
-      actor: {
-        id: notification.actorId,
-        name: actor?.name || 'Unknown',
-        email: actor?.email || null,
-        color: actor?.color || '#6366f1'
-      },
-
-      // Recipient (who receives the notification)
-      recipient: {
-        id: notification.recipientId,
-        name: recipient?.name || 'Unknown',
-        email: recipient?.email || null,
-        color: recipient?.color || '#6366f1'
-      },
-
-      // Entity details (what the notification is about)
-      entity: {
-        type: notification.entityType,
-        id: notification.entityId,
-        title: notification.entityTitle,
-        ...additionalContext
-      },
-
-      // App metadata
-      source: 'iapm',
-      version: '1.0'
-    };
-
-    try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        mode: 'no-cors' // Allow cross-origin requests to N8N
-      });
-      console.log('Webhook sent:', notification.type);
-    } catch (err) {
-      console.error('Webhook error:', err);
-      // Don't block the app if webhook fails
-    }
-  };
-
   // Generate notification from activity
   const createNotification = (type, actorId, recipientId, entityType, entityId, entityTitle, extraData = {}) => {
     if (actorId === recipientId) return null; // Don't notify yourself
@@ -1701,9 +1642,6 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     };
 
     setNotifications(prev => [localNotif, ...prev]);
-
-    // Send to webhook
-    sendNotificationWebhook(localNotif);
   };
 
   const addNotifications = async (notifs) => {
@@ -1745,9 +1683,6 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }));
 
     setNotifications(prev => [...localNotifs, ...prev]);
-
-    // Send each to webhook
-    localNotifs.forEach(notif => sendNotificationWebhook(notif));
   };
 
   // Mark notification as read
