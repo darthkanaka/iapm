@@ -9543,19 +9543,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       scrollingRef.current = null;
     }, 50);
   };
-  
-  // Generate hour markers - use integer positions for pixel-perfect alignment
-  const hourMarkers = [];
-  for (let h = 0; h < TOTAL_HOURS; h++) {
-    const time = new Date(rangeStart.getTime() + h * 60 * 60 * 1000);
-    hourMarkers.push({
-      time,
-      label: time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
-      isNewDay: time.getHours() === 0,
-      date: time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      left: h * pixelsPerHour // pixelsPerHour is already rounded
-    });
-  }
+
+  // Generate hour markers - memoized to prevent recalculation on visibleDate changes
+  const hourMarkers = React.useMemo(() => {
+    const markers = [];
+    for (let h = 0; h < TOTAL_HOURS; h++) {
+      const time = new Date(rangeStart.getTime() + h * 60 * 60 * 1000);
+      markers.push({
+        time,
+        label: time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
+        isNewDay: time.getHours() === 0,
+        date: time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        left: h * pixelsPerHour
+      });
+    }
+    return markers;
+  }, [TOTAL_HOURS, rangeStart.getTime(), pixelsPerHour]);
   
   // Get events for a project (excludes all-day events - they show in badges)
   const getProjectEvents = (projectId) => {
@@ -9696,47 +9699,50 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     setShowDatePicker(false);
   };
 
-  // Build rows
-  const rows = [];
-  allSpaces.forEach(client => {
-    const isCollapsed = collapsedClients[client.id];
-    
-    // Get tasks and lists for client row (includes list tasks with due dates)
-    const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
-    const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
-    const clientRowAllDayEvents = isCollapsed ? getClientAllDayEvents(client) : getClientLevelAllDayEvents(client.id);
+  // Build rows - memoized to prevent recalculation on visibleDate changes
+  const rows = React.useMemo(() => {
+    const result = [];
+    allSpaces.forEach(client => {
+      const isCollapsed = collapsedClients[client.id];
 
-    // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
-    rows.push({
-      type: 'client',
-      client,
-      isCollapsed,
-      events: isCollapsed ? getClientEvents(client) : getClientLevelEvents(client.id),
-      allDayEvents: clientRowAllDayEvents,
-      tasks: clientRowTasks,
-      lists: clientRowLists,
-      groupedItems: groupItemsByDay(clientRowTasks, clientRowLists)
-    });
+      // Get tasks and lists for client row (includes list tasks with due dates)
+      const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
+      const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
+      const clientRowAllDayEvents = isCollapsed ? getClientAllDayEvents(client) : getClientLevelAllDayEvents(client.id);
 
-    // Project rows (if not collapsed)
-    if (!isCollapsed) {
-      client.projects.forEach(project => {
-        const projectTasks = getProjectTasks(project.id);
-        const projectLists = getProjectLists(project.id);
-        const projectAllDayEvents = getProjectAllDayEvents(project.id);
-        rows.push({
-          type: 'project',
-          client,
-          project,
-          events: getProjectEvents(project.id),
-          allDayEvents: projectAllDayEvents,
-          tasks: projectTasks,
-          lists: projectLists,
-          groupedItems: groupItemsByDay(projectTasks, projectLists)
-        });
+      // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
+      result.push({
+        type: 'client',
+        client,
+        isCollapsed,
+        events: isCollapsed ? getClientEvents(client) : getClientLevelEvents(client.id),
+        allDayEvents: clientRowAllDayEvents,
+        tasks: clientRowTasks,
+        lists: clientRowLists,
+        groupedItems: groupItemsByDay(clientRowTasks, clientRowLists)
       });
-    }
-  });
+
+      // Project rows (if not collapsed)
+      if (!isCollapsed) {
+        client.projects.forEach(project => {
+          const projectTasks = getProjectTasks(project.id);
+          const projectLists = getProjectLists(project.id);
+          const projectAllDayEvents = getProjectAllDayEvents(project.id);
+          result.push({
+            type: 'project',
+            client,
+            project,
+            events: getProjectEvents(project.id),
+            allDayEvents: projectAllDayEvents,
+            tasks: projectTasks,
+            lists: projectLists,
+            groupedItems: groupItemsByDay(projectTasks, projectLists)
+          });
+        });
+      }
+    });
+    return result;
+  }, [allSpaces, collapsedClients, events, tasks, lists]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
