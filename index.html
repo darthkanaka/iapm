@@ -11817,23 +11817,52 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                     const visibleDateStart = new Date(visibleDate);
                     visibleDateStart.setHours(0, 0, 0, 0);
 
-                    const visibleAllDayEvents = (row.allDayEvents || []).filter(e =>
-                      new Date(e.startTime).toDateString() === visibleDateStr
-                    );
+                    // All-day events that span the visible date (including multi-day all-day events)
+                    const visibleAllDayEvents = (row.allDayEvents || []).filter(e => {
+                      if (!e.startTime) return false;
+                      const eventStart = new Date(e.startTime);
+                      const eventEnd = e.endTime ? new Date(e.endTime) : eventStart;
+                      eventStart.setHours(0, 0, 0, 0);
+                      const eventEndNorm = new Date(eventEnd);
+                      eventEndNorm.setHours(0, 0, 0, 0);
+                      // Include if visible date is between start and end (inclusive)
+                      return visibleDateStart.getTime() >= eventStart.getTime() &&
+                             visibleDateStart.getTime() <= eventEndNorm.getTime();
+                    }).map(e => {
+                      const eventStart = new Date(e.startTime);
+                      const eventEnd = e.endTime ? new Date(e.endTime) : eventStart;
+                      eventStart.setHours(0, 0, 0, 0);
+                      const eventEndNorm = new Date(eventEnd);
+                      eventEndNorm.setHours(0, 0, 0, 0);
+                      const isStartDay = visibleDateStart.getTime() === eventStart.getTime();
+                      const isEndDay = visibleDateStart.getTime() === eventEndNorm.getTime();
+                      const isMultiDay = eventStart.getTime() !== eventEndNorm.getTime();
+                      let dayPosition = 'single';
+                      if (isMultiDay) {
+                        dayPosition = isStartDay ? 'starts' : isEndDay ? 'ends' : 'continues';
+                      }
+                      return { ...e, dayPosition, isMultiDay };
+                    });
 
-                    // Multi-day timed events that span the visible date
-                    // DEBUG v3: Show events with actual date info to diagnose
-                    const visibleMultiDayEvents = row.events.slice(0, 5).map(e => {
-                      const startD = e.startTime ? new Date(e.startTime) : null;
-                      const endD = e.endTime ? new Date(e.endTime) : null;
-                      const startStr = startD ? `${startD.getMonth()+1}/${startD.getDate()}` : '?';
-                      const endStr = endD ? `${endD.getMonth()+1}/${endD.getDate()}` : '?';
-                      const isMulti = e.endTime ? isMultiDayEvent(e) : false;
-                      return {
-                        ...e,
-                        dayPosition: 'continues',
-                        title: `${e.title.substring(0, 15)}.. [${startStr}-${endStr}] ${isMulti ? 'MULTI' : ''}`
-                      };
+                    // Multi-day NON-all-day timed events that span the visible date
+                    const visibleMultiDayEvents = row.events.filter(e => {
+                      if (!e.startTime || !e.endTime) return false;
+                      if (!isMultiDayEvent(e)) return false;
+                      const eventStart = new Date(e.startTime);
+                      const eventEnd = new Date(e.endTime);
+                      eventStart.setHours(0, 0, 0, 0);
+                      eventEnd.setHours(0, 0, 0, 0);
+                      return visibleDateStart.getTime() >= eventStart.getTime() &&
+                             visibleDateStart.getTime() <= eventEnd.getTime();
+                    }).map(e => {
+                      const eventStart = new Date(e.startTime);
+                      const eventEnd = new Date(e.endTime);
+                      eventStart.setHours(0, 0, 0, 0);
+                      eventEnd.setHours(0, 0, 0, 0);
+                      const isStartDay = visibleDateStart.getTime() === eventStart.getTime();
+                      const isEndDay = visibleDateStart.getTime() === eventEnd.getTime();
+                      const position = isStartDay ? 'starts' : isEndDay ? 'ends' : 'continues';
+                      return { ...e, dayPosition: position };
                     });
 
                     const visibleTasks = row.tasks.filter(t =>
@@ -11851,19 +11880,24 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                         {/* Sticky badges container */}
                         {hasBadges && (
                           <div className="tl-track-badges">
-                            {/* All-day events */}
-                            {visibleAllDayEvents.map(event => (
-                              <div
-                                key={`badge-allday-${event.id}`}
-                                className="tl-badge tl-badge-allday"
-                                style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
-                                title={event.title}
-                                onClick={() => onEventClick && onEventClick(event)}
-                              >
-                                <Calendar size={10} />
-                                <span className="tl-badge-title">{event.title}</span>
-                              </div>
-                            ))}
+                            {/* All-day events (with multi-day indicators) */}
+                            {visibleAllDayEvents.map(event => {
+                              const posIcon = event.isMultiDay ? (event.dayPosition === 'starts' ? '→' : event.dayPosition === 'ends' ? '←' : '↔') : null;
+                              const posLabel = event.isMultiDay ? (event.dayPosition === 'starts' ? 'Starts' : event.dayPosition === 'ends' ? 'Ends' : 'Continues') : null;
+                              return (
+                                <div
+                                  key={`badge-allday-${event.id}`}
+                                  className={`tl-badge tl-badge-allday ${event.isMultiDay ? event.dayPosition : ''}`}
+                                  style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
+                                  title={posLabel ? `${event.title} (${posLabel})` : event.title}
+                                  onClick={() => onEventClick && onEventClick(event)}
+                                >
+                                  {posIcon && <span className="tl-badge-pos">{posIcon}</span>}
+                                  {!posIcon && <Calendar size={10} />}
+                                  <span className="tl-badge-title">{event.title}</span>
+                                </div>
+                              );
+                            })}
                             {/* Multi-day events (starts/continues/ends) */}
                             {visibleMultiDayEvents.map(event => {
                               const posIcon = event.dayPosition === 'starts' ? '→' : event.dayPosition === 'ends' ? '←' : '↔';
