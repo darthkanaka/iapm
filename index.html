@@ -11822,16 +11822,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                     );
 
                     // Multi-day timed events that span the visible date
+                    // DEBUG: Show ALL multi-day events as badges to diagnose the issue
                     const visibleMultiDayEvents = row.events.filter(e => {
                       if (!e.startTime || !e.endTime) return false;
                       if (!isMultiDayEvent(e)) return false;
-                      const eventStart = new Date(e.startTime);
-                      const eventEnd = new Date(e.endTime);
-                      if (isNaN(eventStart.getTime()) || isNaN(eventEnd.getTime())) return false;
-                      eventStart.setHours(0, 0, 0, 0);
-                      eventEnd.setHours(0, 0, 0, 0);
-                      // Show badge if visible date is on start, between, or on end day
-                      return visibleDateStart.getTime() >= eventStart.getTime() && visibleDateStart.getTime() <= eventEnd.getTime();
+                      return true; // DEBUG: Show all multi-day events regardless of date
                     }).map(e => {
                       const eventStart = new Date(e.startTime);
                       const eventEnd = new Date(e.endTime);
