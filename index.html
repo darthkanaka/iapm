@@ -9140,22 +9140,20 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
 
   // Determine if an event spans a given date and what position type
   const getEventDayPosition = (event, date) => {
+    if (!event.startTime) return null;
+
     const dayStart = normalizeDate(date);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
     const eventStart = normalizeDate(event.startTime);
-    const eventEnd = normalizeDate(event.endTime);
+    // If no endTime, treat as same-day event
+    const eventEnd = event.endTime ? normalizeDate(event.endTime) : eventStart;
 
-    // Check if event spans this day
-    if (eventStart > dayStart || eventEnd < dayStart) {
-      if (!(eventStart <= dayStart && eventEnd >= dayStart)) {
-        return null; // Event doesn't span this day
-      }
+    // Check if event spans this day (dayStart must be between eventStart and eventEnd inclusive)
+    if (dayStart < eventStart || dayStart > eventEnd) {
+      return null; // Event doesn't span this day
     }
 
-    const isStartDay = eventStart.toDateString() === dayStart.toDateString();
-    const isEndDay = eventEnd.toDateString() === dayStart.toDateString();
+    const isStartDay = eventStart.getTime() === dayStart.getTime();
+    const isEndDay = eventEnd.getTime() === dayStart.getTime();
 
     if (isStartDay && isEndDay) return 'single'; // Same day event
     if (isStartDay) return 'starts';
