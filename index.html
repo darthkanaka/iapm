@@ -10099,8 +10099,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   
   // Check if event spans multiple days
   const isMultiDayEvent = (event) => {
+    if (!event.startTime || !event.endTime) return false;
     const startDate = new Date(event.startTime);
     const endDate = new Date(event.endTime);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(0, 0, 0, 0);
     return startDate.getTime() !== endDate.getTime();
@@ -10210,6 +10212,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       if (rulerScrollRef.current) {
         rulerScrollRef.current.scrollLeft = scrollPos;
       }
+      // Sync visibleDate with targetDate for proper badge rendering
+      setVisibleDate(targetDate);
+      visibleDateRef.current = targetDate;
     }
   }, [containerWidth, viewMode, targetDate]);
 
@@ -11818,13 +11823,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
                     // Multi-day timed events that span the visible date
                     const visibleMultiDayEvents = row.events.filter(e => {
+                      if (!e.startTime || !e.endTime) return false;
                       if (!isMultiDayEvent(e)) return false;
                       const eventStart = new Date(e.startTime);
                       const eventEnd = new Date(e.endTime);
+                      if (isNaN(eventStart.getTime()) || isNaN(eventEnd.getTime())) return false;
                       eventStart.setHours(0, 0, 0, 0);
                       eventEnd.setHours(0, 0, 0, 0);
                       // Show badge if visible date is on start, between, or on end day
-                      return visibleDateStart >= eventStart && visibleDateStart <= eventEnd;
+                      return visibleDateStart.getTime() >= eventStart.getTime() && visibleDateStart.getTime() <= eventEnd.getTime();
                     }).map(e => {
                       const eventStart = new Date(e.startTime);
                       const eventEnd = new Date(e.endTime);
