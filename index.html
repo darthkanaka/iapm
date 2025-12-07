@@ -210,7 +210,7 @@
   <div id="root"></div>
   
   <script type="text/babel" data-type="module">
-const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2 } = lucideReact;
+const { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, FolderOpen, Plus, Check, Clock, Users, X, MessageSquare, Edit2, User, MapPin, Bell, List, Filter, Search, LogOut, Mail, Lock, Trash2, Settings, FolderInput, Webhook, Send } = lucideReact;
 
 // ==================== AUTH CONTEXT & PROVIDER ====================
 const AuthContext = React.createContext(null);
@@ -1511,7 +1511,82 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   // Notifications system
   const [notifications, setNotifications] = React.useState([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
-  
+
+  // Webhook configuration (persisted in localStorage)
+  const [webhookUrl, setWebhookUrl] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('iapm_webhook_url') || '';
+    }
+    return '';
+  });
+  const [showWebhookSettings, setShowWebhookSettings] = React.useState(false);
+
+  // Save webhook URL to localStorage when it changes
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iapm_webhook_url', webhookUrl);
+    }
+  }, [webhookUrl]);
+
+  // Send notification to webhook endpoint
+  const sendNotificationWebhook = async (notification, additionalContext = {}) => {
+    if (!webhookUrl) return; // No webhook configured
+
+    const actor = teamMembers.find(m => m.id === notification.actorId);
+    const recipient = teamMembers.find(m => m.id === notification.recipientId);
+
+    // Build rich payload for N8N
+    const payload = {
+      // Core notification data
+      type: notification.type,
+      message: notification.message,
+      timestamp: notification.createdAt || new Date().toISOString(),
+
+      // Actor (who triggered the notification)
+      actor: {
+        id: notification.actorId,
+        name: actor?.name || 'Unknown',
+        email: actor?.email || null,
+        color: actor?.color || '#6366f1'
+      },
+
+      // Recipient (who receives the notification)
+      recipient: {
+        id: notification.recipientId,
+        name: recipient?.name || 'Unknown',
+        email: recipient?.email || null,
+        color: recipient?.color || '#6366f1'
+      },
+
+      // Entity details (what the notification is about)
+      entity: {
+        type: notification.entityType,
+        id: notification.entityId,
+        title: notification.entityTitle,
+        ...additionalContext
+      },
+
+      // App metadata
+      source: 'iapm',
+      version: '1.0'
+    };
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        mode: 'no-cors' // Allow cross-origin requests to N8N
+      });
+      console.log('Webhook sent:', notification.type);
+    } catch (err) {
+      console.error('Webhook error:', err);
+      // Don't block the app if webhook fails
+    }
+  };
+
   // Generate notification from activity
   const createNotification = (type, actorId, recipientId, entityType, entityId, entityTitle, extraData = {}) => {
     if (actorId === recipientId) return null; // Don't notify yourself
@@ -1598,6 +1673,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     };
 
     setNotifications(prev => [localNotif, ...prev]);
+
+    // Send to webhook
+    sendNotificationWebhook(localNotif);
   };
 
   const addNotifications = async (notifs) => {
@@ -1639,6 +1717,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }));
 
     setNotifications(prev => [...localNotifs, ...prev]);
+
+    // Send each to webhook
+    localNotifs.forEach(notif => sendNotificationWebhook(notif));
   };
 
   // Mark notification as read
@@ -2978,6 +3059,88 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
+  const deleteNote = async (noteId) => {
+    try {
+      // Delete the note (replies will cascade due to foreign key)
+      const { error } = await window.supabase
+        .from('notes')
+        .delete()
+        .eq('id', noteId);
+
+      if (error) {
+        console.error('Error deleting note:', error);
+        alert('Error deleting note: ' + error.message);
+        return false;
+      }
+
+      // Update local state
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      return true;
+    } catch (err) {
+      console.error('Unexpected error deleting note:', err);
+      alert('Unexpected error deleting note: ' + err.message);
+      return false;
+    }
+  };
+
+  const deleteReply = async (noteId, replyId) => {
+    try {
+      const { error } = await window.supabase
+        .from('note_replies')
+        .delete()
+        .eq('id', replyId);
+
+      if (error) {
+        console.error('Error deleting reply:', error);
+        alert('Error deleting reply: ' + error.message);
+        return false;
+      }
+
+      // Update local state - remove reply from the note
+      setNotes(prev => prev.map(note =>
+        note.id === noteId
+          ? { ...note, replies: note.replies.filter(r => r.id !== replyId) }
+          : note
+      ));
+      return true;
+    } catch (err) {
+      console.error('Unexpected error deleting reply:', err);
+      alert('Unexpected error deleting reply: ' + err.message);
+      return false;
+    }
+  };
+
+  const updateNote = async (noteId, updates) => {
+    try {
+      const dbUpdates = {};
+      if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+      if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+
+      const { error } = await window.supabase
+        .from('notes')
+        .update(dbUpdates)
+        .eq('id', noteId);
+
+      if (error) {
+        console.error('Error updating note:', error);
+        alert('Error updating note: ' + error.message);
+        return false;
+      }
+
+      // Update local state
+      setNotes(prev => prev.map(note =>
+        note.id === noteId
+          ? { ...note, ...updates }
+          : note
+      ));
+      return true;
+    } catch (err) {
+      console.error('Unexpected error updating note:', err);
+      alert('Unexpected error updating note: ' + err.message);
+      return false;
+    }
+  };
+
   const addClient = async (name, color, details = '') => {
     try {
       const { data: newClient, error } = await supabase
@@ -3606,7 +3769,166 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           color: #71717a;
           font-size: 13px;
         }
-        
+
+        .settings-btn {
+          background: transparent;
+          border: none;
+          color: #71717a;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #a1a1aa;
+        }
+
+        .webhook-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .webhook-modal {
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 24px;
+          width: 90%;
+          max-width: 500px;
+        }
+
+        .webhook-modal h3 {
+          margin: 0 0 8px 0;
+          font-size: 18px;
+          color: #f4f4f5;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .webhook-modal-desc {
+          color: #71717a;
+          font-size: 13px;
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
+
+        .webhook-field {
+          margin-bottom: 20px;
+        }
+
+        .webhook-label {
+          display: block;
+          font-size: 12px;
+          color: #a1a1aa;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .webhook-input {
+          width: 100%;
+          padding: 12px 14px;
+          border-radius: 8px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+          font-size: 14px;
+          font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .webhook-input:focus {
+          outline: none;
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .webhook-input::placeholder {
+          color: #52525b;
+        }
+
+        .webhook-status {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 13px;
+          margin-bottom: 20px;
+        }
+
+        .webhook-status.active {
+          background: rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+        }
+
+        .webhook-status.inactive {
+          background: rgba(113, 113, 122, 0.1);
+          border: 1px solid rgba(113, 113, 122, 0.2);
+          color: #71717a;
+        }
+
+        .webhook-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .webhook-btn {
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .webhook-btn-secondary {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+        }
+
+        .webhook-btn-secondary:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+        }
+
+        .webhook-btn-primary {
+          background: rgba(99, 102, 241, 0.2);
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          color: #818cf8;
+        }
+
+        .webhook-btn-primary:hover {
+          background: rgba(99, 102, 241, 0.3);
+        }
+
+        .webhook-btn-test {
+          background: rgba(34, 197, 94, 0.15);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          color: #22c55e;
+        }
+
+        .webhook-btn-test:hover {
+          background: rgba(34, 197, 94, 0.25);
+        }
+
+        .webhook-btn-test:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         .content {
           flex: 1;
           padding: 24px 32px;
@@ -3792,8 +4114,16 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           </h1>
           
           <div className="header-actions">
+            <button
+              className="settings-btn"
+              onClick={() => setShowWebhookSettings(true)}
+              title="Webhook Settings"
+            >
+              <Settings size={18} />
+            </button>
+
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 className="notification-btn"
                 onClick={() => setShowNotifications(!showNotifications)}
               >
@@ -3963,6 +4293,9 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               addList={addList}
               addNote={addNote}
               addReply={addReply}
+              deleteNote={deleteNote}
+              deleteReply={deleteReply}
+              updateNote={updateNote}
               addProject={addProject}
               deleteProject={deleteProject}
               deleteClient={deleteClient}
@@ -4034,6 +4367,95 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           />
         )}
       </main>
+      {/* Webhook Settings Modal */}
+      {showWebhookSettings && (
+        <div className="webhook-modal-overlay" onClick={() => setShowWebhookSettings(false)}>
+          <div className="webhook-modal" onClick={e => e.stopPropagation()}>
+            <h3><Webhook size={20} /> Webhook Settings</h3>
+            <p className="webhook-modal-desc">
+              Configure a webhook URL to send notification data to external services like N8N, Zapier, or custom endpoints.
+              All notifications will be POSTed to this URL in JSON format.
+            </p>
+
+            <div className={`webhook-status ${webhookUrl ? 'active' : 'inactive'}`}>
+              {webhookUrl ? (
+                <>
+                  <Check size={16} />
+                  <span>Webhook is active</span>
+                </>
+              ) : (
+                <>
+                  <X size={16} />
+                  <span>Webhook is not configured</span>
+                </>
+              )}
+            </div>
+
+            <div className="webhook-field">
+              <label className="webhook-label">Webhook URL</label>
+              <input
+                type="url"
+                className="webhook-input"
+                placeholder="https://your-n8n-instance.com/webhook/..."
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+              />
+            </div>
+
+            <div className="webhook-actions">
+              <button
+                className="webhook-btn webhook-btn-test"
+                disabled={!webhookUrl}
+                onClick={async () => {
+                  const testPayload = {
+                    type: 'test',
+                    message: 'This is a test notification from IAPM',
+                    timestamp: new Date().toISOString(),
+                    actor: {
+                      id: currentUser?.id,
+                      name: currentUser?.name || 'Test User',
+                      email: null,
+                      color: currentUser?.color || '#6366f1'
+                    },
+                    recipient: {
+                      id: currentUser?.id,
+                      name: currentUser?.name || 'Test User',
+                      email: null,
+                      color: currentUser?.color || '#6366f1'
+                    },
+                    entity: {
+                      type: 'test',
+                      id: 'test-id',
+                      title: 'Test Notification'
+                    },
+                    source: 'iapm',
+                    version: '1.0'
+                  };
+                  try {
+                    await fetch(webhookUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(testPayload),
+                      mode: 'no-cors'
+                    });
+                    alert('Test notification sent! Check your webhook endpoint.');
+                  } catch (err) {
+                    alert('Error sending test: ' + err.message);
+                  }
+                }}
+              >
+                <Send size={14} /> Test Webhook
+              </button>
+              <button
+                className="webhook-btn webhook-btn-secondary"
+                onClick={() => setShowWebhookSettings(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5299,11 +5721,11 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
 
     setIsSaving(true);
 
-    // For all-day events, use 12am to 12am (midnight to midnight)
+    // For all-day events, use 12:15am to 11:45pm to span full day
     let startTimeDate, endTimeDate;
     if (isAllDay) {
-      startTimeDate = new Date(`${date}T00:00:00`);
-      endTimeDate = new Date(`${date}T23:59:59`);
+      startTimeDate = new Date(`${date}T00:15:00`);
+      endTimeDate = new Date(`${date}T23:45:00`);
     } else {
       const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
       const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
@@ -8973,17 +9395,16 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [collapsedClients, setCollapsedClients] = React.useState({});
   const [viewMode, setViewMode] = React.useState('day'); // 'day' or 'week'
   const scrollContainerRef = React.useRef(null);
+  const rulerScrollRef = React.useRef(null); // Synced header scroll for ruler
+  const scrollingRef = React.useRef(null); // Track which element is scrolling to prevent feedback
   const dateIndicatorRef = React.useRef(null); // Direct DOM ref for date indicator
-  const badgesContainerRef = React.useRef(null); // Direct DOM ref for badges
-  const lastBadgeDateRef = React.useRef(null); // Track last badge date to avoid unnecessary updates
   const [containerWidth, setContainerWidth] = React.useState(800);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
   const [scrollTrigger, setScrollTrigger] = React.useState(0); // Increment to force scroll
-  const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 6-hour view
+  const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 8-hour view
   const visibleDateRef = React.useRef(new Date()); // Track visible date during scroll without re-renders
   const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date
-  const scrollEndTimeout = React.useRef(null); // Debounce scroll end for state update
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
@@ -9075,57 +9496,69 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   
   const nowPosition = getPosition(currentTime);
   
-  // Handle scroll to update visible date indicator (real-time DOM updates)
+  // Handle scroll with sync between ruler and content (like WeeklyCalendarView pattern)
   const handleTimelineScroll = (e) => {
-    const scrollLeft = e.target.scrollLeft;
-    // Calculate what time is at the CENTER of the viewport (not left edge)
+    const source = e.target;
+
+    // If we're currently syncing from another source, ignore this event
+    if (scrollingRef.current && scrollingRef.current !== source) {
+      return;
+    }
+
+    // Mark this element as the scroll source
+    scrollingRef.current = source;
+
+    // Sync horizontal scroll between ruler and content
+    if (source === scrollContainerRef.current && rulerScrollRef.current) {
+      rulerScrollRef.current.scrollLeft = source.scrollLeft;
+    } else if (source === rulerScrollRef.current && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = source.scrollLeft;
+    }
+
+    // Calculate visible date from center of viewport
+    const scrollLeft = scrollContainerRef.current ? scrollContainerRef.current.scrollLeft : source.scrollLeft;
     const centerScrollLeft = scrollLeft + (containerWidth / 2);
     const hoursFromStart = centerScrollLeft / pixelsPerHour;
     const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
 
-    // Update ref immediately
+    // Check if we've crossed into a new day BEFORE updating ref
+    const dayChanged = viewportDate.toDateString() !== visibleDateRef.current.toDateString();
+
+    // Update ref immediately (no re-render)
     visibleDateRef.current = viewportDate;
 
-    // Update date indicator directly via DOM (real-time, no re-render)
+    // Update date indicator directly via textContent (very fast, no layout)
     if (dateIndicatorRef.current) {
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Update badges visibility directly via DOM (only when date changes)
-    const newDateStr = viewportDate.toDateString();
-    if (badgesContainerRef.current && newDateStr !== lastBadgeDateRef.current) {
-      lastBadgeDateRef.current = newDateStr;
-      const rows = badgesContainerRef.current.querySelectorAll('.tl-fixed-badges-row');
-      rows.forEach(row => {
-        const badges = row.querySelectorAll('.tl-badge');
-        badges.forEach(badge => {
-          const badgeDateStr = badge.dataset.date;
-          if (badgeDateStr) {
-            badge.style.display = badgeDateStr === newDateStr ? 'flex' : 'none';
-          }
-        });
-      });
+    // Update visibleDate state only when day actually changes (triggers re-render for badges)
+    if (dayChanged) {
+      setVisibleDate(viewportDate);
     }
 
-    // Still debounce state update for React consistency
-    clearTimeout(scrollEndTimeout.current);
-    scrollEndTimeout.current = setTimeout(() => {
-      setVisibleDate(viewportDate);
-    }, 300);
+    // Clear scroll source after sync completes
+    clearTimeout(scrollingRef.scrollTimeout);
+    scrollingRef.scrollTimeout = setTimeout(() => {
+      scrollingRef.current = null;
+    }, 50);
   };
-  
-  // Generate hour markers - use integer positions for pixel-perfect alignment
-  const hourMarkers = [];
-  for (let h = 0; h < TOTAL_HOURS; h++) {
-    const time = new Date(rangeStart.getTime() + h * 60 * 60 * 1000);
-    hourMarkers.push({
-      time,
-      label: time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
-      isNewDay: time.getHours() === 0,
-      date: time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      left: h * pixelsPerHour // pixelsPerHour is already rounded
-    });
-  }
+
+  // Generate hour markers - memoized to prevent recalculation on visibleDate changes
+  const hourMarkers = React.useMemo(() => {
+    const markers = [];
+    for (let h = 0; h < TOTAL_HOURS; h++) {
+      const time = new Date(rangeStart.getTime() + h * 60 * 60 * 1000);
+      markers.push({
+        time,
+        label: time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
+        isNewDay: time.getHours() === 0,
+        date: time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        left: h * pixelsPerHour
+      });
+    }
+    return markers;
+  }, [TOTAL_HOURS, rangeStart.getTime(), pixelsPerHour]);
   
   // Get events for a project (excludes all-day events - they show in badges)
   const getProjectEvents = (projectId) => {
@@ -9228,9 +9661,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       const targetPosition = getPosition(targetDate);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollLeft = scrollPos;
+      if (rulerScrollRef.current) {
+        rulerScrollRef.current.scrollLeft = scrollPos;
+      }
     }
   }, [containerWidth, viewMode, targetDate]);
-  
+
   const scrollToNow = () => {
     const now = new Date();
     setTargetDate(now);
@@ -9239,6 +9675,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     if (viewMode === 'day' && scrollContainerRef.current) {
       const scrollPos = Math.max(0, nowPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      if (rulerScrollRef.current) {
+        rulerScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      }
     }
   };
 
@@ -9253,51 +9692,57 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       const targetPosition = getPosition(newTarget);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      if (rulerScrollRef.current) {
+        rulerScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      }
     }
     setShowDatePicker(false);
   };
 
-  // Build rows
-  const rows = [];
-  allSpaces.forEach(client => {
-    const isCollapsed = collapsedClients[client.id];
-    
-    // Get tasks and lists for client row (includes list tasks with due dates)
-    const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
-    const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
-    const clientRowAllDayEvents = isCollapsed ? getClientAllDayEvents(client) : getClientLevelAllDayEvents(client.id);
+  // Build rows - memoized to prevent recalculation on visibleDate changes
+  const rows = React.useMemo(() => {
+    const result = [];
+    allSpaces.forEach(client => {
+      const isCollapsed = collapsedClients[client.id];
 
-    // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
-    rows.push({
-      type: 'client',
-      client,
-      isCollapsed,
-      events: isCollapsed ? getClientEvents(client) : getClientLevelEvents(client.id),
-      allDayEvents: clientRowAllDayEvents,
-      tasks: clientRowTasks,
-      lists: clientRowLists,
-      groupedItems: groupItemsByDay(clientRowTasks, clientRowLists)
-    });
+      // Get tasks and lists for client row (includes list tasks with due dates)
+      const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
+      const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
+      const clientRowAllDayEvents = isCollapsed ? getClientAllDayEvents(client) : getClientLevelAllDayEvents(client.id);
 
-    // Project rows (if not collapsed)
-    if (!isCollapsed) {
-      client.projects.forEach(project => {
-        const projectTasks = getProjectTasks(project.id);
-        const projectLists = getProjectLists(project.id);
-        const projectAllDayEvents = getProjectAllDayEvents(project.id);
-        rows.push({
-          type: 'project',
-          client,
-          project,
-          events: getProjectEvents(project.id),
-          allDayEvents: projectAllDayEvents,
-          tasks: projectTasks,
-          lists: projectLists,
-          groupedItems: groupItemsByDay(projectTasks, projectLists)
-        });
+      // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
+      result.push({
+        type: 'client',
+        client,
+        isCollapsed,
+        events: isCollapsed ? getClientEvents(client) : getClientLevelEvents(client.id),
+        allDayEvents: clientRowAllDayEvents,
+        tasks: clientRowTasks,
+        lists: clientRowLists,
+        groupedItems: groupItemsByDay(clientRowTasks, clientRowLists)
       });
-    }
-  });
+
+      // Project rows (if not collapsed)
+      if (!isCollapsed) {
+        client.projects.forEach(project => {
+          const projectTasks = getProjectTasks(project.id);
+          const projectLists = getProjectLists(project.id);
+          const projectAllDayEvents = getProjectAllDayEvents(project.id);
+          result.push({
+            type: 'project',
+            client,
+            project,
+            events: getProjectEvents(project.id),
+            allDayEvents: projectAllDayEvents,
+            tasks: projectTasks,
+            lists: projectLists,
+            groupedItems: groupItemsByDay(projectTasks, projectLists)
+          });
+        });
+      }
+    });
+    return result;
+  }, [allSpaces, collapsedClients, events, tasks, lists]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -9894,42 +10339,78 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         
         .tl-scroll-wrapper {
           flex: 1;
-          position: relative;
+          display: flex;
+          flex-direction: column;
           overflow: hidden;
           min-width: 0;
         }
-        
-        .tl-fixed-date {
+
+        .tl-header {
+          display: flex;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          flex-shrink: 0;
+          position: relative;
+        }
+
+        .tl-header-date {
           position: absolute;
           left: 0;
           top: 0;
+          bottom: 0;
           z-index: 15;
-          background: rgba(10, 10, 14, 0.95);
-          padding: 4px 12px;
+          background: rgba(10, 10, 14, 0.98);
+          padding: 0 12px;
           font-size: 12px;
           font-weight: 600;
           color: #a78bfa;
-          border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+          display: flex;
+          align-items: center;
           border-right: 1px solid rgba(99, 102, 241, 0.3);
-          border-radius: 0 0 8px 0;
-          backdrop-filter: blur(8px);
           pointer-events: none;
         }
-        
-        .tl-scroll {
-          height: 100%;
+
+        .tl-ruler-scroll {
+          flex: 1;
           overflow-x: auto;
           overflow-y: hidden;
+        }
+
+        .tl-ruler-scroll::-webkit-scrollbar {
+          display: none;
+        }
+
+        .tl-body {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .tl-scroll {
+          flex: 1;
+          overflow-x: auto;
+          overflow-y: auto;
           -webkit-overflow-scrolling: touch;
-          will-change: scroll-position;
+        }
+
+        .tl-scroll::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .tl-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tl-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
         }
 
         .tl-content {
           display: flex;
           flex-direction: column;
           min-height: 100%;
-          transform: translateZ(0);
-          backface-visibility: hidden;
         }
         
         .tl-ruler {
@@ -10034,6 +10515,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           height: ${ROW_HEIGHT}px;
           position: relative;
           border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          display: flex;
+          align-items: stretch;
         }
 
         .tl-track.client {
@@ -10062,7 +10545,6 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.1);
           z-index: 10;
-          will-change: transform;
         }
 
         .tl-event:hover {
@@ -10090,39 +10572,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           white-space: nowrap;
         }
 
-        /* Floating badges for tasks and lists - fixed overlay */
-        .tl-fixed-badges-container {
-          position: absolute;
+        /* Sticky badges container within each track */
+        .tl-track-badges {
+          position: sticky;
           left: 0;
           top: 0;
           bottom: 0;
           z-index: 20;
-          pointer-events: none;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .tl-fixed-badges-header {
-          height: ${RULER_HEIGHT}px;
-          flex-shrink: 0;
-        }
-
-        .tl-fixed-badges-row {
-          height: ${ROW_HEIGHT}px;
-          display: flex;
-          align-items: stretch;
-          gap: 3px;
-          padding: 8px 8px;
-          pointer-events: auto;
-        }
-
-        .tl-label-badges {
           display: flex;
           align-items: center;
-          gap: 3px;
-          margin-left: auto;
-          padding-left: 4px;
+          gap: 4px;
+          padding: 0 8px;
+          background: linear-gradient(90deg, rgba(10, 10, 14, 0.98) 0%, rgba(10, 10, 14, 0.95) 70%, transparent 100%);
+          pointer-events: auto;
+          height: 100%;
           flex-shrink: 0;
+          min-width: fit-content;
         }
 
         .tl-badge {
@@ -10147,12 +10612,19 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-badge-list {
           border-style: dashed;
+          height: 44px;
         }
 
         .tl-badge-allday {
-          border-radius: 4px;
+          border-radius: 6px;
           color: #fff;
           font-weight: 500;
+          height: 44px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tl-badge-task {
+          height: 44px;
         }
 
         .tl-badge-fraction {
@@ -10537,8 +11009,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           }}>8-Hour</button>
           <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== 'week') {
-              // When switching from day to week, use state (updated by scroll handler)
-              setTargetDate(visibleDate);
+              // When switching from day to week, use ref (snap to current position)
+              setTargetDate(new Date(visibleDateRef.current));
               setScrollTrigger(prev => prev + 1);
               setViewMode('week');
             }
@@ -10706,109 +11178,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           ))}
         </div>
 
-        {/* Scrollable area with fixed date overlay */}
+        {/* Scrollable area with synced header/content (like WeeklyCalendarView) */}
         <div className="tl-scroll-wrapper">
-          {/* Fixed date indicator - positioned outside scroll for true fixed behavior */}
-          <div className="tl-fixed-date" ref={dateIndicatorRef}>
-            {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-          </div>
-
-          {/* Fixed badges overlay - renders ALL items with data-date, JS shows/hides in real-time */}
-          <div className="tl-fixed-badges-container" ref={badgesContainerRef}>
-            <div className="tl-fixed-badges-header" />
-            {rows.map((row, i) => {
-              const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
-              const currentDateStr = visibleDate.toDateString();
-
-              return (
-                <div key={i} className={`tl-fixed-badges-row ${row.type}`}>
-                  {/* All-day events */}
-                  {(row.allDayEvents || []).map(event => {
-                    const eventDateStr = new Date(event.startTime).toDateString();
-                    return (
-                      <div
-                        key={`fixed-allday-${event.id}`}
-                        className="tl-badge tl-badge-allday"
-                        data-date={eventDateStr}
-                        style={{
-                          background: `linear-gradient(135deg, ${color}dd, ${color}99)`,
-                          display: eventDateStr === currentDateStr ? 'flex' : 'none'
-                        }}
-                        title={event.title}
-                        onClick={() => onEventClick && onEventClick(event)}
-                      >
-                        <Calendar size={10} />
-                        <span className="tl-badge-title">{event.title}</span>
-                      </div>
-                    );
-                  })}
-                  {/* Tasks */}
-                  {row.tasks.filter(t => t.dueDate).map(task => {
-                    const taskDateStr = new Date(task.dueDate).toDateString();
-                    return (
-                      <div
-                        key={`fixed-task-${task.id}`}
-                        className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
-                        data-date={taskDateStr}
-                        style={{
-                          borderColor: color,
-                          display: taskDateStr === currentDateStr ? 'flex' : 'none'
-                        }}
-                        title={task.title}
-                        onClick={() => {
-                          if (task.listId && lists) {
-                            const list = lists.find(l => l.id === task.listId);
-                            if (list && onListClick) {
-                              onListClick(list);
-                              return;
-                            }
-                          }
-                          onTaskClick && onTaskClick(task);
-                        }}
-                      >
-                        <div
-                          className="tl-badge-check"
-                          style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
-                          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                        >
-                          {task.isCompleted && <Check size={8} color="#fff" />}
-                        </div>
-                        <span className="tl-badge-title">{task.title}</span>
-                        {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
-                      </div>
-                    );
-                  })}
-                  {/* Lists */}
-                  {(row.lists || []).filter(l => l.dueDate).map(list => {
-                    const listDateStr = new Date(list.dueDate).toDateString();
-                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                    return (
-                      <div
-                        key={`fixed-list-${list.id}`}
-                        className="tl-badge tl-badge-list"
-                        data-date={listDateStr}
-                        style={{
-                          borderColor: color,
-                          background: `${color}15`,
-                          display: listDateStr === currentDateStr ? 'flex' : 'none'
-                        }}
-                        title={`${list.title}\n${progress.completed}/${progress.total} completed`}
-                        onClick={() => onListClick && onListClick(list)}
-                      >
-                        <List size={12} />
-                        <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="tl-scroll" ref={scrollContainerRef} onScroll={handleTimelineScroll}>
-            <div className="tl-content" style={{ width: totalWidth }}>
-              {/* Ruler */}
-              <div className="tl-ruler">
+          {/* Header with synced ruler scroll */}
+          <div className="tl-header">
+            <div className="tl-header-date" ref={dateIndicatorRef}>
+              {visibleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </div>
+            <div className="tl-ruler-scroll" ref={rulerScrollRef} onScroll={handleTimelineScroll}>
+              <div className="tl-ruler" style={{ width: totalWidth }}>
                 {hourMarkers.map((m, i) => (
                   <div key={i} className={`tl-hour ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }}>
                     <span className="tl-hour-time">{m.label}</span>
@@ -10819,51 +11197,136 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   <span className="tl-now-label">NOW</span>
                 </div>
               </div>
-            
-            {/* Tracks */}
-            <div className="tl-tracks">
-              {/* Hour grid lines - single overlay for performance */}
-              <div className="tl-hour-grid">
-                {hourMarkers.map((m, i) => (
-                  <div key={i} className={`tl-hour-line ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
-                ))}
-              </div>
-              <div className="tl-now-line" style={{ left: nowPosition }} />
-              {rows.map((row, i) => (
-                <div key={i} className={`tl-track ${row.type}`}>
-                  <div className="tl-past" style={{ width: nowPosition }} />
+            </div>
+          </div>
 
-                  {/* Events */}
-                  {row.events.map(event => {
-                    const left = getPosition(event.startTime);
-                    const width = Math.max(getPosition(event.endTime) - left, 30);
-                    const color = row.type === 'client' 
-                      ? row.client.color 
-                      : row.project?.color || row.client.color;
-                    const isPast = event.endTime < currentTime;
-                    
+          {/* Body with main scrollable content */}
+          <div className="tl-body">
+            <div className="tl-scroll" ref={scrollContainerRef} onScroll={handleTimelineScroll}>
+              <div className="tl-content" style={{ width: totalWidth }}>
+                {/* Tracks */}
+                <div className="tl-tracks">
+                  {/* Hour grid lines - single overlay for performance */}
+                  <div className="tl-hour-grid">
+                    {hourMarkers.map((m, i) => (
+                      <div key={i} className={`tl-hour-line ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
+                    ))}
+                  </div>
+                  <div className="tl-now-line" style={{ left: nowPosition }} />
+                  {rows.map((row, i) => {
+                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+
+                    // Get items for current visible date for sticky badges
+                    const visibleDateStr = visibleDate.toDateString();
+                    const visibleAllDayEvents = (row.allDayEvents || []).filter(e =>
+                      new Date(e.startTime).toDateString() === visibleDateStr
+                    );
+                    const visibleTasks = row.tasks.filter(t =>
+                      t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr
+                    );
+                    const visibleLists = (row.lists || []).filter(l =>
+                      l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr
+                    );
+                    const hasBadges = visibleAllDayEvents.length > 0 || visibleTasks.length > 0 || visibleLists.length > 0;
+
                     return (
-                      <div
-                        key={event.id}
-                        className={`tl-event ${isPast ? 'past' : ''}`}
-                        style={{ 
-                          left, 
-                          width, 
-                          background: `linear-gradient(135deg, ${color}dd, ${color}99)` 
-                        }}
-                        title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
-                        onClick={() => onEventClick && onEventClick(event)}
-                      >
-                        {width > 60 && <span className="tl-event-title">{event.title}</span>}
-                        {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
+                      <div key={i} className={`tl-track ${row.type}`}>
+                        <div className="tl-past" style={{ width: nowPosition }} />
+
+                        {/* Sticky badges container */}
+                        {hasBadges && (
+                          <div className="tl-track-badges">
+                            {/* All-day events */}
+                            {visibleAllDayEvents.map(event => (
+                              <div
+                                key={`badge-allday-${event.id}`}
+                                className="tl-badge tl-badge-allday"
+                                style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
+                                title={event.title}
+                                onClick={() => onEventClick && onEventClick(event)}
+                              >
+                                <Calendar size={10} />
+                                <span className="tl-badge-title">{event.title}</span>
+                              </div>
+                            ))}
+                            {/* Tasks */}
+                            {visibleTasks.map(task => (
+                              <div
+                                key={`badge-task-${task.id}`}
+                                className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
+                                style={{ borderColor: color }}
+                                title={task.title}
+                                onClick={() => {
+                                  if (task.listId && lists) {
+                                    const list = lists.find(l => l.id === task.listId);
+                                    if (list && onListClick) {
+                                      onListClick(list);
+                                      return;
+                                    }
+                                  }
+                                  onTaskClick && onTaskClick(task);
+                                }}
+                              >
+                                <div
+                                  className="tl-badge-check"
+                                  style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
+                                  onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
+                                >
+                                  {task.isCompleted && <Check size={8} color="#fff" />}
+                                </div>
+                                <span className="tl-badge-title">{task.title}</span>
+                                {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
+                              </div>
+                            ))}
+                            {/* Lists */}
+                            {visibleLists.map(list => {
+                              const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
+                              return (
+                                <div
+                                  key={`badge-list-${list.id}`}
+                                  className="tl-badge tl-badge-list"
+                                  style={{ borderColor: color, background: `${color}15` }}
+                                  title={`${list.title}\n${progress.completed}/${progress.total} completed`}
+                                  onClick={() => onListClick && onListClick(list)}
+                                >
+                                  <List size={12} />
+                                  <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Events */}
+                        {row.events.map(event => {
+                          const left = getPosition(event.startTime);
+                          const width = Math.max(getPosition(event.endTime) - left, 30);
+                          const isPast = event.endTime < currentTime;
+
+                          return (
+                            <div
+                              key={event.id}
+                              className={`tl-event ${isPast ? 'past' : ''}`}
+                              style={{
+                                left,
+                                width,
+                                background: `linear-gradient(135deg, ${color}dd, ${color}99)`
+                              }}
+                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
+                              onClick={() => onEventClick && onEventClick(event)}
+                            >
+                              {width > 60 && <span className="tl-event-title">{event.title}</span>}
+                              {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
       )}
@@ -10898,19 +11361,40 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
+  const [filterClientId, setFilterClientId] = React.useState(''); // '' = all
+  const [filterProjectId, setFilterProjectId] = React.useState(''); // '' = all
   
   // Combine clients with internal spaces
   const allSpaces = [internal.personal, internal.team, ...clients];
-  
+
+  // Get selected client for project dropdown
+  const selectedClient = filterClientId ? allSpaces.find(c => c.id === filterClientId) : null;
+
+  // Filter matching helper - checks if item matches current filter
+  const matchesFilter = (item) => {
+    if (!filterClientId) return true; // No filter = show all
+    if (filterProjectId) {
+      // Filter by specific project
+      return item.projectId === filterProjectId;
+    }
+    // Filter by client (show all projects under this client)
+    if (item.clientId === filterClientId) return true;
+    // Also match if item's project belongs to this client
+    if (item.projectId && selectedClient) {
+      return selectedClient.projects.some(p => p.id === item.projectId);
+    }
+    return false;
+  };
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  
+
   // Get first day of month and total days
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startingDay = firstDay.getDay();
   const totalDays = lastDay.getDate();
-  
+
   // Navigation
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -10919,32 +11403,35 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
     setCurrentDate(today);
     setSelectedDate(today);
   };
-  
-  // Get events for a specific date
+
+  // Get events for a specific date (with filter applied)
   const getEventsForDate = (date) => {
     return events.filter(e => {
+      if (!matchesFilter(e)) return false;
       const eventDate = new Date(e.startTime);
       return eventDate.getFullYear() === date.getFullYear() &&
              eventDate.getMonth() === date.getMonth() &&
              eventDate.getDate() === date.getDate();
     });
   };
-  
-  // Get tasks for a specific date (includes list tasks with due dates)
+
+  // Get tasks for a specific date (with filter applied)
   const getTasksForDate = (date) => {
     return tasks.filter(t => {
       if (!t.dueDate) return false;
+      if (!matchesFilter(t)) return false;
       const taskDate = new Date(t.dueDate);
       return taskDate.getFullYear() === date.getFullYear() &&
              taskDate.getMonth() === date.getMonth() &&
              taskDate.getDate() === date.getDate();
     });
   };
-  
-  // Get lists for a specific date
+
+  // Get lists for a specific date (with filter applied)
   const getListsForDate = (date) => {
     return (lists || []).filter(l => {
-      if (!l.dueDate) return false; // Skip lists without due dates
+      if (!l.dueDate) return false;
+      if (!matchesFilter(l)) return false;
       const listDate = new Date(l.dueDate);
       return listDate.getFullYear() === date.getFullYear() &&
              listDate.getMonth() === date.getMonth() &&
@@ -11140,7 +11627,62 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
             font-size: 10px;
           }
         }
-        
+
+        .cal-filter {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .cal-filter-select {
+          padding: 8px 12px;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #e4e4e7;
+          font-size: 12px;
+          cursor: pointer;
+          min-width: 140px;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          padding-right: 30px;
+        }
+
+        .cal-filter-select:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .cal-filter-select:focus {
+          outline: none;
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .cal-filter-clear {
+          padding: 6px 10px;
+          border-radius: 2px;
+          background: rgba(239, 68, 68, 0.15);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #f87171;
+          font-size: 11px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .cal-filter-clear:hover {
+          background: rgba(239, 68, 68, 0.25);
+        }
+
+        @media (max-width: 900px) {
+          .cal-filter {
+            order: 3;
+            width: 100%;
+            justify-content: flex-start;
+          }
+        }
+
         .cal-add-modal-overlay {
           position: fixed;
           top: 0;
@@ -11740,6 +12282,49 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           </span>
           <button className="cal-nav-btn" onClick={nextMonth}><ChevronRight size={18} /></button>
         </div>
+
+        {/* Filter */}
+        <div className="cal-filter">
+          <select
+            className="cal-filter-select"
+            value={filterClientId}
+            onChange={(e) => {
+              setFilterClientId(e.target.value);
+              setFilterProjectId(''); // Reset project when client changes
+            }}
+          >
+            <option value="">All Clients</option>
+            {allSpaces.map(client => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+
+          {selectedClient && selectedClient.projects.length > 0 && (
+            <select
+              className="cal-filter-select"
+              value={filterProjectId}
+              onChange={(e) => setFilterProjectId(e.target.value)}
+            >
+              <option value="">All Projects</option>
+              {selectedClient.projects.map(project => (
+                <option key={project.id} value={project.id}>{project.name}</option>
+              ))}
+            </select>
+          )}
+
+          {filterClientId && (
+            <button
+              className="cal-filter-clear"
+              onClick={() => {
+                setFilterClientId('');
+                setFilterProjectId('');
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="cal-header-right">
           <button className="cal-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
             <Plus size={14} /> <span className="btn-text">Event</span>
@@ -13428,7 +14013,7 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
 }
 
 // ==================== CLIENT VIEW ====================
-function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, deleteNote, deleteReply, updateNote, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [selectedProject, setSelectedProject] = React.useState(null);
   const [showAddNote, setShowAddNote] = React.useState(false);
@@ -13452,8 +14037,19 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const [addEventDefaults, setAddEventDefaults] = React.useState({ clientId: '', projectId: '' });
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [addTaskDefaults, setAddTaskDefaults] = React.useState({ clientId: '', projectId: '' });
+  const [showAddListModal, setShowAddListModal] = React.useState(false);
+  const [addListDefaults, setAddListDefaults] = React.useState({ clientId: '', projectId: '' });
   const [projectToDelete, setProjectToDelete] = React.useState(null);
   const [showDeleteClientModal, setShowDeleteClientModal] = React.useState(false);
+  const [noteToDelete, setNoteToDelete] = React.useState(null); // { noteId, replyId? } for confirmation
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [noteToMove, setNoteToMove] = React.useState(null); // note object for move modal
+  const [moveTargetClient, setMoveTargetClient] = React.useState('');
+  const [moveTargetProject, setMoveTargetProject] = React.useState('');
+  const [isMoving, setIsMoving] = React.useState(false);
+
+  // All spaces for move modal dropdown
+  const allSpaces = [internal.personal, internal.team, ...clients];
 
   // Handle initial project selection and reset state when switching clients
   React.useEffect(() => {
@@ -13485,9 +14081,24 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   
   // Get notes for a specific project
   const getProjectNotes = (projectId) => notes.filter(n => n.projectId === projectId);
-  
+
   // Get client-level notes (no projectId)
   const clientLevelNotes = notes.filter(n => !n.projectId);
+
+  // Get last activity date for a note (most recent of note creation or any reply)
+  const getLastActivity = (note) => {
+    if (!note.replies || note.replies.length === 0) {
+      return note.createdAt;
+    }
+    const lastReplyDate = note.replies.reduce((latest, reply) =>
+      reply.createdAt > latest ? reply.createdAt : latest
+    , note.createdAt);
+    return lastReplyDate;
+  };
+
+  // Sort notes by last activity (most recent first)
+  const sortByActivity = (notesArray) =>
+    [...notesArray].sort((a, b) => getLastActivity(b) - getLastActivity(a));
   
   // Get lists for a specific project
   const getProjectLists = (projectId) => (lists || []).filter(l => l.projectId === projectId);
@@ -13505,12 +14116,12 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   // Sort upcoming by date
   upcomingEvents.sort((a, b) => a.startTime - b.startTime);
   
-  // Sort notes by date (newest first)
-  // Sort notes by date (newest first) - only client-level notes (not project-specific)
-  const sortedNotes = [...clientLevelNotes].sort((a, b) => b.createdAt - a.createdAt);
+  // Sort notes by last activity (most recent activity first)
+  // Client-level notes only (not project-specific)
+  const sortedNotes = sortByActivity(clientLevelNotes);
 
-  // All notes sorted by date (for Overview tab - includes both client-level and project notes)
-  const allSortedNotes = [...notes].sort((a, b) => b.createdAt - a.createdAt);
+  // All notes sorted by last activity (for Overview tab - includes both client-level and project notes)
+  const allSortedNotes = sortByActivity(notes);
   
   // Get team member by id
   const getMember = (id) => teamMembers.find(m => m.id === id);
@@ -13600,6 +14211,75 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const openAddTaskModal = (projectId = null) => {
     setAddTaskDefaults({ clientId: client.id, projectId: projectId || '' });
     setShowAddTaskModal(true);
+  };
+
+  // Handle delete note/reply confirmation
+  const handleDeleteConfirm = async () => {
+    if (!noteToDelete || isDeleting) return;
+
+    setIsDeleting(true);
+    let success = false;
+
+    if (noteToDelete.replyId) {
+      // Delete a reply
+      success = await deleteReply(noteToDelete.noteId, noteToDelete.replyId);
+    } else {
+      // Delete the entire note
+      success = await deleteNote(noteToDelete.noteId);
+      // If we deleted the currently selected note, close the thread view
+      if (success && selectedNoteId === noteToDelete.noteId) {
+        setSelectedNoteId(null);
+      }
+      if (success && selectedProjectNoteId === noteToDelete.noteId) {
+        setSelectedProjectNoteId(null);
+      }
+    }
+
+    setIsDeleting(false);
+    setNoteToDelete(null);
+  };
+
+  // Open move note modal
+  const openMoveNoteModal = (note) => {
+    setNoteToMove(note);
+    setMoveTargetClient(note.clientId);
+    setMoveTargetProject(note.projectId || '');
+  };
+
+  // Handle move note
+  const handleMoveNote = async () => {
+    if (!noteToMove || isMoving) return;
+    if (!moveTargetClient) {
+      alert('Please select a destination');
+      return;
+    }
+
+    setIsMoving(true);
+    const success = await updateNote(noteToMove.id, {
+      clientId: moveTargetClient,
+      projectId: moveTargetProject || null
+    });
+
+    if (success) {
+      // Close thread views if the moved note was selected
+      if (selectedNoteId === noteToMove.id) {
+        setSelectedNoteId(null);
+      }
+      if (selectedProjectNoteId === noteToMove.id) {
+        setSelectedProjectNoteId(null);
+      }
+    }
+
+    setIsMoving(false);
+    setNoteToMove(null);
+    setMoveTargetClient('');
+    setMoveTargetProject('');
+  };
+
+  // Get projects for selected client in move modal
+  const getMoveTargetProjects = () => {
+    const targetClient = allSpaces.find(s => s.id === moveTargetClient);
+    return targetClient?.projects || [];
   };
 
   return (
@@ -14121,7 +14801,207 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           border-radius: 10px;
           font-weight: 500;
         }
-        
+
+        .cv-note-delete-btn {
+          opacity: 0;
+          background: none;
+          border: none;
+          color: #71717a;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+          margin-left: auto;
+        }
+
+        .cv-note-card:hover .cv-note-delete-btn,
+        .cv-reply:hover .cv-note-delete-btn {
+          opacity: 1;
+        }
+
+        .cv-note-delete-btn:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .cv-delete-note-modal {
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 24px;
+          max-width: 400px;
+          width: 90%;
+        }
+
+        .cv-delete-note-modal h4 {
+          margin: 0 0 12px 0;
+          font-size: 16px;
+          color: #f4f4f5;
+        }
+
+        .cv-delete-note-modal p {
+          color: #a1a1aa;
+          font-size: 14px;
+          margin: 0 0 20px 0;
+        }
+
+        .cv-delete-note-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .cv-delete-note-actions button {
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .cv-delete-note-cancel {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+        }
+
+        .cv-delete-note-cancel:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+        }
+
+        .cv-delete-note-confirm {
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+        }
+
+        .cv-delete-note-confirm:hover {
+          background: rgba(239, 68, 68, 0.3);
+        }
+
+        .cv-delete-note-confirm:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .cv-move-note-modal {
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 24px;
+          max-width: 420px;
+          width: 90%;
+        }
+
+        .cv-move-note-modal h4 {
+          margin: 0 0 16px 0;
+          font-size: 16px;
+          color: #f4f4f5;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .cv-move-note-field {
+          margin-bottom: 16px;
+        }
+
+        .cv-move-note-label {
+          display: block;
+          font-size: 12px;
+          color: #71717a;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .cv-move-note-select {
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 6px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+          font-size: 14px;
+          font-family: inherit;
+          cursor: pointer;
+        }
+
+        .cv-move-note-select:focus {
+          outline: none;
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .cv-move-note-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+          margin-top: 20px;
+        }
+
+        .cv-move-note-btn {
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .cv-move-note-cancel {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+        }
+
+        .cv-move-note-cancel:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f4f4f5;
+        }
+
+        .cv-move-note-confirm {
+          background: rgba(99, 102, 241, 0.2);
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          color: #818cf8;
+        }
+
+        .cv-move-note-confirm:hover {
+          background: rgba(99, 102, 241, 0.3);
+        }
+
+        .cv-move-note-confirm:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .cv-note-move-btn {
+          opacity: 0;
+          background: none;
+          border: none;
+          color: #71717a;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .cv-note-card:hover .cv-note-move-btn {
+          opacity: 1;
+        }
+
+        .cv-note-move-btn:hover {
+          background: rgba(99, 102, 241, 0.15);
+          color: #818cf8;
+        }
+
         .cv-thread-overlay {
           position: fixed;
           top: 0;
@@ -14918,9 +15798,35 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                         <span className="cv-note-author">{author?.name || 'Unknown'}</span>
                         <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
                         {project && (
-                          <span className="cv-task-badge" style={{ background: project.color, color: '#fff', marginLeft: 'auto' }}>
+                          <span className="cv-task-badge" style={{ background: project.color, color: '#fff', marginLeft: project ? 'auto' : '0' }}>
                             {project.name}
                           </span>
+                        )}
+                        {note.authorId === currentUser?.id && (
+                          <>
+                            <button
+                              className="cv-note-move-btn"
+                              style={{ marginLeft: project ? '8px' : 'auto' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openMoveNoteModal(note);
+                              }}
+                              title="Move note"
+                            >
+                              <FolderInput size={14} />
+                            </button>
+                            <button
+                              className="cv-note-delete-btn"
+                              style={{ marginLeft: '4px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNoteToDelete({ noteId: note.id });
+                              }}
+                              title="Delete note"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
                         )}
                       </div>
                       <div className="cv-note-content">{renderMentionText(note.content)}</div>
@@ -15074,7 +15980,10 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   <div className="cv-section-title">
                     Lists ({allClientLists.length})
                   </div>
-                  <button className="cv-add-btn" onClick={() => {/* TODO: Add list modal */}}>
+                  <button className="cv-add-btn" onClick={() => {
+                    setAddListDefaults({ clientId: client.id, projectId: '' });
+                    setShowAddListModal(true);
+                  }}>
                     <Plus size={12} /> Add
                   </button>
                 </div>
@@ -15200,7 +16109,7 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   const projectTasks = getProjectTasks(selectedProject.id).filter(t => !t.isCompleted);
                   const projectEvents = getProjectEvents(selectedProject.id).filter(e => e.endTime >= new Date());
                   const projectNotes = getProjectNotes(selectedProject.id);
-                  const sortedProjectNotes = [...projectNotes].sort((a, b) => b.createdAt - a.createdAt);
+                  const sortedProjectNotes = sortByActivity(projectNotes);
                   
                   return (
                     <div className="cv-project-detail-split">
@@ -15260,6 +16169,32 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                                   </div>
                                   <span className="cv-note-author">{author?.name || 'Unknown'}</span>
                                   <span className="cv-note-time">{formatRelativeTime(note.createdAt)}</span>
+                                  {note.authorId === currentUser?.id && (
+                                    <>
+                                      <button
+                                        className="cv-note-move-btn"
+                                        style={{ marginLeft: 'auto' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openMoveNoteModal(note);
+                                        }}
+                                        title="Move note"
+                                      >
+                                        <FolderInput size={14} />
+                                      </button>
+                                      <button
+                                        className="cv-note-delete-btn"
+                                        style={{ marginLeft: '4px' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setNoteToDelete({ noteId: note.id });
+                                        }}
+                                        title="Delete note"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                                 <div className="cv-note-content">{renderMentionText(note.content)}</div>
                                 {note.replies?.length > 0 && (
@@ -15464,6 +16399,18 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                               </div>
                               <span className="cv-note-author">{getMember(reply.authorId)?.name || 'Unknown'}</span>
                               <span className="cv-note-time">{formatRelativeTime(reply.createdAt)}</span>
+                              {reply.authorId === currentUser?.id && (
+                                <button
+                                  className="cv-note-delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNoteToDelete({ noteId: selectedProjectNote.id, replyId: reply.id });
+                                  }}
+                                  title="Delete reply"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
                             </div>
                             <div className="cv-note-content">{renderMentionText(reply.content)}</div>
                           </div>
@@ -15525,6 +16472,18 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                         <div className="cv-reply-header">
                           <span className="cv-reply-author">{replyAuthor?.name || 'Unknown'}</span>
                           <span className="cv-reply-time">{formatRelativeTime(reply.createdAt)}</span>
+                          {reply.authorId === currentUser?.id && (
+                            <button
+                              className="cv-note-delete-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNoteToDelete({ noteId: selectedNote.id, replyId: reply.id });
+                              }}
+                              title="Delete reply"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                         <div className="cv-reply-text">{renderMentionText(reply.content)}</div>
                       </div>
@@ -15593,6 +16552,93 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
         />
       )}
 
+      {/* Delete Note/Reply Confirmation Modal */}
+      {noteToDelete && (
+        <div className="cv-thread-overlay" onClick={() => setNoteToDelete(null)}>
+          <div className="cv-delete-note-modal" onClick={e => e.stopPropagation()}>
+            <h4>{noteToDelete.replyId ? 'Delete Reply?' : 'Delete Note?'}</h4>
+            <p>
+              {noteToDelete.replyId
+                ? 'This reply will be permanently deleted.'
+                : 'This note and all its replies will be permanently deleted.'}
+            </p>
+            <div className="cv-delete-note-actions">
+              <button className="cv-delete-note-cancel" onClick={() => setNoteToDelete(null)}>
+                Cancel
+              </button>
+              <button
+                className="cv-delete-note-confirm"
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Note Modal */}
+      {noteToMove && (
+        <div className="cv-thread-overlay" onClick={() => setNoteToMove(null)}>
+          <div className="cv-move-note-modal" onClick={e => e.stopPropagation()}>
+            <h4><FolderInput size={18} /> Move Note</h4>
+
+            <div className="cv-move-note-field">
+              <label className="cv-move-note-label">Destination</label>
+              <select
+                className="cv-move-note-select"
+                value={moveTargetClient}
+                onChange={(e) => {
+                  setMoveTargetClient(e.target.value);
+                  setMoveTargetProject('');
+                }}
+              >
+                <option value="">Select a client or space...</option>
+                <optgroup label="Internal Spaces">
+                  <option value={internal.personal?.id}>{internal.personal?.name}</option>
+                  <option value={internal.team?.id}>{internal.team?.name}</option>
+                </optgroup>
+                <optgroup label="Clients">
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
+            {moveTargetClient && getMoveTargetProjects().length > 0 && (
+              <div className="cv-move-note-field">
+                <label className="cv-move-note-label">Project (optional)</label>
+                <select
+                  className="cv-move-note-select"
+                  value={moveTargetProject}
+                  onChange={(e) => setMoveTargetProject(e.target.value)}
+                >
+                  <option value="">No project (client-level)</option>
+                  {getMoveTargetProjects().map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="cv-move-note-actions">
+              <button className="cv-move-note-btn cv-move-note-cancel" onClick={() => setNoteToMove(null)}>
+                Cancel
+              </button>
+              <button
+                className="cv-move-note-btn cv-move-note-confirm"
+                onClick={handleMoveNote}
+                disabled={isMoving || !moveTargetClient}
+              >
+                {isMoving ? 'Moving...' : 'Move Note'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Event Modal (Create) */}
       {showAddEventModal && (
         <EventModal 
@@ -15617,6 +16663,20 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           teamMembers={teamMembers}
           defaultClientId={addTaskDefaults.clientId}
           defaultProjectId={addTaskDefaults.projectId}
+        />
+      )}
+
+      {/* List Modal (Create) */}
+      {showAddListModal && (
+        <ListModal
+          onClose={() => setShowAddListModal(false)}
+          onSave={addList}
+          clients={clients}
+          internal={internal}
+          teamMembers={teamMembers}
+          tasks={tasks}
+          defaultClientId={addListDefaults.clientId}
+          defaultProjectId={addListDefaults.projectId}
         />
       )}
 
