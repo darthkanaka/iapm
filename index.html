@@ -1512,21 +1512,49 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
   const [notifications, setNotifications] = React.useState([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
 
-  // Webhook configuration (persisted in localStorage)
-  const [webhookUrl, setWebhookUrl] = React.useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('iapm_webhook_url') || '';
-    }
-    return '';
-  });
+  // Webhook configuration (persisted in database system_settings table)
+  const [webhookUrl, setWebhookUrl] = React.useState('');
+  const [webhookLoading, setWebhookLoading] = React.useState(true);
   const [showWebhookSettings, setShowWebhookSettings] = React.useState(false);
 
-  // Save webhook URL to localStorage when it changes
+  // Load webhook URL from database on mount
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('iapm_webhook_url', webhookUrl);
+    const loadWebhookUrl = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'webhook_url')
+          .single();
+
+        if (!error && data) {
+          setWebhookUrl(data.value);
+        }
+      } catch (err) {
+        console.error('Error loading webhook URL:', err);
+      } finally {
+        setWebhookLoading(false);
+      }
+    };
+    loadWebhookUrl();
+  }, []);
+
+  // Save webhook URL to database
+  const saveWebhookUrl = async (newUrl) => {
+    setWebhookUrl(newUrl);
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .update({ value: newUrl, updated_at: new Date().toISOString() })
+        .eq('key', 'webhook_url');
+
+      if (error) {
+        console.error('Error saving webhook URL:', error);
+      }
+    } catch (err) {
+      console.error('Error saving webhook URL:', err);
     }
-  }, [webhookUrl]);
+  };
 
   // Send notification to webhook endpoint
   const sendNotificationWebhook = async (notification, additionalContext = {}) => {
@@ -4373,15 +4401,19 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           <div className="webhook-modal" onClick={e => e.stopPropagation()}>
             <h3><Webhook size={20} /> Webhook Settings</h3>
             <p className="webhook-modal-desc">
-              Configure a webhook URL to send notification data to external services like N8N, Zapier, or custom endpoints.
-              All notifications will be POSTed to this URL in JSON format.
+              Configure a webhook URL to receive a complete changelog of all database changes across all users.
+              Every INSERT, UPDATE, and DELETE is automatically POSTed to this URL via database triggers.
             </p>
 
             <div className={`webhook-status ${webhookUrl ? 'active' : 'inactive'}`}>
-              {webhookUrl ? (
+              {webhookLoading ? (
+                <>
+                  <span>Loading...</span>
+                </>
+              ) : webhookUrl ? (
                 <>
                   <Check size={16} />
-                  <span>Webhook is active</span>
+                  <span>Webhook is active (system-wide)</span>
                 </>
               ) : (
                 <>
@@ -4398,7 +4430,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
                 className="webhook-input"
                 placeholder="https://your-n8n-instance.com/webhook/..."
                 value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
+                onChange={(e) => saveWebhookUrl(e.target.value)}
               />
             </div>
 
