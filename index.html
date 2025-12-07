@@ -11194,6 +11194,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           border: 2px dashed rgba(255, 255, 255, 0.4);
         }
 
+        .tl-badge-multiday.starts {
+          border-right: 2px dashed rgba(255, 255, 255, 0.4);
+          border-left: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
         .tl-badge-multiday.continues {
           border-left: 2px dashed rgba(255, 255, 255, 0.4);
           border-right: 2px dashed rgba(255, 255, 255, 0.4);
@@ -11201,6 +11206,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-badge-multiday.ends {
           border-left: 2px dashed rgba(255, 255, 255, 0.4);
+          border-right: 2px solid rgba(255, 255, 255, 0.2);
         }
 
         .tl-badge-pos {
@@ -11810,20 +11816,24 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                       new Date(e.startTime).toDateString() === visibleDateStr
                     );
 
-                    // Multi-day timed events that span the visible date (but not starting on it)
+                    // Multi-day timed events that span the visible date
                     const visibleMultiDayEvents = row.events.filter(e => {
                       if (!isMultiDayEvent(e)) return false;
                       const eventStart = new Date(e.startTime);
                       const eventEnd = new Date(e.endTime);
                       eventStart.setHours(0, 0, 0, 0);
                       eventEnd.setHours(0, 0, 0, 0);
-                      // Show badge if visible date is after start but on or before end
-                      return visibleDateStart > eventStart && visibleDateStart <= eventEnd;
+                      // Show badge if visible date is on start, between, or on end day
+                      return visibleDateStart >= eventStart && visibleDateStart <= eventEnd;
                     }).map(e => {
+                      const eventStart = new Date(e.startTime);
                       const eventEnd = new Date(e.endTime);
+                      eventStart.setHours(0, 0, 0, 0);
                       eventEnd.setHours(0, 0, 0, 0);
+                      const isStartDay = visibleDateStart.getTime() === eventStart.getTime();
                       const isEndDay = visibleDateStart.getTime() === eventEnd.getTime();
-                      return { ...e, dayPosition: isEndDay ? 'ends' : 'continues' };
+                      const position = isStartDay ? 'starts' : isEndDay ? 'ends' : 'continues';
+                      return { ...e, dayPosition: position };
                     });
 
                     const visibleTasks = row.tasks.filter(t =>
@@ -11854,10 +11864,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                                 <span className="tl-badge-title">{event.title}</span>
                               </div>
                             ))}
-                            {/* Multi-day events (continues/ends) */}
+                            {/* Multi-day events (starts/continues/ends) */}
                             {visibleMultiDayEvents.map(event => {
-                              const posIcon = event.dayPosition === 'ends' ? '←' : '↔';
-                              const posLabel = event.dayPosition === 'ends' ? 'Ends' : 'Continues';
+                              const posIcon = event.dayPosition === 'starts' ? '→' : event.dayPosition === 'ends' ? '←' : '↔';
+                              const posLabel = event.dayPosition === 'starts' ? 'Starts' : event.dayPosition === 'ends' ? 'Ends' : 'Continues';
                               return (
                                 <div
                                   key={`badge-multiday-${event.id}`}
