@@ -11361,29 +11361,97 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
-  const [filterClientId, setFilterClientId] = React.useState(''); // '' = all
-  const [filterProjectId, setFilterProjectId] = React.useState(''); // '' = all
+
+  // Multi-select filter state (matches ListView pattern)
+  const [selectedClients, setSelectedClients] = React.useState({});
+  const [selectedProjects, setSelectedProjects] = React.useState({});
+  const [expandedClients, setExpandedClients] = React.useState({});
+  const [filtersInitialized, setFiltersInitialized] = React.useState(false);
+  const [showFilterPanel, setShowFilterPanel] = React.useState(false);
   
   // Combine clients with internal spaces
   const allSpaces = [internal.personal, internal.team, ...clients];
 
-  // Get selected client for project dropdown
-  const selectedClient = filterClientId ? allSpaces.find(c => c.id === filterClientId) : null;
+  // Initialize filters when data loads - default to ALL selected
+  React.useEffect(() => {
+    if (!internal.personal || !internal.team || filtersInitialized) return;
+
+    const newClients = { [internal.personal.id]: true, [internal.team.id]: true };
+    const newProjects = {};
+
+    internal.personal.projects?.forEach(p => { newProjects[p.id] = true; });
+    internal.team.projects?.forEach(p => { newProjects[p.id] = true; });
+    clients.forEach(c => {
+      newClients[c.id] = true;
+      c.projects?.forEach(p => { newProjects[p.id] = true; });
+    });
+
+    setSelectedClients(newClients);
+    setSelectedProjects(newProjects);
+    setFiltersInitialized(true);
+  }, [internal.personal, internal.team, clients, filtersInitialized]);
+
+  // Toggle functions
+  const toggleClient = (clientId) => {
+    const newSelected = { ...selectedClients, [clientId]: !selectedClients[clientId] };
+    setSelectedClients(newSelected);
+    const client = allSpaces.find(c => c.id === clientId);
+    if (client) {
+      const newProjects = { ...selectedProjects };
+      client.projects.forEach(p => {
+        newProjects[p.id] = newSelected[clientId];
+      });
+      setSelectedProjects(newProjects);
+    }
+  };
+
+  const toggleProject = (projectId) => {
+    setSelectedProjects(prev => ({ ...prev, [projectId]: !prev[projectId] }));
+  };
+
+  const toggleClientExpand = (clientId) => {
+    setExpandedClients(prev => ({ ...prev, [clientId]: !prev[clientId] }));
+  };
+
+  const selectAllFilters = () => {
+    const newClients = {};
+    const newProjects = {};
+    allSpaces.forEach(c => {
+      newClients[c.id] = true;
+      c.projects.forEach(p => { newProjects[p.id] = true; });
+    });
+    setSelectedClients(newClients);
+    setSelectedProjects(newProjects);
+  };
+
+  const deselectAllFilters = () => {
+    const newClients = {};
+    const newProjects = {};
+    allSpaces.forEach(c => {
+      newClients[c.id] = false;
+      c.projects.forEach(p => { newProjects[p.id] = false; });
+    });
+    setSelectedClients(newClients);
+    setSelectedProjects(newProjects);
+  };
+
+  // Check if any filters are active (not all selected)
+  const hasActiveFilter = () => {
+    const allClientsSelected = allSpaces.every(c => selectedClients[c.id]);
+    const allProjectsSelected = allSpaces.every(c =>
+      c.projects.every(p => selectedProjects[p.id])
+    );
+    return !allClientsSelected || !allProjectsSelected;
+  };
 
   // Filter matching helper - checks if item matches current filter
   const matchesFilter = (item) => {
-    if (!filterClientId) return true; // No filter = show all
-    if (filterProjectId) {
-      // Filter by specific project
-      return item.projectId === filterProjectId;
+    // If item has a projectId, check if that project is selected
+    if (item.projectId) {
+      return selectedProjects[item.projectId] === true;
     }
-    // Filter by client (show all projects under this client)
-    if (item.clientId === filterClientId) return true;
-    // Also match if item's project belongs to this client
-    if (item.projectId && selectedClient) {
-      return selectedClient.projects.some(p => p.id === item.projectId);
-    }
-    return false;
+    // Otherwise check if the client is selected
+    return selectedClients[item.clientId] === true;
   };
 
   const year = currentDate.getFullYear();
@@ -11628,59 +11696,196 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           }
         }
 
-        .cal-filter {
+        .cal-filter-btn {
           display: flex;
           align-items: center;
-          gap: 8px;
-        }
-
-        .cal-filter-select {
-          padding: 8px 12px;
+          gap: 6px;
+          padding: 8px 14px;
           border-radius: 2px;
           background: rgba(255, 255, 255, 0.06);
           border: 1px solid rgba(255, 255, 255, 0.12);
-          color: #e4e4e7;
+          color: #a1a1aa;
           font-size: 12px;
           cursor: pointer;
-          min-width: 140px;
-          appearance: none;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-          background-repeat: no-repeat;
-          background-position: right 10px center;
-          padding-right: 30px;
+          transition: all 0.1s;
+          position: relative;
         }
 
-        .cal-filter-select:hover {
-          background-color: rgba(255, 255, 255, 0.1);
+        .cal-filter-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
           border-color: rgba(255, 255, 255, 0.2);
+          color: #e4e4e7;
         }
 
-        .cal-filter-select:focus {
-          outline: none;
-          border-color: rgba(99, 102, 241, 0.5);
+        .cal-filter-btn.active {
+          background: rgba(99, 102, 241, 0.15);
+          border-color: rgba(99, 102, 241, 0.3);
+          color: #818cf8;
         }
 
-        .cal-filter-clear {
+        .cal-filter-badge {
+          background: #6366f1;
+          color: #fff;
+          font-size: 9px;
+          padding: 2px 5px;
+          border-radius: 8px;
+          font-weight: 600;
+        }
+
+        .cal-filter-panel {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          margin-top: 4px;
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+          z-index: 100;
+          min-width: 280px;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+
+        .cal-filter-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .cal-filter-title {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #71717a;
+        }
+
+        .cal-filter-actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .cal-filter-action {
+          background: none;
+          border: none;
+          color: #6366f1;
+          font-size: 10px;
+          cursor: pointer;
+          padding: 2px 6px;
+          border-radius: 2px;
+          transition: all 0.1s;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+
+        .cal-filter-action:hover {
+          background: rgba(99, 102, 241, 0.15);
+        }
+
+        .cal-filter-list {
+          padding: 8px;
+        }
+
+        .cal-filter-client {
+          border-radius: 2px;
+          overflow: hidden;
+          margin-bottom: 2px;
+        }
+
+        .cal-filter-client-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          cursor: pointer;
+          transition: all 0.1s;
+        }
+
+        .cal-filter-client-header:hover {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .cal-filter-expand {
+          color: #71717a;
+          transition: transform 0.1s;
+          flex-shrink: 0;
+        }
+
+        .cal-filter-expand.expanded {
+          transform: rotate(90deg);
+        }
+
+        .cal-filter-checkbox {
+          width: 16px;
+          height: 16px;
+          border-radius: 2px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.1s;
+          flex-shrink: 0;
+        }
+
+        .cal-filter-checkbox.checked {
+          background: #6366f1;
+          border-color: #6366f1;
+        }
+
+        .cal-filter-color {
+          width: 10px;
+          height: 10px;
+          border-radius: 2px;
+          flex-shrink: 0;
+        }
+
+        .cal-filter-name {
+          flex: 1;
+          font-size: 13px;
+          color: #e4e4e7;
+        }
+
+        .cal-filter-projects {
+          padding-left: 34px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .cal-filter-project {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           padding: 6px 10px;
           border-radius: 2px;
-          background: rgba(239, 68, 68, 0.15);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          color: #f87171;
-          font-size: 11px;
           cursor: pointer;
-          white-space: nowrap;
+          transition: all 0.1s;
         }
 
-        .cal-filter-clear:hover {
-          background: rgba(239, 68, 68, 0.25);
+        .cal-filter-project:hover {
+          background: rgba(255, 255, 255, 0.05);
         }
 
-        @media (max-width: 900px) {
-          .cal-filter {
-            order: 3;
-            width: 100%;
-            justify-content: flex-start;
-          }
+        .cal-filter-project .cal-filter-checkbox {
+          width: 14px;
+          height: 14px;
+        }
+
+        .cal-filter-project .cal-filter-color {
+          width: 8px;
+          height: 8px;
+        }
+
+        .cal-filter-project .cal-filter-name {
+          font-size: 11px;
+          color: #a1a1aa;
+        }
+
+        .cal-filter-wrapper {
+          position: relative;
         }
 
         .cal-add-modal-overlay {
@@ -12284,44 +12489,68 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         </div>
 
         {/* Filter */}
-        <div className="cal-filter">
-          <select
-            className="cal-filter-select"
-            value={filterClientId}
-            onChange={(e) => {
-              setFilterClientId(e.target.value);
-              setFilterProjectId(''); // Reset project when client changes
-            }}
+        <div className="cal-filter-wrapper">
+          <button
+            className={`cal-filter-btn ${hasActiveFilter() ? 'active' : ''}`}
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
           >
-            <option value="">All Clients</option>
-            {allSpaces.map(client => (
-              <option key={client.id} value={client.id}>{client.name}</option>
-            ))}
-          </select>
+            <Filter size={14} />
+            <span>Filter</span>
+            {hasActiveFilter() && <span className="cal-filter-badge">!</span>}
+          </button>
 
-          {selectedClient && selectedClient.projects.length > 0 && (
-            <select
-              className="cal-filter-select"
-              value={filterProjectId}
-              onChange={(e) => setFilterProjectId(e.target.value)}
-            >
-              <option value="">All Projects</option>
-              {selectedClient.projects.map(project => (
-                <option key={project.id} value={project.id}>{project.name}</option>
-              ))}
-            </select>
-          )}
-
-          {filterClientId && (
-            <button
-              className="cal-filter-clear"
-              onClick={() => {
-                setFilterClientId('');
-                setFilterProjectId('');
-              }}
-            >
-              Clear
-            </button>
+          {showFilterPanel && (
+            <div className="cal-filter-panel">
+              <div className="cal-filter-header">
+                <span className="cal-filter-title">Clients & Projects</span>
+                <div className="cal-filter-actions">
+                  <button className="cal-filter-action" onClick={selectAllFilters}>All</button>
+                  <button className="cal-filter-action" onClick={deselectAllFilters}>None</button>
+                </div>
+              </div>
+              <div className="cal-filter-list">
+                {allSpaces.map(space => (
+                  <div key={space.id} className="cal-filter-client">
+                    <div className="cal-filter-client-header">
+                      {space.projects.length > 0 ? (
+                        <ChevronRight
+                          size={14}
+                          className={`cal-filter-expand ${expandedClients[space.id] ? 'expanded' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleClientExpand(space.id); }}
+                        />
+                      ) : (
+                        <div style={{ width: 14 }} />
+                      )}
+                      <div
+                        className={`cal-filter-checkbox ${selectedClients[space.id] ? 'checked' : ''}`}
+                        onClick={() => toggleClient(space.id)}
+                      >
+                        {selectedClients[space.id] && <Check size={10} color="#fff" />}
+                      </div>
+                      <div className="cal-filter-color" style={{ background: space.color }} />
+                      <span className="cal-filter-name" onClick={() => toggleClient(space.id)}>{space.name}</span>
+                    </div>
+                    {expandedClients[space.id] && space.projects.length > 0 && (
+                      <div className="cal-filter-projects">
+                        {space.projects.map(project => (
+                          <div
+                            key={project.id}
+                            className="cal-filter-project"
+                            onClick={() => toggleProject(project.id)}
+                          >
+                            <div className={`cal-filter-checkbox ${selectedProjects[project.id] ? 'checked' : ''}`}>
+                              {selectedProjects[project.id] && <Check size={8} color="#fff" />}
+                            </div>
+                            <div className="cal-filter-color" style={{ background: project.color }} />
+                            <span className="cal-filter-name">{project.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
