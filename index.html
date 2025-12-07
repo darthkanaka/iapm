@@ -9521,6 +9521,9 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     const hoursFromStart = centerScrollLeft / pixelsPerHour;
     const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
 
+    // Check if we've crossed into a new day BEFORE updating ref
+    const dayChanged = viewportDate.toDateString() !== visibleDateRef.current.toDateString();
+
     // Update ref immediately (no re-render)
     visibleDateRef.current = viewportDate;
 
@@ -9529,9 +9532,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Update visibleDate immediately when day changes (so badges update during scroll)
-    // Only triggers re-render when we cross into a new day
-    if (viewportDate.toDateString() !== visibleDate.toDateString()) {
+    // Update visibleDate state only when day actually changes (triggers re-render for badges)
+    if (dayChanged) {
       setVisibleDate(viewportDate);
     }
 
