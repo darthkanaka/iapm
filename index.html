@@ -11361,19 +11361,40 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
+  const [filterClientId, setFilterClientId] = React.useState(''); // '' = all
+  const [filterProjectId, setFilterProjectId] = React.useState(''); // '' = all
   
   // Combine clients with internal spaces
   const allSpaces = [internal.personal, internal.team, ...clients];
-  
+
+  // Get selected client for project dropdown
+  const selectedClient = filterClientId ? allSpaces.find(c => c.id === filterClientId) : null;
+
+  // Filter matching helper - checks if item matches current filter
+  const matchesFilter = (item) => {
+    if (!filterClientId) return true; // No filter = show all
+    if (filterProjectId) {
+      // Filter by specific project
+      return item.projectId === filterProjectId;
+    }
+    // Filter by client (show all projects under this client)
+    if (item.clientId === filterClientId) return true;
+    // Also match if item's project belongs to this client
+    if (item.projectId && selectedClient) {
+      return selectedClient.projects.some(p => p.id === item.projectId);
+    }
+    return false;
+  };
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  
+
   // Get first day of month and total days
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startingDay = firstDay.getDay();
   const totalDays = lastDay.getDate();
-  
+
   // Navigation
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -11382,32 +11403,35 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
     setCurrentDate(today);
     setSelectedDate(today);
   };
-  
-  // Get events for a specific date
+
+  // Get events for a specific date (with filter applied)
   const getEventsForDate = (date) => {
     return events.filter(e => {
+      if (!matchesFilter(e)) return false;
       const eventDate = new Date(e.startTime);
       return eventDate.getFullYear() === date.getFullYear() &&
              eventDate.getMonth() === date.getMonth() &&
              eventDate.getDate() === date.getDate();
     });
   };
-  
-  // Get tasks for a specific date (includes list tasks with due dates)
+
+  // Get tasks for a specific date (with filter applied)
   const getTasksForDate = (date) => {
     return tasks.filter(t => {
       if (!t.dueDate) return false;
+      if (!matchesFilter(t)) return false;
       const taskDate = new Date(t.dueDate);
       return taskDate.getFullYear() === date.getFullYear() &&
              taskDate.getMonth() === date.getMonth() &&
              taskDate.getDate() === date.getDate();
     });
   };
-  
-  // Get lists for a specific date
+
+  // Get lists for a specific date (with filter applied)
   const getListsForDate = (date) => {
     return (lists || []).filter(l => {
-      if (!l.dueDate) return false; // Skip lists without due dates
+      if (!l.dueDate) return false;
+      if (!matchesFilter(l)) return false;
       const listDate = new Date(l.dueDate);
       return listDate.getFullYear() === date.getFullYear() &&
              listDate.getMonth() === date.getMonth() &&
@@ -11603,7 +11627,62 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
             font-size: 10px;
           }
         }
-        
+
+        .cal-filter {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .cal-filter-select {
+          padding: 8px 12px;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #e4e4e7;
+          font-size: 12px;
+          cursor: pointer;
+          min-width: 140px;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          padding-right: 30px;
+        }
+
+        .cal-filter-select:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .cal-filter-select:focus {
+          outline: none;
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .cal-filter-clear {
+          padding: 6px 10px;
+          border-radius: 2px;
+          background: rgba(239, 68, 68, 0.15);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #f87171;
+          font-size: 11px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .cal-filter-clear:hover {
+          background: rgba(239, 68, 68, 0.25);
+        }
+
+        @media (max-width: 900px) {
+          .cal-filter {
+            order: 3;
+            width: 100%;
+            justify-content: flex-start;
+          }
+        }
+
         .cal-add-modal-overlay {
           position: fixed;
           top: 0;
@@ -12203,6 +12282,49 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           </span>
           <button className="cal-nav-btn" onClick={nextMonth}><ChevronRight size={18} /></button>
         </div>
+
+        {/* Filter */}
+        <div className="cal-filter">
+          <select
+            className="cal-filter-select"
+            value={filterClientId}
+            onChange={(e) => {
+              setFilterClientId(e.target.value);
+              setFilterProjectId(''); // Reset project when client changes
+            }}
+          >
+            <option value="">All Clients</option>
+            {allSpaces.map(client => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+
+          {selectedClient && selectedClient.projects.length > 0 && (
+            <select
+              className="cal-filter-select"
+              value={filterProjectId}
+              onChange={(e) => setFilterProjectId(e.target.value)}
+            >
+              <option value="">All Projects</option>
+              {selectedClient.projects.map(project => (
+                <option key={project.id} value={project.id}>{project.name}</option>
+              ))}
+            </select>
+          )}
+
+          {filterClientId && (
+            <button
+              className="cal-filter-clear"
+              onClick={() => {
+                setFilterClientId('');
+                setFilterProjectId('');
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="cal-header-right">
           <button className="cal-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
             <Plus size={14} /> <span className="btn-text">Event</span>
