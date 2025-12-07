@@ -9142,6 +9142,69 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
     });
   };
 
+  // Calculate columns for overlapping events
+  const calculateEventColumns = (dayEvents) => {
+    if (dayEvents.length === 0) return [];
+
+    // Sort by start time, then by duration (longer events first for better layout)
+    const sorted = [...dayEvents].sort((a, b) => {
+      const startDiff = a.startTime - b.startTime;
+      if (startDiff !== 0) return startDiff;
+      return (b.endTime - b.startTime) - (a.endTime - a.startTime);
+    });
+
+    // Track columns - each column has the end time of its last event
+    const columns = [];
+    const eventPlacements = new Map();
+
+    sorted.forEach(event => {
+      // Find first column where this event can fit (no overlap)
+      let column = -1;
+      for (let i = 0; i < columns.length; i++) {
+        if (columns[i] <= event.startTime) {
+          column = i;
+          break;
+        }
+      }
+
+      // If no column found, create new one
+      if (column === -1) {
+        column = columns.length;
+        columns.push(event.endTime);
+      } else {
+        columns[column] = event.endTime;
+      }
+
+      eventPlacements.set(event.id, { column });
+    });
+
+    // Now determine total columns for each overlapping group
+    // Events overlap if they share any time period
+    const eventsWithOverlap = sorted.map(event => {
+      // Find all events that overlap with this one
+      const overlapping = sorted.filter(other => {
+        if (other.id === event.id) return false;
+        return event.startTime < other.endTime && event.endTime > other.startTime;
+      });
+
+      // Get max column among overlapping events (including self)
+      const placement = eventPlacements.get(event.id);
+      let maxColumn = placement.column;
+      overlapping.forEach(other => {
+        const otherPlacement = eventPlacements.get(other.id);
+        maxColumn = Math.max(maxColumn, otherPlacement.column);
+      });
+
+      return {
+        ...event,
+        column: placement.column,
+        totalColumns: maxColumn + 1
+      };
+    });
+
+    return eventsWithOverlap;
+  };
+
   const getListInfo = (list) => {
     const client = allSpaces.find(s => s.id === list.clientId);
     const project = client?.projects.find(p => p.id === list.projectId);
@@ -9356,15 +9419,14 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
         
         .wk-event {
           position: absolute;
-          left: 4px;
-          right: 4px;
           border-radius: 6px;
-          padding: 4px 8px;
+          padding: 4px 6px;
           overflow: hidden;
           cursor: pointer;
           transition: all 0.15s;
           z-index: 5;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          box-sizing: border-box;
         }
         
         .wk-event:hover {
@@ -9562,7 +9624,7 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
             
             {/* Day columns */}
             {allDays.map((day, dayIndex) => {
-              const dayEvents = getEventsForDay(day);
+              const dayEvents = calculateEventColumns(getEventsForDay(day));
               const dayAllDayEvents = getAllDayEventsForDay(day);
               const dayTasks = getTasksForDay(day);
               const dayLists = getListsForDay(day);
@@ -9674,6 +9736,11 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                     const top = startHour * HOUR_HEIGHT;
                     const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20);
 
+                    // Calculate horizontal position for overlapping events
+                    const widthPercent = 100 / event.totalColumns;
+                    const leftPercent = event.column * widthPercent;
+                    const gap = 2; // Small gap between overlapping events
+
                     return (
                       <div
                         key={event.id}
@@ -9681,6 +9748,8 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                         style={{
                           top,
                           height,
+                          left: `calc(${leftPercent}% + ${gap}px)`,
+                          width: `calc(${widthPercent}% - ${gap * 2}px)`,
                           background: `linear-gradient(135deg, ${color}dd, ${color}99)`
                         }}
                         onClick={() => onEventClick && onEventClick(event)}
