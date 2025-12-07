@@ -5852,11 +5852,15 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
       const startH = start.getHours();
       const endH = end.getHours();
       // Use local date values (not toISOString which converts to UTC)
-      const year = start.getFullYear();
-      const month = String(start.getMonth() + 1).padStart(2, '0');
-      const day = String(start.getDate()).padStart(2, '0');
+      const startYear = start.getFullYear();
+      const startMonth = String(start.getMonth() + 1).padStart(2, '0');
+      const startDay = String(start.getDate()).padStart(2, '0');
+      const endYear = end.getFullYear();
+      const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+      const endDay = String(end.getDate()).padStart(2, '0');
       return {
-        date: `${year}-${month}-${day}`,
+        date: `${startYear}-${startMonth}-${startDay}`,
+        endDate: `${endYear}-${endMonth}-${endDay}`,
         startHour: startH === 0 ? 12 : startH > 12 ? startH - 12 : startH,
         startMinute: Math.round(start.getMinutes() / 15) * 15 % 60,
         startAmpm: startH < 12 ? 'AM' : 'PM',
@@ -5867,6 +5871,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
     }
     return {
       date: defaults.date,
+      endDate: defaults.date,
       startHour: defaults.startHour,
       startMinute: defaults.startMinute,
       startAmpm: defaults.startAmpm,
@@ -5906,6 +5911,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
   const [clientId, setClientId] = React.useState(existingClientId);
   const [projectId, setProjectId] = React.useState(existingProjectId);
   const [date, setDate] = React.useState(initialTime.date);
+  const [endDate, setEndDate] = React.useState(initialTime.endDate);
   const [startHour, setStartHour] = React.useState(initialTime.startHour);
   const [startMinute, setStartMinute] = React.useState(initialTime.startMinute);
   const [startAmpm, setStartAmpm] = React.useState(initialTime.startAmpm);
@@ -6016,6 +6022,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
       setClientId(existingClientId);
       setProjectId(existingProjectId);
       setDate(initialTime.date);
+      setEndDate(initialTime.endDate);
       setStartHour(initialTime.startHour);
       setStartMinute(initialTime.startMinute);
       setStartAmpm(initialTime.startAmpm);
@@ -6031,22 +6038,39 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
     }
   };
   
+  // Handle start date change - update end date if needed
+  const handleStartDateChange = (newDate) => {
+    setDate(newDate);
+    // If end date is before new start date, update end date to match
+    if (newDate > endDate) {
+      setEndDate(newDate);
+    }
+  };
+
+  // Handle end date change - validate it's not before start date
+  const handleEndDateChange = (newEndDate) => {
+    // Only allow end date on or after start date
+    if (newEndDate >= date) {
+      setEndDate(newEndDate);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title.trim() || !clientId || !date) return;
     if (isSaving) return; // Prevent double-clicks
 
     setIsSaving(true);
 
-    // For all-day events, use 12:15am to 11:45pm to span full day
+    // For all-day events, use 12:15am to 11:45pm to span full day(s)
     let startTimeDate, endTimeDate;
     if (isAllDay) {
       startTimeDate = new Date(`${date}T00:15:00`);
-      endTimeDate = new Date(`${date}T23:45:00`);
+      endTimeDate = new Date(`${endDate}T23:45:00`);
     } else {
       const startTimeStr = formatTimeString(startHour, startMinute, startAmpm);
       const endTimeStr = formatTimeString(endHour, endMinute, endAmpm);
       startTimeDate = new Date(`${date}T${startTimeStr}`);
-      endTimeDate = new Date(`${date}T${endTimeStr}`);
+      endTimeDate = new Date(`${endDate}T${endTimeStr}`);
     }
 
     const eventData = {
@@ -6810,14 +6834,26 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
                 </div>
               </div>
               
-              <div className="event-modal-field">
-                <label className="event-modal-label">Date</label>
-                <input
-                  type="date"
-                  className="event-modal-input"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
+              <div className="event-modal-row">
+                <div className="event-modal-field">
+                  <label className="event-modal-label">Start Date</label>
+                  <input
+                    type="date"
+                    className="event-modal-input"
+                    value={date}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                  />
+                </div>
+                <div className="event-modal-field">
+                  <label className="event-modal-label">End Date</label>
+                  <input
+                    type="date"
+                    className="event-modal-input"
+                    value={endDate}
+                    min={date}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="event-modal-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -9081,22 +9117,58 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
     }, 50);
   };
   
-  // Get timed events for a specific day (excludes all-day events)
+  // Helper to normalize date to start of day for comparison
+  const normalizeDate = (d) => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  // Determine if an event spans a given date and what position type
+  const getEventDayPosition = (event, date) => {
+    const dayStart = normalizeDate(date);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const eventStart = normalizeDate(event.startTime);
+    const eventEnd = normalizeDate(event.endTime);
+
+    // Check if event spans this day
+    if (eventStart > dayStart || eventEnd < dayStart) {
+      if (!(eventStart <= dayStart && eventEnd >= dayStart)) {
+        return null; // Event doesn't span this day
+      }
+    }
+
+    const isStartDay = eventStart.toDateString() === dayStart.toDateString();
+    const isEndDay = eventEnd.toDateString() === dayStart.toDateString();
+
+    if (isStartDay && isEndDay) return 'single'; // Same day event
+    if (isStartDay) return 'starts';
+    if (isEndDay) return 'ends';
+    return 'continues';
+  };
+
+  // Get timed events for a specific day (excludes all-day events, includes multi-day)
   const getEventsForDay = (date) => {
     return events.filter(e => {
       if (e.allDay) return false; // All-day events go in sticky container
-      const eventDate = new Date(e.startTime);
-      return eventDate.toDateString() === date.toDateString();
-    });
+      return getEventDayPosition(e, date) !== null;
+    }).map(e => ({
+      ...e,
+      dayPosition: getEventDayPosition(e, date)
+    }));
   };
 
-  // Get all-day events for a specific day
+  // Get all-day events for a specific day (includes multi-day all-day events)
   const getAllDayEventsForDay = (date) => {
     return events.filter(e => {
       if (!e.allDay) return false;
-      const eventDate = new Date(e.startTime);
-      return eventDate.toDateString() === date.toDateString();
-    });
+      return getEventDayPosition(e, date) !== null;
+    }).map(e => ({
+      ...e,
+      dayPosition: getEventDayPosition(e, date)
+    }));
   };
 
   // Get tasks for a specific day (includes list tasks with due dates)
@@ -9447,7 +9519,36 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
           font-size: 10px;
           color: rgba(255, 255, 255, 0.7);
         }
-        
+
+        .wk-event-indicator {
+          font-size: 9px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.85);
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .wk-event.continues {
+          border-radius: 0;
+          border-left: 2px dashed rgba(255, 255, 255, 0.4);
+          border-right: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .wk-event.starts {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+          border-right: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .wk-event.ends {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          border-left: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
         .wk-task {
           position: absolute;
           left: 4px;
@@ -9564,6 +9665,24 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
           filter: brightness(1.1);
         }
 
+        .wk-allday.continues {
+          border-radius: 0;
+          border-left: 2px dashed rgba(255, 255, 255, 0.4);
+          border-right: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .wk-allday.starts {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+          border-right: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .wk-allday.ends {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          border-left: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
         .wk-allday-title {
           white-space: nowrap;
           overflow: hidden;
@@ -9649,15 +9768,18 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                       {dayAllDayEvents.map(event => {
                         const info = getEventInfo(event);
                         const color = info.project?.color || info.client?.color || '#6366f1';
+                        const pos = event.dayPosition;
+                        const indicatorIcon = pos === 'starts' ? '→' : pos === 'ends' ? '←' : pos === 'continues' ? '↔' : null;
 
                         return (
                           <div
                             key={event.id}
-                            className="wk-allday"
+                            className={`wk-allday ${pos !== 'single' ? pos : ''}`}
                             style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
                             onClick={() => onEventClick && onEventClick(event)}
-                            title={`All day: ${event.title}`}
+                            title={`All day: ${event.title}${pos !== 'single' ? ` (${pos})` : ''}`}
                           >
+                            {indicatorIcon && <span style={{ fontSize: 10, opacity: 0.8 }}>{indicatorIcon}</span>}
                             <Calendar size={12} style={{ flexShrink: 0 }} />
                             <span className="wk-allday-title">{event.title}</span>
                           </div>
@@ -9731,20 +9853,49 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                   {dayEvents.map(event => {
                     const info = getEventInfo(event);
                     const color = info.project?.color || info.client?.color || '#6366f1';
-                    const startHour = event.startTime.getHours() + event.startTime.getMinutes() / 60;
-                    const endHour = event.endTime.getHours() + event.endTime.getMinutes() / 60;
-                    const top = startHour * HOUR_HEIGHT;
-                    const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20);
+                    const pos = event.dayPosition;
+
+                    // Calculate top and height based on day position
+                    let top, height;
+                    if (pos === 'single' || pos === 'starts') {
+                      // Start from actual start time
+                      const startHour = event.startTime.getHours() + event.startTime.getMinutes() / 60;
+                      top = startHour * HOUR_HEIGHT;
+                      if (pos === 'starts') {
+                        // Extend to end of day (11:59pm)
+                        height = (24 - startHour) * HOUR_HEIGHT;
+                      } else {
+                        const endHour = event.endTime.getHours() + event.endTime.getMinutes() / 60;
+                        height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20);
+                      }
+                    } else if (pos === 'ends') {
+                      // Start from beginning of day (midnight)
+                      top = 0;
+                      const endHour = event.endTime.getHours() + event.endTime.getMinutes() / 60;
+                      height = Math.max(endHour * HOUR_HEIGHT, 20);
+                    } else {
+                      // continues - full day
+                      top = 0;
+                      height = 24 * HOUR_HEIGHT;
+                    }
 
                     // Calculate horizontal position for overlapping events
                     const widthPercent = 100 / event.totalColumns;
                     const leftPercent = event.column * widthPercent;
                     const gap = 2; // Small gap between overlapping events
 
+                    // Determine indicator text and time display
+                    const indicatorText = pos === 'starts' ? '→ Starts' : pos === 'ends' ? 'Ends →' : pos === 'continues' ? '↔ Continues' : null;
+                    const timeDisplay = pos === 'single' || pos === 'starts'
+                      ? event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                      : pos === 'ends'
+                        ? `Until ${event.endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                        : null;
+
                     return (
                       <div
                         key={event.id}
-                        className="wk-event"
+                        className={`wk-event ${pos !== 'single' ? pos : ''}`}
                         style={{
                           top,
                           height,
@@ -9756,10 +9907,11 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                         title={`${event.title}\n${event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${event.endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
                       >
                         <div className="wk-event-title">{event.title}</div>
-                        {height > 30 && (
-                          <div className="wk-event-time">
-                            {event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                          </div>
+                        {indicatorText && height > 25 && (
+                          <div className="wk-event-indicator">{indicatorText}</div>
+                        )}
+                        {timeDisplay && height > 40 && (
+                          <div className="wk-event-time">{timeDisplay}</div>
                         )}
                       </div>
                     );
@@ -9945,6 +10097,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     return markers;
   }, [TOTAL_HOURS, rangeStart.getTime(), pixelsPerHour]);
   
+  // Check if event spans multiple days
+  const isMultiDayEvent = (event) => {
+    const startDate = new Date(event.startTime);
+    const endDate = new Date(event.endTime);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    return startDate.getTime() !== endDate.getTime();
+  };
+
   // Get events for a project (excludes all-day events - they show in badges)
   const getProjectEvents = (projectId) => {
     return events.filter(e => e.projectId === projectId && !e.allDay);
@@ -10957,6 +11118,23 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           white-space: nowrap;
         }
 
+        .tl-event-multiday {
+          font-size: 8px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.85);
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          background: rgba(0, 0, 0, 0.3);
+          padding: 2px 5px;
+          border-radius: 3px;
+          margin-left: 6px;
+          white-space: nowrap;
+        }
+
+        .tl-event.multiday {
+          border: 1px dashed rgba(255, 255, 255, 0.3);
+        }
+
         /* Sticky badges container within each track */
         .tl-track-badges {
           position: sticky;
@@ -11687,21 +11865,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                           const left = getPosition(event.startTime);
                           const width = Math.max(getPosition(event.endTime) - left, 30);
                           const isPast = event.endTime < currentTime;
+                          const isMultiDay = isMultiDayEvent(event);
+
+                          // Calculate number of days for multi-day indicator
+                          const getDayCount = () => {
+                            const startDate = new Date(event.startTime);
+                            const endDate = new Date(event.endTime);
+                            startDate.setHours(0, 0, 0, 0);
+                            endDate.setHours(0, 0, 0, 0);
+                            return Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                          };
 
                           return (
                             <div
                               key={event.id}
-                              className={`tl-event ${isPast ? 'past' : ''}`}
+                              className={`tl-event ${isPast ? 'past' : ''} ${isMultiDay ? 'multiday' : ''}`}
                               style={{
                                 left,
                                 width,
                                 background: `linear-gradient(135deg, ${color}dd, ${color}99)`
                               }}
-                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
+                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}${isMultiDay ? ` (${getDayCount()} days)` : ''}`}
                               onClick={() => onEventClick && onEventClick(event)}
                             >
                               {width > 60 && <span className="tl-event-title">{event.title}</span>}
                               {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
+                              {isMultiDay && width > 180 && <span className="tl-event-multiday">{getDayCount()} days</span>}
                             </div>
                           );
                         })}
@@ -11857,15 +12046,44 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
     setSelectedDate(today);
   };
 
-  // Get events for a specific date (with filter applied)
+  // Helper to normalize date to start of day for comparison
+  const normalizeDate = (d) => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  // Determine event's position relative to a given date
+  const getEventDayPosition = (event, date) => {
+    const dayStart = normalizeDate(date);
+    const eventStart = normalizeDate(event.startTime);
+    const eventEnd = normalizeDate(event.endTime);
+
+    // Check if event spans this day
+    if (eventStart > dayStart || eventEnd < dayStart) {
+      if (!(eventStart <= dayStart && eventEnd >= dayStart)) {
+        return null;
+      }
+    }
+
+    const isStartDay = eventStart.toDateString() === dayStart.toDateString();
+    const isEndDay = eventEnd.toDateString() === dayStart.toDateString();
+
+    if (isStartDay && isEndDay) return 'single';
+    if (isStartDay) return 'starts';
+    if (isEndDay) return 'ends';
+    return 'continues';
+  };
+
+  // Get events for a specific date (with filter applied, includes multi-day)
   const getEventsForDate = (date) => {
     return events.filter(e => {
       if (!matchesFilter(e)) return false;
-      const eventDate = new Date(e.startTime);
-      return eventDate.getFullYear() === date.getFullYear() &&
-             eventDate.getMonth() === date.getMonth() &&
-             eventDate.getDate() === date.getDate();
-    });
+      return getEventDayPosition(e, date) !== null;
+    }).map(e => ({
+      ...e,
+      dayPosition: getEventDayPosition(e, date)
+    }));
   };
 
   // Get tasks for a specific date (with filter applied)
@@ -12680,6 +12898,28 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           border-color: rgba(255, 255, 255, 0.15);
         }
 
+        .cal-event-card.continues {
+          border-left: 3px dashed rgba(99, 102, 241, 0.5);
+          border-right: 3px dashed rgba(99, 102, 241, 0.5);
+        }
+
+        .cal-event-card.starts {
+          border-right: 3px dashed rgba(99, 102, 241, 0.5);
+        }
+
+        .cal-event-card.ends {
+          border-left: 3px dashed rgba(99, 102, 241, 0.5);
+        }
+
+        .cal-event-position {
+          font-size: 10px;
+          font-weight: 600;
+          color: #818cf8;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          margin-bottom: 4px;
+        }
+
         .cal-task-card {
           background: transparent;
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -13140,16 +13380,27 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
                 <div className="cal-sidebar-section-title">Events</div>
                 {selectedEvents.map(event => {
                   const info = getEventInfo(event);
+                  const pos = event.dayPosition;
+                  const positionLabel = pos === 'starts' ? '→ Starts' : pos === 'ends' ? 'Ends →' : pos === 'continues' ? '↔ Continues' : null;
+
                   return (
-                    <div 
-                      key={event.id} 
-                      className="cal-event-card"
+                    <div
+                      key={event.id}
+                      className={`cal-event-card ${pos !== 'single' ? pos : ''}`}
                       onClick={() => onEventClick(event)}
                       style={{ cursor: 'pointer' }}
                     >
                       <div className="cal-event-title">{event.title}</div>
+                      {positionLabel && (
+                        <div className="cal-event-position">{positionLabel}</div>
+                      )}
                       <div className="cal-event-time">
-                        {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                        {pos === 'single' || pos === 'starts'
+                          ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`
+                          : pos === 'ends'
+                            ? `Ends at ${formatTime(event.endTime)}`
+                            : 'All day (continues)'
+                        }
                       </div>
                       {info && (
                         <div className="cal-event-meta">
@@ -13593,9 +13844,45 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
     return true;
   });
   
+  // Helper to normalize date to start of day
+  const normalizeDate = (d) => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  // Expand multi-day events into entries for each day
+  const expandedEvents = filteredEvents.flatMap(e => {
+    const startDate = normalizeDate(e.startTime);
+    const endDate = normalizeDate(e.endTime);
+
+    // If same day, return single entry
+    if (startDate.getTime() === endDate.getTime()) {
+      return [{ type: 'event', item: e, date: new Date(e.startTime), dayPosition: 'single' }];
+    }
+
+    // Multi-day event - create entry for each day
+    const entries = [];
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const isStart = current.getTime() === startDate.getTime();
+      const isEnd = current.getTime() === endDate.getTime();
+      const position = isStart ? 'starts' : isEnd ? 'ends' : 'continues';
+
+      entries.push({
+        type: 'event',
+        item: e,
+        date: new Date(current),
+        dayPosition: position
+      });
+      current.setDate(current.getDate() + 1);
+    }
+    return entries;
+  });
+
   // Combine and sort all items by date
   const allItems = [
-    ...filteredEvents.map(e => ({ type: 'event', item: e, date: new Date(e.startTime) })),
+    ...expandedEvents,
     ...filteredTasks.map(t => ({ type: 'task', item: t, date: new Date(t.dueDate) })),
     ...filteredLists.map(l => ({ type: 'list', item: l, date: new Date(l.dueDate) }))
   ].sort((a, b) => a.date - b.date);
@@ -14014,6 +14301,28 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
 
         .lv-item.completed {
           opacity: 0.5;
+        }
+
+        .lv-item.continues {
+          border-left: 3px dashed rgba(99, 102, 241, 0.5);
+          border-right: 3px dashed rgba(99, 102, 241, 0.5);
+        }
+
+        .lv-item.starts {
+          border-right: 3px dashed rgba(99, 102, 241, 0.5);
+        }
+
+        .lv-item.ends {
+          border-left: 3px dashed rgba(99, 102, 241, 0.5);
+        }
+
+        .lv-event-position {
+          font-size: 10px;
+          font-weight: 600;
+          color: #818cf8;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          margin-left: 8px;
         }
 
         .lv-item-icon {
@@ -14478,27 +14787,35 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
                 
                 {!isCollapsed && (
                   <div className="lv-day-items">
-                    {dayData.items.map(({ type, item }) => {
+                    {dayData.items.map(({ type, item, dayPosition }, idx) => {
                       const info = getItemInfo(item);
-                      
+
                       if (type === 'event') {
+                        const positionLabel = dayPosition === 'starts' ? '→ Starts' : dayPosition === 'ends' ? 'Ends →' : dayPosition === 'continues' ? '↔ Continues' : null;
+                        const timeDisplay = dayPosition === 'single' || dayPosition === 'starts'
+                          ? `${formatEventTime(item.startTime)} - ${formatEventTime(item.endTime)}`
+                          : dayPosition === 'ends'
+                            ? `Ends at ${formatEventTime(item.endTime)}`
+                            : 'All day (continues)';
+
                         return (
-                          <div 
-                            key={item.id}
-                            className="lv-item"
+                          <div
+                            key={`${item.id}-${dayPosition || 'single'}-${idx}`}
+                            className={`lv-item ${dayPosition !== 'single' ? dayPosition : ''}`}
                             onClick={() => onEventClick && onEventClick(item)}
                           >
                             <div className="lv-item-icon event">📅</div>
                             <div className="lv-item-content">
                               <div className="lv-item-header">
                                 <span className="lv-item-title">{item.title}</span>
+                                {positionLabel && (
+                                  <span className="lv-event-position">{positionLabel}</span>
+                                )}
                               </div>
                               <div className="lv-item-meta">
-                                <span className="lv-item-time">
-                                  {formatEventTime(item.startTime)} - {formatEventTime(item.endTime)}
-                                </span>
+                                <span className="lv-item-time">{timeDisplay}</span>
                                 {info.project && (
-                                  <span 
+                                  <span
                                     className="lv-item-badge"
                                     style={{ background: `${info.project.color}20`, color: info.project.color }}
                                   >
