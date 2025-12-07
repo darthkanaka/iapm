@@ -13915,6 +13915,8 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const [addEventDefaults, setAddEventDefaults] = React.useState({ clientId: '', projectId: '' });
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [addTaskDefaults, setAddTaskDefaults] = React.useState({ clientId: '', projectId: '' });
+  const [showAddListModal, setShowAddListModal] = React.useState(false);
+  const [addListDefaults, setAddListDefaults] = React.useState({ clientId: '', projectId: '' });
   const [projectToDelete, setProjectToDelete] = React.useState(null);
   const [showDeleteClientModal, setShowDeleteClientModal] = React.useState(false);
   const [noteToDelete, setNoteToDelete] = React.useState(null); // { noteId, replyId? } for confirmation
@@ -15856,7 +15858,10 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   <div className="cv-section-title">
                     Lists ({allClientLists.length})
                   </div>
-                  <button className="cv-add-btn" onClick={() => {/* TODO: Add list modal */}}>
+                  <button className="cv-add-btn" onClick={() => {
+                    setAddListDefaults({ clientId: client.id, projectId: '' });
+                    setShowAddListModal(true);
+                  }}>
                     <Plus size={12} /> Add
                   </button>
                 </div>
@@ -16536,6 +16541,20 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           teamMembers={teamMembers}
           defaultClientId={addTaskDefaults.clientId}
           defaultProjectId={addTaskDefaults.projectId}
+        />
+      )}
+
+      {/* List Modal (Create) */}
+      {showAddListModal && (
+        <ListModal
+          onClose={() => setShowAddListModal(false)}
+          onSave={addList}
+          clients={clients}
+          internal={internal}
+          teamMembers={teamMembers}
+          tasks={tasks}
+          defaultClientId={addListDefaults.clientId}
+          defaultProjectId={addListDefaults.projectId}
         />
       )}
 
