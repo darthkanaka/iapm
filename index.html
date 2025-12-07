@@ -9900,53 +9900,26 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                     </div>
                   )}
 
-                  {/* Events */}
-                  {dayEvents.map(event => {
+                  {/* Events - only render single-day events as blocks */}
+                  {dayEvents.filter(e => e.dayPosition === 'single').map(event => {
                     const info = getEventInfo(event);
                     const color = info.project?.color || info.client?.color || '#6366f1';
-                    const pos = event.dayPosition;
 
-                    // Calculate top and height based on day position
-                    let top, height;
-                    if (pos === 'single' || pos === 'starts') {
-                      // Start from actual start time
-                      const startHour = event.startTime.getHours() + event.startTime.getMinutes() / 60;
-                      top = startHour * HOUR_HEIGHT;
-                      if (pos === 'starts') {
-                        // Extend to end of day (11:59pm)
-                        height = (24 - startHour) * HOUR_HEIGHT;
-                      } else {
-                        const endHour = event.endTime.getHours() + event.endTime.getMinutes() / 60;
-                        height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20);
-                      }
-                    } else if (pos === 'ends') {
-                      // Start from beginning of day (midnight)
-                      top = 0;
-                      const endHour = event.endTime.getHours() + event.endTime.getMinutes() / 60;
-                      height = Math.max(endHour * HOUR_HEIGHT, 20);
-                    } else {
-                      // continues - full day
-                      top = 0;
-                      height = 24 * HOUR_HEIGHT;
-                    }
+                    // Calculate top and height for single-day event
+                    const startHour = event.startTime.getHours() + event.startTime.getMinutes() / 60;
+                    const endHour = event.endTime ? (event.endTime.getHours() + event.endTime.getMinutes() / 60) : (startHour + 1);
+                    const top = startHour * HOUR_HEIGHT;
+                    const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20);
 
                     // Calculate horizontal position for overlapping events
                     const widthPercent = 100 / event.totalColumns;
                     const leftPercent = event.column * widthPercent;
-                    const gap = 2; // Small gap between overlapping events
-
-                    // Determine indicator text and time display
-                    const indicatorText = pos === 'starts' ? '→ Starts' : pos === 'ends' ? 'Ends →' : pos === 'continues' ? '↔ Continues' : null;
-                    const timeDisplay = pos === 'single' || pos === 'starts'
-                      ? event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-                      : pos === 'ends'
-                        ? `Until ${event.endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-                        : null;
+                    const gap = 2;
 
                     return (
                       <div
                         key={event.id}
-                        className={`wk-event ${pos !== 'single' ? pos : ''}`}
+                        className="wk-event"
                         style={{
                           top,
                           height,
@@ -9955,18 +9928,18 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                           background: `linear-gradient(135deg, ${color}dd, ${color}99)`
                         }}
                         onClick={() => onEventClick && onEventClick(event)}
-                        title={`${event.title}\n${event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${event.endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                        title={`${event.title}\n${event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${event.endTime ? event.endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}`}
                       >
                         <div className="wk-event-title">{event.title}</div>
-                        {indicatorText && height > 25 && (
-                          <div className="wk-event-indicator">{indicatorText}</div>
-                        )}
-                        {timeDisplay && height > 40 && (
-                          <div className="wk-event-time">{timeDisplay}</div>
+                        {height > 35 && (
+                          <div className="wk-event-time">
+                            {event.startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          </div>
                         )}
                       </div>
                     );
                   })}
+
                 </div>
               );
             })}
