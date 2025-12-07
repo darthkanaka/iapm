@@ -4077,6 +4077,48 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           color: #22c55e;
         }
 
+        .changelog-action {
+          color: #a1a1aa;
+          font-size: 14px;
+        }
+
+        .changelog-context {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .changelog-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 4px;
+          font-size: 12px;
+          color: #a1a1aa;
+        }
+
+        .tag-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .tag-complete {
+          background: rgba(34, 197, 94, 0.1);
+          border-color: rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+        }
+
+        .tag-incomplete {
+          background: rgba(234, 179, 8, 0.1);
+          border-color: rgba(234, 179, 8, 0.2);
+          color: #eab308;
+        }
+
         .content {
           flex: 1;
           padding: 24px 32px;
@@ -4442,7 +4484,33 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
                 <div className="changelog-list">
                   {changelog.map(entry => {
                     const changedByMember = teamMembers.find(m => m.id === entry.changed_by);
-                    const entityTitle = entry.new_data?.title || entry.old_data?.title || entry.new_data?.name || entry.old_data?.name || 'Untitled';
+                    const data = entry.new_data || entry.old_data || {};
+                    const entityTitle = data.title || data.name || data.content?.substring(0, 50) || 'Untitled';
+
+                    // Get related client/project names
+                    const relatedClient = clients.find(c => c.id === data.client_id) ||
+                                         internal.personal?.id === data.client_id ? internal.personal :
+                                         internal.team?.id === data.client_id ? internal.team : null;
+                    const relatedProject = relatedClient?.projects?.find(p => p.id === data.project_id);
+
+                    // Get assigned user for tasks
+                    const assignedTo = teamMembers.find(m => m.id === data.assigned_to);
+
+                    // Format action message
+                    const getActionMessage = () => {
+                      const actor = changedByMember?.name || 'Someone';
+                      switch (entry.operation) {
+                        case 'INSERT':
+                          return `${actor} created`;
+                        case 'UPDATE':
+                          return `${actor} updated`;
+                        case 'DELETE':
+                          return `${actor} deleted`;
+                        default:
+                          return actor;
+                      }
+                    };
+
                     return (
                       <div key={entry.id} className="changelog-entry">
                         <div className="changelog-meta">
@@ -4455,10 +4523,39 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
                           </span>
                         </div>
                         <div className="changelog-details">
-                          <strong>{entityTitle}</strong>
-                          {changedByMember && (
-                            <span className="changelog-user">
-                              by {changedByMember.name}
+                          <span className="changelog-action">{getActionMessage()}</span>
+                          <strong>"{entityTitle}"</strong>
+                        </div>
+                        <div className="changelog-context">
+                          {relatedClient && (
+                            <span className="changelog-tag">
+                              <span className="tag-dot" style={{ background: relatedClient.color }} />
+                              {relatedClient.name}
+                            </span>
+                          )}
+                          {relatedProject && (
+                            <span className="changelog-tag">
+                              {relatedProject.name}
+                            </span>
+                          )}
+                          {assignedTo && entry.table_name === 'tasks' && (
+                            <span className="changelog-tag">
+                              Assigned to {assignedTo.name}
+                            </span>
+                          )}
+                          {data.start_time && entry.table_name === 'events' && (
+                            <span className="changelog-tag">
+                              {new Date(data.start_time).toLocaleDateString()}
+                            </span>
+                          )}
+                          {data.due_date && entry.table_name === 'tasks' && (
+                            <span className="changelog-tag">
+                              Due {new Date(data.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {data.completed !== undefined && entry.table_name === 'tasks' && (
+                            <span className={`changelog-tag ${data.completed ? 'tag-complete' : 'tag-incomplete'}`}>
+                              {data.completed ? 'Completed' : 'Incomplete'}
                             </span>
                           )}
                         </div>
@@ -4466,10 +4563,10 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
                           <div className="changelog-diff">
                             {Object.keys(entry.new_data).filter(key =>
                               JSON.stringify(entry.new_data[key]) !== JSON.stringify(entry.old_data[key]) &&
-                              !['updated_at', 'created_at'].includes(key)
+                              !['updated_at', 'created_at', 'id'].includes(key)
                             ).slice(0, 5).map(key => (
                               <div key={key} className="changelog-field">
-                                <span className="field-name">{key}:</span>
+                                <span className="field-name">{key.replace(/_/g, ' ')}:</span>
                                 <span className="field-old">{JSON.stringify(entry.old_data[key])?.substring(0, 50)}</span>
                                 <span className="field-arrow">→</span>
                                 <span className="field-new">{JSON.stringify(entry.new_data[key])?.substring(0, 50)}</span>
