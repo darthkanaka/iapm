@@ -9163,11 +9163,28 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
     return 'continues';
   };
 
-  // Get timed events for a specific day (excludes all-day events, includes multi-day)
+  // Get timed events for a specific day (excludes all-day and multi-day events - they show as badges)
   const getEventsForDay = (date) => {
     return events.filter(e => {
       if (e.allDay) return false; // All-day events go in sticky container
-      return getEventDayPosition(e, date) !== null;
+      const position = getEventDayPosition(e, date);
+      if (position === null) return false;
+      // Exclude multi-day events - they only show as badges
+      if (position !== 'single') return false;
+      return true;
+    }).map(e => ({
+      ...e,
+      dayPosition: getEventDayPosition(e, date)
+    }));
+  };
+
+  // Get multi-day NON-all-day events for badge display (legacy events not marked as allDay)
+  const getMultiDayEventsForDay = (date) => {
+    return events.filter(e => {
+      if (e.allDay) return false; // Already handled by getAllDayEventsForDay
+      const position = getEventDayPosition(e, date);
+      if (position === null || position === 'single') return false;
+      return true; // Multi-day non-all-day event
     }).map(e => ({
       ...e,
       dayPosition: getEventDayPosition(e, date)
@@ -9759,6 +9776,7 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
             {allDays.map((day, dayIndex) => {
               const dayEvents = calculateEventColumns(getEventsForDay(day));
               const dayAllDayEvents = getAllDayEventsForDay(day);
+              const dayMultiDayEvents = getMultiDayEventsForDay(day); // Legacy multi-day events not marked as allDay
               const dayTasks = getTasksForDay(day);
               const dayLists = getListsForDay(day);
               const isTodayCol = isToday(day);
@@ -9775,8 +9793,8 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                     <div className="wk-now-line" style={{ top: currentHourPosition }} />
                   )}
 
-                  {/* All-day events, Tasks and Lists container at top */}
-                  {(dayAllDayEvents.length > 0 || dayTasks.length > 0 || dayLists.length > 0) && (
+                  {/* All-day events, Multi-day events, Tasks and Lists container at top */}
+                  {(dayAllDayEvents.length > 0 || dayMultiDayEvents.length > 0 || dayTasks.length > 0 || dayLists.length > 0) && (
                     <div className="wk-items-container">
                       {/* All-day events first */}
                       {dayAllDayEvents.map(event => {
@@ -9794,6 +9812,27 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
                             title={`All day: ${event.title}${pos !== 'single' ? ` (${pos})` : ''}`}
                           >
                             {indicatorIcon && <span style={{ fontSize: 10, opacity: 0.8 }}>{indicatorIcon}</span>}
+                            <Calendar size={12} style={{ flexShrink: 0 }} />
+                            <span className="wk-allday-title">{event.title}</span>
+                          </div>
+                        );
+                      })}
+                      {/* Multi-day events (legacy non-all-day multi-day events) */}
+                      {dayMultiDayEvents.map(event => {
+                        const info = getEventInfo(event);
+                        const color = info.project?.color || info.client?.color || '#6366f1';
+                        const pos = event.dayPosition;
+                        const indicatorIcon = pos === 'starts' ? '→' : pos === 'ends' ? '←' : '↔';
+
+                        return (
+                          <div
+                            key={`multiday-${event.id}`}
+                            className={`wk-allday ${pos}`}
+                            style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)`, borderStyle: 'dashed' }}
+                            onClick={() => onEventClick && onEventClick(event)}
+                            title={`${event.title} (${pos})`}
+                          >
+                            <span style={{ fontSize: 10, opacity: 0.8 }}>{indicatorIcon}</span>
                             <Calendar size={12} style={{ flexShrink: 0 }} />
                             <span className="wk-allday-title">{event.title}</span>
                           </div>
