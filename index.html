@@ -11186,6 +11186,28 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        .tl-badge-multiday {
+          border-radius: 6px;
+          color: #fff;
+          font-weight: 500;
+          height: 44px;
+          border: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .tl-badge-multiday.continues {
+          border-left: 2px dashed rgba(255, 255, 255, 0.4);
+          border-right: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .tl-badge-multiday.ends {
+          border-left: 2px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .tl-badge-pos {
+          font-size: 10px;
+          opacity: 0.85;
+        }
+
         .tl-badge-task {
           height: 44px;
         }
@@ -11781,16 +11803,36 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
                     // Get items for current visible date for sticky badges
                     const visibleDateStr = visibleDate.toDateString();
+                    const visibleDateStart = new Date(visibleDate);
+                    visibleDateStart.setHours(0, 0, 0, 0);
+
                     const visibleAllDayEvents = (row.allDayEvents || []).filter(e =>
                       new Date(e.startTime).toDateString() === visibleDateStr
                     );
+
+                    // Multi-day timed events that span the visible date (but not starting on it)
+                    const visibleMultiDayEvents = row.events.filter(e => {
+                      if (!isMultiDayEvent(e)) return false;
+                      const eventStart = new Date(e.startTime);
+                      const eventEnd = new Date(e.endTime);
+                      eventStart.setHours(0, 0, 0, 0);
+                      eventEnd.setHours(0, 0, 0, 0);
+                      // Show badge if visible date is after start but on or before end
+                      return visibleDateStart > eventStart && visibleDateStart <= eventEnd;
+                    }).map(e => {
+                      const eventEnd = new Date(e.endTime);
+                      eventEnd.setHours(0, 0, 0, 0);
+                      const isEndDay = visibleDateStart.getTime() === eventEnd.getTime();
+                      return { ...e, dayPosition: isEndDay ? 'ends' : 'continues' };
+                    });
+
                     const visibleTasks = row.tasks.filter(t =>
                       t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr
                     );
                     const visibleLists = (row.lists || []).filter(l =>
                       l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr
                     );
-                    const hasBadges = visibleAllDayEvents.length > 0 || visibleTasks.length > 0 || visibleLists.length > 0;
+                    const hasBadges = visibleAllDayEvents.length > 0 || visibleMultiDayEvents.length > 0 || visibleTasks.length > 0 || visibleLists.length > 0;
 
                     return (
                       <div key={i} className={`tl-track ${row.type}`}>
@@ -11812,6 +11854,23 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                                 <span className="tl-badge-title">{event.title}</span>
                               </div>
                             ))}
+                            {/* Multi-day events (continues/ends) */}
+                            {visibleMultiDayEvents.map(event => {
+                              const posIcon = event.dayPosition === 'ends' ? '←' : '↔';
+                              const posLabel = event.dayPosition === 'ends' ? 'Ends' : 'Continues';
+                              return (
+                                <div
+                                  key={`badge-multiday-${event.id}`}
+                                  className={`tl-badge tl-badge-multiday ${event.dayPosition}`}
+                                  style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
+                                  title={`${event.title} (${posLabel})`}
+                                  onClick={() => onEventClick && onEventClick(event)}
+                                >
+                                  <span className="tl-badge-pos">{posIcon}</span>
+                                  <span className="tl-badge-title">{event.title}</span>
+                                </div>
+                              );
+                            })}
                             {/* Tasks */}
                             {visibleTasks.map(task => (
                               <div
