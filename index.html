@@ -16220,13 +16220,27 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           background: rgba(239, 68, 68, 0.1);
           color: #ef4444;
         }
+        .cv-project-edit-btn {
+          width: 26px;
+          height: 26px;
+          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #71717a;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+          opacity: 0;
+        }
         .cv-project:hover .cv-project-edit-btn {
           opacity: 1;
         }
         .cv-project-edit-btn:hover {
-          background: rgba(99, 102, 241, 0.15) !important;
-          color: #818cf8 !important;
-          border-color: rgba(99, 102, 241, 0.3) !important;
+          background: rgba(99, 102, 241, 0.15);
+          color: #818cf8;
+          border-color: rgba(99, 102, 241, 0.3);
         }
 
         .cv-project-stats {
@@ -17757,20 +17771,6 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                             setEditingProject(project);
                           }}
                           title="Edit project"
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 4,
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: '#71717a',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s',
-                            opacity: 0
-                          }}
                         >
                           <Edit2 size={12} />
                         </button>
