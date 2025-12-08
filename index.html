@@ -3298,6 +3298,41 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
     }
   };
 
+  const updateProject = async (projectId, updates) => {
+    try {
+      // Only update allowed fields
+      const { name, color } = updates;
+      const updateData = {};
+      if (name !== undefined) updateData.name = name;
+      if (color !== undefined) updateData.color = color;
+
+      const { error } = await supabase
+        .from('projects')
+        .update(updateData)
+        .eq('id', projectId);
+
+      if (error) throw error;
+
+      // Update local state
+      const updateProjectInList = (projects) =>
+        (projects || []).map(p => p.id === projectId ? { ...p, ...updates } : p);
+
+      setClients(prev => prev.map(c => ({
+        ...c,
+        projects: updateProjectInList(c.projects)
+      })));
+      setInternal(prev => ({
+        personal: prev.personal ? { ...prev.personal, projects: updateProjectInList(prev.personal.projects) } : null,
+        team: prev.team ? { ...prev.team, projects: updateProjectInList(prev.team.projects) } : null
+      }));
+      if (selectedClient) {
+        setSelectedClient(prev => ({ ...prev, projects: updateProjectInList(prev.projects) }));
+      }
+    } catch (err) {
+      console.error('Error updating project:', err);
+    }
+  };
+
   const deleteProject = async (projectId) => {
     try {
       // Delete all associated data first (tasks, events, lists, notes)
@@ -4650,6 +4685,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
               deleteReply={deleteReply}
               updateNote={updateNote}
               addProject={addProject}
+              updateProject={updateProject}
               deleteProject={deleteProject}
               deleteClient={deleteClient}
               updateClient={updateClient}
@@ -4662,11 +4698,12 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           )}
         </div>
         
-        {/* Add Client Modal */}
+        {/* Client Modal (Add/Edit) */}
         {showAddClient && (
-          <AddClientModal 
+          <ClientModal
             onClose={() => setShowAddClient(false)}
-            onAdd={addClient}
+            onSave={addClient}
+            onUpdate={updateClient}
           />
         )}
         
@@ -5017,523 +5054,924 @@ function ConfirmDeleteModal({ title, itemName, itemType, affectedItems, onClose,
   );
 }
 
-// ==================== ADD CLIENT MODAL ====================
-function AddClientModal({ onClose, onAdd }) {
-  const [name, setName] = React.useState('');
-  const [color, setColor] = React.useState('#6366f1');
-  const [details, setDetails] = React.useState('');
-  
-  const colorOptions = [
-    '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-    '#ec4899', '#f43f5e', '#ef4444', '#f97316',
-    '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-    '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+// ==================== ENHANCED COLOR PICKER COMPONENT ====================
+function ColorPicker({ value, onChange, showCustomInput = true }) {
+  const [showCustom, setShowCustom] = React.useState(false);
+  const [customColor, setCustomColor] = React.useState(value || '#6366f1');
+
+  // Organized color palette by hue families - 7 shades each
+  const colorFamilies = [
+    // Reds
+    ['#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b'],
+    // Oranges
+    ['#fed7aa', '#fdba74', '#fb923c', '#f97316', '#ea580c', '#c2410c', '#9a3412'],
+    // Yellows/Ambers
+    ['#fef08a', '#fde047', '#facc15', '#eab308', '#ca8a04', '#a16207', '#854d0e'],
+    // Greens
+    ['#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d', '#166534'],
+    // Teals
+    ['#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6', '#0d9488', '#0f766e', '#115e59'],
+    // Blues
+    ['#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af'],
+    // Indigos
+    ['#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3'],
+    // Purples
+    ['#e9d5ff', '#d8b4fe', '#c084fc', '#a855f7', '#9333ea', '#7e22ce', '#6b21a8'],
+    // Pinks
+    ['#fbcfe8', '#f9a8d4', '#f472b6', '#ec4899', '#db2777', '#be185d', '#9d174d'],
+    // Neutrals
+    ['#e4e4e7', '#a1a1aa', '#71717a', '#52525b', '#3f3f46', '#27272a', '#18181b'],
   ];
-  
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    onAdd(name.trim(), color, details.trim());
-    onClose();
+
+  const handleCustomColorChange = (e) => {
+    const newColor = e.target.value;
+    setCustomColor(newColor);
+    onChange(newColor);
   };
-  
+
+  const handleCustomInputChange = (e) => {
+    let val = e.target.value;
+    if (!val.startsWith('#')) val = '#' + val;
+    setCustomColor(val);
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      onChange(val);
+    }
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+    <div className="color-picker-container">
+      <style>{`
+        .color-picker-container {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .color-picker-palette {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .color-picker-row {
+          display: flex;
+          gap: 4px;
+        }
+        .color-picker-swatch {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          cursor: pointer;
+          border: 2px solid transparent;
+          transition: all 0.12s ease;
+          flex-shrink: 0;
+        }
+        .color-picker-swatch:hover {
+          transform: scale(1.15);
+          z-index: 1;
+        }
+        .color-picker-swatch.selected {
+          border-color: #fff;
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5), 0 2px 8px rgba(0,0,0,0.3);
+          transform: scale(1.1);
+        }
+        .color-picker-custom-toggle {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 0;
+          cursor: pointer;
+          color: #a1a1aa;
+          font-size: 12px;
+          transition: color 0.15s;
+        }
+        .color-picker-custom-toggle:hover {
+          color: #fff;
+        }
+        .color-picker-custom-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .color-picker-native {
+          width: 36px;
+          height: 36px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          padding: 0;
+          background: transparent;
+        }
+        .color-picker-native::-webkit-color-swatch-wrapper {
+          padding: 0;
+        }
+        .color-picker-native::-webkit-color-swatch {
+          border: 2px solid rgba(255,255,255,0.2);
+          border-radius: 6px;
+        }
+        .color-picker-hex-input {
+          flex: 1;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          padding: 8px 12px;
+          color: #fff;
+          font-size: 13px;
+          font-family: monospace;
+          outline: none;
+          text-transform: uppercase;
+        }
+        .color-picker-hex-input:focus {
+          border-color: rgba(99, 102, 241, 0.5);
+        }
+        .color-picker-preview {
+          width: 36px;
+          height: 36px;
+          border-radius: 6px;
+          border: 2px solid rgba(255,255,255,0.2);
+          flex-shrink: 0;
+        }
+      `}</style>
+
+      <div className="color-picker-palette">
+        {colorFamilies.map((family, familyIndex) => (
+          <div key={familyIndex} className="color-picker-row">
+            {family.map((color, colorIndex) => (
+              <div
+                key={`${familyIndex}-${colorIndex}`}
+                className={`color-picker-swatch ${value === color ? 'selected' : ''}`}
+                style={{ background: color }}
+                onClick={() => onChange(color)}
+                title={color}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {showCustomInput && (
+        <>
+          <div
+            className="color-picker-custom-toggle"
+            onClick={() => setShowCustom(!showCustom)}
+          >
+            <span style={{ transform: showCustom ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+            Custom color
+          </div>
+
+          {showCustom && (
+            <div className="color-picker-custom-row">
+              <input
+                type="color"
+                className="color-picker-native"
+                value={customColor}
+                onChange={handleCustomColorChange}
+              />
+              <input
+                type="text"
+                className="color-picker-hex-input"
+                value={customColor}
+                onChange={handleCustomInputChange}
+                placeholder="#000000"
+                maxLength={7}
+              />
+              <div
+                className="color-picker-preview"
+                style={{ background: value }}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ==================== CLIENT MODAL (Create & Edit) ====================
+function ClientModal({ client, onClose, onSave, onUpdate, onDelete }) {
+  const isExistingClient = !!client;
+
+  // State for view/edit mode (existing clients start in view mode)
+  const [isEditing, setIsEditing] = React.useState(!isExistingClient);
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const [name, setName] = React.useState(isExistingClient ? client.name : '');
+  const [color, setColor] = React.useState(isExistingClient ? client.color : '#6366f1');
+  const [details, setDetails] = React.useState(isExistingClient ? (client.details || '') : '');
+
+  // Cancel editing - reset to original values
+  const handleCancelEdit = () => {
+    if (isExistingClient) {
+      setName(client.name);
+      setColor(client.color);
+      setDetails(client.details || '');
+      setIsEditing(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    if (isSaving) return;
+
+    setIsSaving(true);
+
+    try {
+      if (isExistingClient) {
+        await onUpdate(client.id, {
+          name: name.trim(),
+          color,
+          details: details.trim()
+        });
+      } else {
+        await onSave(name.trim(), color, details.trim());
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error saving client:', err);
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="client-modal-overlay" onClick={onClose}>
+      <div className="client-modal" onClick={e => e.stopPropagation()}>
         <style>{`
-          .modal-overlay {
+          .client-modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            backdrop-filter: blur(4px);
           }
-          
-          .modal-content {
+          .client-modal {
             background: #18181b;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            width: 480px;
-            max-width: 90vw;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            width: 440px;
+            max-width: 95vw;
             max-height: 90vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
           }
-          
-          .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          .client-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+          }
+          .client-modal-header-left {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 12px;
+          }
+          .client-modal-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
             flex-shrink: 0;
           }
-          
-          .modal-title {
-            font-size: 18px;
+          .client-modal-title {
+            font-size: 14px;
             font-weight: 600;
             color: #e4e4e7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
-          .modal-close {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: none;
+          .client-modal-edit-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #a1a1aa;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.1s ease;
+          }
+          .client-modal-edit-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #f4f4f5;
+          }
+          .client-modal-close {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #71717a;
             cursor: pointer;
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
-          
-          .modal-close:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+          .client-modal-close:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #f4f4f5;
           }
-          
-          .modal-body {
-            padding: 24px;
+          .client-modal-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
             overflow-y: auto;
           }
-          
-          .modal-field {
-            margin-bottom: 20px;
+          .client-modal-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
           }
-          
-          .modal-field:last-child {
-            margin-bottom: 0;
-          }
-          
-          .modal-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
+          .client-modal-label {
+            font-size: 10px;
+            font-weight: 600;
             color: #a1a1aa;
-            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
-          .modal-input {
+          .client-modal-value {
+            font-size: 14px;
+            color: #f4f4f5;
+            line-height: 1.5;
+          }
+          .client-modal-value.empty {
+            color: #52525b;
+            font-style: italic;
+          }
+          .client-modal-input {
             width: 100%;
-            padding: 12px 16px;
-            border-radius: 8px;
             background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 10px 12px;
+            color: #f4f4f5;
             font-size: 14px;
             outline: none;
-            transition: all 0.15s;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
-          
-          .modal-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+          .client-modal-input:focus {
+            border-color: rgba(99, 102, 241, 0.6);
           }
-          
-          .modal-input::placeholder {
+          .client-modal-input::placeholder {
             color: #52525b;
           }
-          
-          .modal-textarea {
+          .client-modal-textarea {
             width: 100%;
-            min-height: 80px;
-            padding: 12px 16px;
-            border-radius: 8px;
             background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 10px 12px;
+            color: #f4f4f5;
             font-size: 14px;
-            font-family: inherit;
             outline: none;
             resize: vertical;
-            transition: all 0.15s;
+            min-height: 80px;
+            font-family: inherit;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
-          
-          .modal-textarea:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+          .client-modal-textarea:focus {
+            border-color: rgba(99, 102, 241, 0.6);
           }
-          
-          .modal-textarea::placeholder {
+          .client-modal-textarea::placeholder {
             color: #52525b;
           }
-          
-          .color-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
+          .client-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+          }
+          .client-modal-footer-left {
+            display: flex;
             gap: 8px;
           }
-          
-          .color-option {
-            width: 100%;
-            aspect-ratio: 1;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.15s;
-          }
-          
-          .color-option:hover {
-            transform: scale(1.1);
-          }
-          
-          .color-option.selected {
-            border-color: #fff;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-          }
-          
-          .modal-footer {
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+          .client-modal-footer-right {
             display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            flex-shrink: 0;
+            gap: 8px;
           }
-          
-          .modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+          .client-modal-btn {
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.15s;
-            border: none;
+            transition: all 0.1s ease;
+            border: 1px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
           }
-          
-          .modal-btn-primary {
+          .client-modal-btn-primary {
             background: #6366f1;
             color: #fff;
+            border-color: #6366f1;
           }
-          
-          .modal-btn-primary:hover {
+          .client-modal-btn-primary:hover {
             background: #5558e3;
+            border-color: #5558e3;
           }
-          
-          .modal-btn-primary:disabled {
+          .client-modal-btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
           }
-          
-          .modal-btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
+          .client-modal-btn-secondary {
+            background: transparent;
             color: #a1a1aa;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.1);
           }
-          
-          .modal-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
+          .client-modal-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
             color: #fff;
           }
+          .client-modal-btn-danger {
+            background: transparent;
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+          }
+          .client-modal-btn-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.5);
+          }
         `}</style>
-        
-        <div className="modal-header">
-          <span className="modal-title">Add New Client</span>
-          <button className="modal-close" onClick={onClose}>
-            <X size={18} />
+
+        <div className="client-modal-header">
+          <div className="client-modal-header-left">
+            <div className="client-modal-color-dot" style={{ background: color }} />
+            <span className="client-modal-title">
+              {isExistingClient ? (isEditing ? 'Edit Client' : 'Client Details') : 'New Client'}
+            </span>
+            {isExistingClient && !isEditing && (
+              <button className="client-modal-edit-btn" onClick={() => setIsEditing(true)}>
+                <Edit2 size={12} /> Edit
+              </button>
+            )}
+          </div>
+          <button className="client-modal-close" onClick={onClose}>
+            <X size={16} />
           </button>
         </div>
-        
-        <div className="modal-body">
-          <div className="modal-field">
-            <label className="modal-label">Client Name</label>
-            <input
-              className="modal-input"
-              type="text"
-              placeholder="Enter client name..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          
-          <div className="modal-field">
-            <label className="modal-label">Color</label>
-            <div className="color-grid">
-              {colorOptions.map(c => (
-                <div
-                  key={c}
-                  className={`color-option ${color === c ? 'selected' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
+
+        <div className="client-modal-body">
+          {/* View Mode */}
+          {isExistingClient && !isEditing ? (
+            <>
+              <div className="client-modal-field">
+                <label className="client-modal-label">Client Name</label>
+                <div className="client-modal-value">{client.name}</div>
+              </div>
+
+              <div className="client-modal-field">
+                <label className="client-modal-label">Color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 4,
+                    background: client.color,
+                    border: '2px solid rgba(255,255,255,0.2)'
+                  }} />
+                  <span style={{ color: '#a1a1aa', fontFamily: 'monospace', fontSize: 13 }}>
+                    {client.color}
+                  </span>
+                </div>
+              </div>
+
+              <div className="client-modal-field">
+                <label className="client-modal-label">Details</label>
+                <div className={`client-modal-value ${!client.details ? 'empty' : ''}`}>
+                  {client.details || 'No details added'}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Edit/Create Mode */
+            <>
+              <div className="client-modal-field">
+                <label className="client-modal-label">Client Name</label>
+                <input
+                  className="client-modal-input"
+                  type="text"
+                  placeholder="Enter client name..."
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                  autoFocus={!isExistingClient}
                 />
-              ))}
+              </div>
+
+              <div className="client-modal-field">
+                <label className="client-modal-label">Color</label>
+                <ColorPicker value={color} onChange={setColor} />
+              </div>
+
+              <div className="client-modal-field">
+                <label className="client-modal-label">Details (optional)</label>
+                <textarea
+                  className="client-modal-textarea"
+                  placeholder="Contact info, billing details, notes..."
+                  value={details}
+                  onChange={e => setDetails(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer - only show for edit mode or new clients */}
+        {(isEditing || !isExistingClient) && (
+          <div className="client-modal-footer">
+            <div className="client-modal-footer-left">
+              {isExistingClient && onDelete && (
+                <button
+                  className="client-modal-btn client-modal-btn-danger"
+                  onClick={() => { onDelete(client); }}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="client-modal-footer-right">
+              <button
+                className="client-modal-btn client-modal-btn-secondary"
+                onClick={isExistingClient ? handleCancelEdit : onClose}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="client-modal-btn client-modal-btn-primary"
+                onClick={handleSubmit}
+                disabled={!name.trim() || isSaving}
+              >
+                {isSaving ? 'Saving...' : (isExistingClient ? 'Save Changes' : 'Create Client')}
+              </button>
             </div>
           </div>
-          
-          <div className="modal-field">
-            <label className="modal-label">Client Details (optional)</label>
-            <textarea
-              className="modal-textarea"
-              placeholder="Contact info, billing details, notes..."
-              value={details}
-              onChange={e => setDetails(e.target.value)}
-            />
-          </div>
-        </div>
-        
-        <div className="modal-footer">
-          <button className="modal-btn modal-btn-secondary" onClick={onClose}>Cancel</button>
-          <button 
-            className="modal-btn modal-btn-primary" 
-            onClick={handleSubmit}
-            disabled={!name.trim()}
-          >
-            Add Client
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ==================== ADD PROJECT MODAL ====================
-function AddProjectModal({ client, onClose, onAdd }) {
-  const [name, setName] = React.useState('');
-  const [color, setColor] = React.useState(client.color);
-  
-  // Generate color options based on client color
-  const colorOptions = [
-    client.color,
-    '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-    '#ec4899', '#f43f5e', '#ef4444', '#f97316',
-    '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-    '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
-  ];
-  
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    onAdd(client.id, name.trim(), color);
-    onClose();
+// ==================== PROJECT MODAL (Create & Edit) ====================
+function ProjectModal({ project, client, onClose, onSave, onUpdate, onDelete }) {
+  const isExistingProject = !!project;
+
+  // State for view/edit mode (existing projects start in view mode)
+  const [isEditing, setIsEditing] = React.useState(!isExistingProject);
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const [name, setName] = React.useState(isExistingProject ? project.name : '');
+  const [color, setColor] = React.useState(isExistingProject ? project.color : (client?.color || '#6366f1'));
+
+  // Cancel editing - reset to original values
+  const handleCancelEdit = () => {
+    if (isExistingProject) {
+      setName(project.name);
+      setColor(project.color);
+      setIsEditing(false);
+    }
   };
-  
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    if (isSaving) return;
+
+    setIsSaving(true);
+
+    try {
+      if (isExistingProject) {
+        await onUpdate(project.id, { name: name.trim(), color });
+      } else {
+        await onSave(client.id, name.trim(), color);
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error saving project:', err);
+      setIsSaving(false);
+    }
+  };
+
+  const itemType = client?.isInternal ? 'Category' : 'Project';
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+    <div className="project-modal-overlay" onClick={onClose}>
+      <div className="project-modal" onClick={e => e.stopPropagation()}>
         <style>{`
-          .modal-overlay {
+          .project-modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            backdrop-filter: blur(4px);
           }
-          
-          .modal-content {
+          .project-modal {
             background: #18181b;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            width: 400px;
-            max-width: 90vw;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            width: 440px;
+            max-width: 95vw;
+            max-height: 90vh;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
           }
-          
-          .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          .project-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+          }
+          .project-modal-header-left {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 12px;
           }
-          
-          .modal-title {
-            font-size: 18px;
+          .project-modal-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+          }
+          .project-modal-title {
+            font-size: 14px;
             font-weight: 600;
             color: #e4e4e7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
-          .modal-subtitle {
-            font-size: 13px;
+          .project-modal-subtitle {
+            font-size: 11px;
             color: #71717a;
-            margin-top: 4px;
+            margin-left: 8px;
           }
-          
-          .modal-close {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: none;
+          .project-modal-edit-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #a1a1aa;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.1s ease;
+          }
+          .project-modal-edit-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #f4f4f5;
+          }
+          .project-modal-close {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #71717a;
             cursor: pointer;
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.15s;
+            transition: all 0.1s ease;
           }
-          
-          .modal-close:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+          .project-modal-close:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #f4f4f5;
           }
-          
-          .modal-body {
-            padding: 24px;
+          .project-modal-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
           }
-          
-          .modal-field {
-            margin-bottom: 20px;
+          .project-modal-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
           }
-          
-          .modal-field:last-child {
-            margin-bottom: 0;
-          }
-          
-          .modal-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
+          .project-modal-label {
+            font-size: 10px;
+            font-weight: 600;
             color: #a1a1aa;
-            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
-          .modal-input {
+          .project-modal-value {
+            font-size: 14px;
+            color: #f4f4f5;
+            line-height: 1.5;
+          }
+          .project-modal-input {
             width: 100%;
-            padding: 12px 16px;
-            border-radius: 8px;
             background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            padding: 10px 12px;
+            color: #f4f4f5;
             font-size: 14px;
             outline: none;
-            transition: all 0.15s;
+            transition: border-color 0.1s ease;
+            box-sizing: border-box;
           }
-          
-          .modal-input:focus {
-            border-color: rgba(99, 102, 241, 0.5);
+          .project-modal-input:focus {
+            border-color: rgba(99, 102, 241, 0.6);
           }
-          
-          .modal-input::placeholder {
+          .project-modal-input::placeholder {
             color: #52525b;
           }
-          
-          .color-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
+          .project-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+          }
+          .project-modal-footer-left {
+            display: flex;
             gap: 8px;
           }
-          
-          .color-option {
-            width: 100%;
-            aspect-ratio: 1;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.15s;
-          }
-          
-          .color-option:hover {
-            transform: scale(1.1);
-          }
-          
-          .color-option.selected {
-            border-color: #fff;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-          }
-          
-          .modal-footer {
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+          .project-modal-footer-right {
             display: flex;
-            gap: 12px;
-            justify-content: flex-end;
+            gap: 8px;
           }
-          
-          .modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+          .project-modal-btn {
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.15s;
-            border: none;
+            transition: all 0.1s ease;
+            border: 1px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
           }
-          
-          .modal-btn-primary {
+          .project-modal-btn-primary {
             background: #6366f1;
             color: #fff;
+            border-color: #6366f1;
           }
-          
-          .modal-btn-primary:hover {
+          .project-modal-btn-primary:hover {
             background: #5558e3;
+            border-color: #5558e3;
           }
-          
-          .modal-btn-primary:disabled {
+          .project-modal-btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
           }
-          
-          .modal-btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
+          .project-modal-btn-secondary {
+            background: transparent;
             color: #a1a1aa;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.1);
           }
-          
-          .modal-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
+          .project-modal-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
             color: #fff;
           }
+          .project-modal-btn-danger {
+            background: transparent;
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+          }
+          .project-modal-btn-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.5);
+          }
         `}</style>
-        
-        <div className="modal-header">
-          <div>
-            <div className="modal-title">Add New {client.isInternal ? 'Category' : 'Project'}</div>
-            <div className="modal-subtitle">for {client.name}</div>
+
+        <div className="project-modal-header">
+          <div className="project-modal-header-left">
+            <div className="project-modal-color-dot" style={{ background: color }} />
+            <span className="project-modal-title">
+              {isExistingProject ? (isEditing ? `Edit ${itemType}` : `${itemType} Details`) : `New ${itemType}`}
+            </span>
+            {client && <span className="project-modal-subtitle">for {client.name}</span>}
+            {isExistingProject && !isEditing && (
+              <button className="project-modal-edit-btn" onClick={() => setIsEditing(true)}>
+                <Edit2 size={12} /> Edit
+              </button>
+            )}
           </div>
-          <button className="modal-close" onClick={onClose}>
-            <X size={18} />
+          <button className="project-modal-close" onClick={onClose}>
+            <X size={16} />
           </button>
         </div>
-        
-        <div className="modal-body">
-          <div className="modal-field">
-            <label className="modal-label">{client.isInternal ? 'Category' : 'Project'} Name</label>
-            <input
-              className="modal-input"
-              type="text"
-              placeholder={client.isInternal ? "Enter category name..." : "Enter project name..."}
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              autoFocus
-            />
-          </div>
-          
-          <div className="modal-field">
-            <label className="modal-label">Color</label>
-            <div className="color-grid">
-              {colorOptions.map((c, i) => (
-                <div
-                  key={`${c}-${i}`}
-                  className={`color-option ${color === c ? 'selected' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
+
+        <div className="project-modal-body">
+          {/* View Mode */}
+          {isExistingProject && !isEditing ? (
+            <>
+              <div className="project-modal-field">
+                <label className="project-modal-label">{itemType} Name</label>
+                <div className="project-modal-value">{project.name}</div>
+              </div>
+
+              <div className="project-modal-field">
+                <label className="project-modal-label">Color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 4,
+                    background: project.color,
+                    border: '2px solid rgba(255,255,255,0.2)'
+                  }} />
+                  <span style={{ color: '#a1a1aa', fontFamily: 'monospace', fontSize: 13 }}>
+                    {project.color}
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Edit/Create Mode */
+            <>
+              <div className="project-modal-field">
+                <label className="project-modal-label">{itemType} Name</label>
+                <input
+                  className="project-modal-input"
+                  type="text"
+                  placeholder={`Enter ${itemType.toLowerCase()} name...`}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                  autoFocus={!isExistingProject}
                 />
-              ))}
+              </div>
+
+              <div className="project-modal-field">
+                <label className="project-modal-label">Color</label>
+                <ColorPicker value={color} onChange={setColor} />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer - only show for edit mode or new projects */}
+        {(isEditing || !isExistingProject) && (
+          <div className="project-modal-footer">
+            <div className="project-modal-footer-left">
+              {isExistingProject && onDelete && (
+                <button
+                  className="project-modal-btn project-modal-btn-danger"
+                  onClick={() => { onDelete(project); }}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="project-modal-footer-right">
+              <button
+                className="project-modal-btn project-modal-btn-secondary"
+                onClick={isExistingProject ? handleCancelEdit : onClose}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="project-modal-btn project-modal-btn-primary"
+                onClick={handleSubmit}
+                disabled={!name.trim() || isSaving}
+              >
+                {isSaving ? 'Saving...' : (isExistingProject ? 'Save Changes' : `Create ${itemType}`)}
+              </button>
             </div>
           </div>
-        </div>
-        
-        <div className="modal-footer">
-          <button className="modal-btn modal-btn-secondary" onClick={onClose}>Cancel</button>
-          <button 
-            className="modal-btn modal-btn-primary" 
-            onClick={handleSubmit}
-            disabled={!name.trim()}
-          >
-            Add {client.isInternal ? 'Category' : 'Project'}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -15101,7 +15539,7 @@ function ListView({ clients, internal, events, tasks, lists, teamMembers, curren
 }
 
 // ==================== CLIENT VIEW ====================
-function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, deleteNote, deleteReply, updateNote, addProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
+function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvents, clients, internal, toggleTaskComplete, addTask, addEvent, addList, addNote, addReply, deleteNote, deleteReply, updateNote, addProject, updateProject, deleteProject, deleteClient, updateClient, currentUser, onEventClick, onTaskClick, onListClick, getListProgress }) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [selectedProject, setSelectedProject] = React.useState(null);
   const [showAddNote, setShowAddNote] = React.useState(false);
@@ -15118,6 +15556,8 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   const [selectedProjectNoteId, setSelectedProjectNoteId] = React.useState(null);
   const [projectNoteReplyContent, setProjectNoteReplyContent] = React.useState('');
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
+  const [editingProject, setEditingProject] = React.useState(null);
+  const [editingClient, setEditingClient] = React.useState(false);
 
   // Get actual note objects from IDs (so they update when replies are added)
   const selectedNote = selectedNoteId ? notes.find(n => n.id === selectedNoteId) : null;
@@ -15779,6 +16219,14 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
         .cv-project-delete-btn:hover {
           background: rgba(239, 68, 68, 0.1);
           color: #ef4444;
+        }
+        .cv-project:hover .cv-project-edit-btn {
+          opacity: 1;
+        }
+        .cv-project-edit-btn:hover {
+          background: rgba(99, 102, 241, 0.15) !important;
+          color: #818cf8 !important;
+          border-color: rgba(99, 102, 241, 0.3) !important;
         }
 
         .cv-project-stats {
@@ -16831,14 +17279,38 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
             {client.projects.length} {client.isInternal ? 'categories' : 'projects'} • {totalEvents} events • {tasks.length} tasks
           </div>
         </div>
-        {!client.isInternal && deleteClient && (
-          <button
-            className="cv-delete-client-btn"
-            onClick={() => setShowDeleteClientModal(true)}
-            title="Delete client"
-          >
-            <Trash2 size={18} />
-          </button>
+        {!client.isInternal && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="cv-edit-client-btn"
+              onClick={() => setEditingClient(true)}
+              title="Edit client"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#a1a1aa',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s'
+              }}
+            >
+              <Edit2 size={16} />
+            </button>
+            {deleteClient && (
+              <button
+                className="cv-delete-client-btn"
+                onClick={() => setShowDeleteClientModal(true)}
+                title="Delete client"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
         )}
       </div>
       
@@ -17277,24 +17749,50 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   >
                     <div className="cv-project-header">
                       <div className="cv-project-name">{project.name}</div>
-                      {deleteProject && (
+                      <div style={{ display: 'flex', gap: 4 }}>
                         <button
-                          className="cv-project-delete-btn"
+                          className="cv-project-edit-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setProjectToDelete({
-                              ...project,
-                              taskCount: projectTasks.length,
-                              eventCount: projectEvents.length,
-                              listCount: projectLists.length,
-                              noteCount: projectNotes.length
-                            });
+                            setEditingProject(project);
                           }}
-                          title="Delete project"
+                          title="Edit project"
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: 4,
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: '#71717a',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s',
+                            opacity: 0
+                          }}
                         >
-                          <Trash2 size={14} />
+                          <Edit2 size={12} />
                         </button>
-                      )}
+                        {deleteProject && (
+                          <button
+                            className="cv-project-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProjectToDelete({
+                                ...project,
+                                taskCount: projectTasks.length,
+                                eventCount: projectEvents.length,
+                                listCount: projectLists.length,
+                                noteCount: projectNotes.length
+                              });
+                            }}
+                            title="Delete project"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="cv-project-stats">
                       <span>{upcomingProjectEvents.length} upcoming events</span>
@@ -17761,12 +18259,44 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
         </div>
       )}
       
-      {/* Add Project Modal */}
+      {/* Project Modal (Add/Edit) */}
       {showAddProject && (
-        <AddProjectModal
+        <ProjectModal
           client={client}
           onClose={() => setShowAddProject(false)}
-          onAdd={addProject}
+          onSave={addProject}
+          onUpdate={updateProject}
+          onDelete={(project) => {
+            setShowAddProject(false);
+            setProjectToDelete({
+              ...project,
+              taskCount: tasks.filter(t => t.projectId === project.id).length,
+              eventCount: events.filter(e => e.projectId === project.id).length,
+              listCount: lists.filter(l => l.projectId === project.id).length,
+              noteCount: notes.filter(n => n.projectId === project.id).length
+            });
+          }}
+        />
+      )}
+
+      {/* Project Modal (Edit existing) */}
+      {editingProject && (
+        <ProjectModal
+          project={editingProject}
+          client={client}
+          onClose={() => setEditingProject(null)}
+          onSave={addProject}
+          onUpdate={updateProject}
+          onDelete={(project) => {
+            setEditingProject(null);
+            setProjectToDelete({
+              ...project,
+              taskCount: tasks.filter(t => t.projectId === project.id).length,
+              eventCount: events.filter(e => e.projectId === project.id).length,
+              listCount: lists.filter(l => l.projectId === project.id).length,
+              noteCount: notes.filter(n => n.projectId === project.id).length
+            });
+          }}
         />
       )}
 
@@ -17930,6 +18460,20 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           tasks={tasks}
           defaultClientId={addListDefaults.clientId}
           defaultProjectId={addListDefaults.projectId}
+        />
+      )}
+
+      {/* Client Modal (Edit) */}
+      {editingClient && (
+        <ClientModal
+          client={client}
+          onClose={() => setEditingClient(false)}
+          onSave={() => {}}
+          onUpdate={updateClient}
+          onDelete={(c) => {
+            setEditingClient(false);
+            setShowDeleteClientModal(true);
+          }}
         />
       )}
 
