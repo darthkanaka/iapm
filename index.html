@@ -1894,6 +1894,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           projectId: event.project_id,
           clientId: event.client_id,
           isCompleted: event.is_completed,
+          createdBy: event.created_by,
           attendees: (event.event_attendees || []).map(a => a.team_member_id)
         }));
         setEvents(transformedEvents);
@@ -2049,6 +2050,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       projectId: event.project_id,
       clientId: event.client_id,
       isCompleted: event.is_completed,
+      createdBy: event.created_by,
       attendees: [] // Will be loaded separately if needed
     });
 
@@ -2575,46 +2577,85 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
     console.log('dbUpdates to send:', dbUpdates);
 
-    if (Object.keys(dbUpdates).length > 0) {
-      console.log('Sending update to Supabase...');
-      const { error } = await window.supabase
-        .from('events')
-        .update(dbUpdates)
-        .eq('id', eventId);
+    // Helper function to add timeout to promises
+    const withTimeout = (promise, ms, operation) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`${operation} timed out after ${ms}ms`)), ms)
+        )
+      ]);
+    };
 
-      console.log('Supabase update result, error:', error);
+    try {
+      if (Object.keys(dbUpdates).length > 0) {
+        console.log('Sending update to Supabase...');
+        const { error } = await withTimeout(
+          window.supabase
+            .from('events')
+            .update(dbUpdates)
+            .eq('id', eventId),
+          15000,
+          'Event update'
+        );
 
-      if (error) {
-        console.error('Error updating event:', error);
-        alert('Error updating event: ' + error.message);
-        return;
+        console.log('Supabase update result, error:', error);
+
+        if (error) {
+          console.error('Error updating event:', error);
+          throw new Error('Error updating event: ' + error.message);
+        }
       }
-    }
 
-    // Handle attendee updates
-    if (updates.attendees !== undefined) {
-      // Delete existing attendees and re-add
-      await window.supabase
-        .from('event_attendees')
-        .delete()
-        .eq('event_id', eventId);
+      // Handle attendee updates
+      if (updates.attendees !== undefined) {
+        console.log('Updating attendees...');
+        // Delete existing attendees and re-add
+        const { error: deleteError } = await withTimeout(
+          window.supabase
+            .from('event_attendees')
+            .delete()
+            .eq('event_id', eventId),
+          15000,
+          'Attendee delete'
+        );
 
-      if (updates.attendees.length > 0) {
-        const attendeeRecords = updates.attendees.map(memberId => ({
-          event_id: eventId,
-          team_member_id: memberId
-        }));
+        if (deleteError) {
+          console.error('Error deleting attendees:', deleteError);
+          throw new Error('Error updating attendees: ' + deleteError.message);
+        }
 
-        await window.supabase
-          .from('event_attendees')
-          .insert(attendeeRecords);
+        if (updates.attendees.length > 0) {
+          const attendeeRecords = updates.attendees.map(memberId => ({
+            event_id: eventId,
+            team_member_id: memberId
+          }));
+
+          const { error: insertError } = await withTimeout(
+            window.supabase
+              .from('event_attendees')
+              .insert(attendeeRecords),
+            15000,
+            'Attendee insert'
+          );
+
+          if (insertError) {
+            console.error('Error inserting attendees:', insertError);
+            throw new Error('Error updating attendees: ' + insertError.message);
+          }
+        }
+        console.log('Attendees updated successfully');
       }
-    }
 
-    setEvents(prev => prev.map(e =>
-      e.id === eventId ? { ...e, ...updates } : e
-    ));
-    setSelectedEvent(null);
+      console.log('Event update complete');
+      setEvents(prev => prev.map(e =>
+        e.id === eventId ? { ...e, ...updates } : e
+      ));
+      setSelectedEvent(null);
+    } catch (err) {
+      console.error('updateEvent error:', err);
+      throw err; // Re-throw so the modal's catch block can handle it
+    }
   };
 
   const deleteEvent = async (eventId) => {
