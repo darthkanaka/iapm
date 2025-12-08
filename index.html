@@ -15197,12 +15197,59 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
   // Stats (excluding list items)
   const totalEvents = events.length;
   const completedEvents = events.filter(e => e.isCompleted).length;
-  const upcomingEvents = events.filter(e => e.startTime > new Date() && !e.isCompleted);
+
+  // Helper to get event position relative to a date
+  const getEventPosition = (event, date) => {
+    if (!event.startTime) return null;
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const eventStart = new Date(event.startTime.getFullYear(), event.startTime.getMonth(), event.startTime.getDate());
+    const eventEndTime = event.endTime || event.startTime;
+    const eventEnd = new Date(eventEndTime.getFullYear(), eventEndTime.getMonth(), eventEndTime.getDate());
+
+    if (dayStart < eventStart || dayStart > eventEnd) return null;
+
+    const isStartDay = eventStart.getTime() === dayStart.getTime();
+    const isEndDay = eventEnd.getTime() === dayStart.getTime();
+
+    if (isStartDay && isEndDay) return 'single';
+    if (isStartDay) return 'starts';
+    if (isEndDay) return 'ends';
+    return 'continues';
+  };
+
+  // Helper to check if event is multi-day
+  const isMultiDayEvent = (event) => {
+    if (!event.startTime || !event.endTime) return false;
+    const startDate = new Date(event.startTime.getFullYear(), event.startTime.getMonth(), event.startTime.getDate());
+    const endDate = new Date(event.endTime.getFullYear(), event.endTime.getMonth(), event.endTime.getDate());
+    return startDate.getTime() !== endDate.getTime();
+  };
+
+  // Filter upcoming events: include events that haven't ended yet (including ongoing multi-day and all-day events)
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const upcomingEvents = events.filter(e => {
+    if (e.isCompleted) return false;
+    // Use endTime if available, otherwise startTime
+    const endTime = e.endTime || e.startTime;
+    // For all-day events, check if the end date is today or later
+    // For regular events, check if endTime >= start of today
+    const endDate = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+    return endDate >= startOfToday;
+  });
+
   const pendingTasks = tasks.filter(t => !t.isCompleted && !t.listId);
   const completedTasks = tasks.filter(t => t.isCompleted && !t.listId);
-  
-  // Sort upcoming by date
-  upcomingEvents.sort((a, b) => a.startTime - b.startTime);
+
+  // Sort upcoming: ongoing events first, then by start time
+  upcomingEvents.sort((a, b) => {
+    const aOngoing = a.startTime <= now;
+    const bOngoing = b.startTime <= now;
+    if (aOngoing && !bOngoing) return -1;
+    if (!aOngoing && bOngoing) return 1;
+    return a.startTime - b.startTime;
+  });
   
   // Sort notes by last activity (most recent activity first)
   // Client-level notes only (not project-specific)
@@ -16506,6 +16553,43 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
           letter-spacing: 0.3px;
         }
 
+        .cv-event-indicator {
+          padding: 2px 6px;
+          border-radius: 2px;
+          font-size: 9px;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .cv-event-indicator.ongoing {
+          background: rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+        }
+
+        .cv-event-indicator.allday {
+          background: rgba(168, 85, 247, 0.2);
+          color: #a855f7;
+        }
+
+        .cv-event-indicator.multiday {
+          background: rgba(59, 130, 246, 0.2);
+          color: #3b82f6;
+        }
+
+        .cv-event.ongoing {
+          border-left: 2px solid #22c55e;
+        }
+
+        .cv-event.multiday {
+          border-left: 2px solid #3b82f6;
+        }
+
+        .cv-event.allday-event {
+          border-left: 2px solid #a855f7;
+        }
+
         .cv-event-check {
           width: 24px;
           height: 24px;
@@ -17025,10 +17109,22 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                   {upcomingEvents.slice(0, 5).map(event => {
                     const project = client.projects.find(p => p.id === event.projectId);
                     const color = project?.color || client.color;
+                    const isMultiDay = isMultiDayEvent(event);
+                    const isOngoing = event.startTime <= now;
+                    const position = isOngoing ? getEventPosition(event, now) : null;
+                    const positionIcon = position === 'starts' ? '→' : position === 'ends' ? '←' : position === 'continues' ? '↔' : null;
+
+                    // Determine CSS classes
+                    const eventClasses = ['cv-event'];
+                    if (isOngoing && !isMultiDay && event.allDay) eventClasses.push('allday-event');
+                    else if (isOngoing) eventClasses.push('ongoing');
+                    else if (isMultiDay) eventClasses.push('multiday');
+                    else if (event.allDay) eventClasses.push('allday-event');
+
                     return (
                       <div
                         key={event.id}
-                        className="cv-event"
+                        className={eventClasses.join(' ')}
                         style={{ cursor: 'pointer' }}
                         onClick={() => onEventClick && onEventClick(event)}
                       >
@@ -17036,8 +17132,27 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                         <div className="cv-event-info">
                           <div className="cv-event-title">{event.title}</div>
                           <div className="cv-event-meta">
-                            <span>{event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                            <span>{formatTime(event.startTime)}</span>
+                            {/* Date display */}
+                            {isMultiDay ? (
+                              <span>
+                                {event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {event.endTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            ) : (
+                              <span>{event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            )}
+                            {/* Time or All-day indicator */}
+                            {event.allDay || isMultiDay ? (
+                              <span className={`cv-event-indicator ${event.allDay ? 'allday' : 'multiday'}`}>
+                                {positionIcon && <span>{positionIcon}</span>}
+                                {event.allDay ? 'All day' : 'Multi-day'}
+                              </span>
+                            ) : (
+                              <span>{formatTime(event.startTime)}</span>
+                            )}
+                            {/* Ongoing indicator */}
+                            {isOngoing && (
+                              <span className="cv-event-indicator ongoing">Now</span>
+                            )}
                             {project && (
                               <span className="cv-task-badge" style={{ background: project.color, color: '#fff' }}>
                                 {project.name}
@@ -17145,7 +17260,12 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                 const projectTasks = getProjectTasks(project.id);
                 const projectLists = getProjectLists(project.id);
                 const projectNotes = notes.filter(n => n.projectId === project.id);
-                const upcomingProjectEvents = projectEvents.filter(e => e.endTime >= new Date());
+                // Include events that haven't ended yet (ongoing multi-day and current all-day events)
+                const upcomingProjectEvents = projectEvents.filter(e => {
+                  const endTime = e.endTime || e.startTime;
+                  const endDate = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+                  return endDate >= startOfToday;
+                });
                 const pendingProjectTasks = projectTasks.filter(t => !t.isCompleted);
                 const isSelected = selectedProject?.id === project.id;
                 return (
@@ -17195,7 +17315,19 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
               <>
                 {(() => {
                   const projectTasks = getProjectTasks(selectedProject.id).filter(t => !t.isCompleted);
-                  const projectEvents = getProjectEvents(selectedProject.id).filter(e => e.endTime >= new Date());
+                  const projectNow = new Date();
+                  const projectStartOfToday = new Date(projectNow.getFullYear(), projectNow.getMonth(), projectNow.getDate());
+                  const projectEvents = getProjectEvents(selectedProject.id).filter(e => {
+                    const endTime = e.endTime || e.startTime;
+                    const endDate = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+                    return endDate >= projectStartOfToday;
+                  }).sort((a, b) => {
+                    const aOngoing = a.startTime <= projectNow;
+                    const bOngoing = b.startTime <= projectNow;
+                    if (aOngoing && !bOngoing) return -1;
+                    if (!aOngoing && bOngoing) return 1;
+                    return a.startTime - b.startTime;
+                  });
                   const projectNotes = getProjectNotes(selectedProject.id);
                   const sortedProjectNotes = sortByActivity(projectNotes);
                   
@@ -17369,23 +17501,56 @@ function ClientView({ client, events, tasks, lists, notes, teamMembers, allEvent
                           </div>
                           
                           <div className="cv-events-list">
-                            {projectEvents.slice(0, 5).map(event => (
-                              <div 
-                                key={event.id} 
-                                className="cv-event"
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => onEventClick && onEventClick(event)}
-                              >
-                                <div className="cv-event-color" style={{ background: selectedProject.color }} />
-                                <div className="cv-event-info">
-                                  <div className="cv-event-title">{event.title}</div>
-                                  <div className="cv-event-meta">
-                                    <span>{event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                    <span>{formatTime(event.startTime)}</span>
+                            {projectEvents.slice(0, 5).map(event => {
+                              const isMultiDay = isMultiDayEvent(event);
+                              const isOngoing = event.startTime <= projectNow;
+                              const position = isOngoing ? getEventPosition(event, projectNow) : null;
+                              const positionIcon = position === 'starts' ? '→' : position === 'ends' ? '←' : position === 'continues' ? '↔' : null;
+
+                              // Determine CSS classes
+                              const eventClasses = ['cv-event'];
+                              if (isOngoing && !isMultiDay && event.allDay) eventClasses.push('allday-event');
+                              else if (isOngoing) eventClasses.push('ongoing');
+                              else if (isMultiDay) eventClasses.push('multiday');
+                              else if (event.allDay) eventClasses.push('allday-event');
+
+                              return (
+                                <div
+                                  key={event.id}
+                                  className={eventClasses.join(' ')}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => onEventClick && onEventClick(event)}
+                                >
+                                  <div className="cv-event-color" style={{ background: selectedProject.color }} />
+                                  <div className="cv-event-info">
+                                    <div className="cv-event-title">{event.title}</div>
+                                    <div className="cv-event-meta">
+                                      {/* Date display */}
+                                      {isMultiDay ? (
+                                        <span>
+                                          {event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {event.endTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </span>
+                                      ) : (
+                                        <span>{event.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                      )}
+                                      {/* Time or All-day indicator */}
+                                      {event.allDay || isMultiDay ? (
+                                        <span className={`cv-event-indicator ${event.allDay ? 'allday' : 'multiday'}`}>
+                                          {positionIcon && <span>{positionIcon}</span>}
+                                          {event.allDay ? 'All day' : 'Multi-day'}
+                                        </span>
+                                      ) : (
+                                        <span>{formatTime(event.startTime)}</span>
+                                      )}
+                                      {/* Ongoing indicator */}
+                                      {isOngoing && (
+                                        <span className="cv-event-indicator ongoing">Now</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                             {projectEvents.length === 0 && (
                               <div className="cv-empty">No upcoming events</div>
                             )}
