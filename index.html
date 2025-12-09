@@ -3346,18 +3346,17 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       await supabase.from('notes').delete().eq('project_id', projectId);
 
       // Delete the project and verify it was actually deleted
-      const { data: deletedProject, error } = await supabase
+      const { data: deletedProjects, error } = await supabase
         .from('projects')
         .delete()
         .eq('id', projectId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
 
       // If no data returned, the delete didn't actually happen (likely RLS issue)
-      if (!deletedProject) {
-        throw new Error('Failed to delete project - you may not have permission to delete this project');
+      if (!deletedProjects || deletedProjects.length === 0) {
+        throw new Error('Unable to delete project. Please check your permissions or try refreshing the page.');
       }
 
       // Update local state
@@ -3417,18 +3416,17 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       }
 
       // Delete the client and verify it was actually deleted
-      const { data: deletedClient, error } = await supabase
+      const { data: deletedClients, error } = await supabase
         .from('clients')
         .delete()
         .eq('id', clientId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
 
       // If no data returned, the delete didn't actually happen (likely RLS issue)
-      if (!deletedClient) {
-        throw new Error('Failed to delete client - you may not have permission to delete this client');
+      if (!deletedClients || deletedClients.length === 0) {
+        throw new Error('Unable to delete client. Please check your permissions or try refreshing the page.');
       }
 
       // Update local state
