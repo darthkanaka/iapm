@@ -3385,34 +3385,35 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 
   const deleteClient = async (clientId) => {
     try {
-      // Get all projects for this client first
-      const clientProjects = clients.find(c => c.id === clientId)?.projects || [];
-      const projectIds = clientProjects.map(p => p.id);
+      // Fetch projects from database to avoid stale closure issues
+      const { data: clientProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', clientId);
+      const projectIds = (clientProjects || []).map(p => p.id);
 
-      // Delete all associated data
-      // Tasks (by client or by project)
-      await supabase.from('tasks').delete().eq('client_id', clientId);
-      for (const projectId of projectIds) {
-        await supabase.from('tasks').delete().eq('project_id', projectId);
+      // Delete all associated data in parallel for better performance
+      // First, delete items that reference projects
+      if (projectIds.length > 0) {
+        await Promise.all([
+          supabase.from('tasks').delete().in('project_id', projectIds),
+          supabase.from('events').delete().in('project_id', projectIds),
+          supabase.from('lists').delete().in('project_id', projectIds),
+          supabase.from('notes').delete().in('project_id', projectIds),
+        ]);
       }
-      // Events (attendees will cascade)
-      await supabase.from('events').delete().eq('client_id', clientId);
-      for (const projectId of projectIds) {
-        await supabase.from('events').delete().eq('project_id', projectId);
-      }
-      // Lists
-      await supabase.from('lists').delete().eq('client_id', clientId);
-      for (const projectId of projectIds) {
-        await supabase.from('lists').delete().eq('project_id', projectId);
-      }
-      // Notes (replies will cascade)
-      await supabase.from('notes').delete().eq('client_id', clientId);
-      for (const projectId of projectIds) {
-        await supabase.from('notes').delete().eq('project_id', projectId);
-      }
-      // Projects
-      for (const projectId of projectIds) {
-        await supabase.from('projects').delete().eq('id', projectId);
+
+      // Delete items that reference the client directly
+      await Promise.all([
+        supabase.from('tasks').delete().eq('client_id', clientId),
+        supabase.from('events').delete().eq('client_id', clientId),
+        supabase.from('lists').delete().eq('client_id', clientId),
+        supabase.from('notes').delete().eq('client_id', clientId),
+      ]);
+
+      // Delete all projects for this client
+      if (projectIds.length > 0) {
+        await supabase.from('projects').delete().in('id', projectIds);
       }
 
       // Delete the client and verify it was actually deleted
