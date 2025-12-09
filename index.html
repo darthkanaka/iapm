@@ -3345,9 +3345,20 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
       // Notes (replies will cascade)
       await supabase.from('notes').delete().eq('project_id', projectId);
 
-      // Delete the project
-      const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      // Delete the project and verify it was actually deleted
+      const { data: deletedProject, error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+        .select()
+        .single();
+
       if (error) throw error;
+
+      // If no data returned, the delete didn't actually happen (likely RLS issue)
+      if (!deletedProject) {
+        throw new Error('Failed to delete project - you may not have permission to delete this project');
+      }
 
       // Update local state
       const removeProjectFromList = (projects) => (projects || []).filter(p => p.id !== projectId);
@@ -3405,9 +3416,20 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
         await supabase.from('projects').delete().eq('id', projectId);
       }
 
-      // Delete the client
-      const { error } = await supabase.from('clients').delete().eq('id', clientId);
+      // Delete the client and verify it was actually deleted
+      const { data: deletedClient, error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId)
+        .select()
+        .single();
+
       if (error) throw error;
+
+      // If no data returned, the delete didn't actually happen (likely RLS issue)
+      if (!deletedClient) {
+        throw new Error('Failed to delete client - you may not have permission to delete this client');
+      }
 
       // Update local state
       setClients(prev => prev.filter(c => c.id !== clientId));
@@ -4858,17 +4880,20 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
 function ConfirmDeleteModal({ title, itemName, itemType, affectedItems, onClose, onConfirm }) {
   const [confirmText, setConfirmText] = React.useState('');
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState(null);
 
   const canDelete = confirmText.toLowerCase() === 'delete';
 
   const handleConfirm = async () => {
     if (!canDelete) return;
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       await onConfirm();
       onClose();
     } catch (err) {
       console.error('Error deleting:', err);
+      setDeleteError(err.message || 'Failed to delete. Please try again.');
       setIsDeleting(false);
     }
   };
@@ -4996,6 +5021,16 @@ function ConfirmDeleteModal({ title, itemName, itemType, affectedItems, onClose,
             opacity: 0.5;
             cursor: not-allowed;
           }
+          .confirm-delete-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+            color: #fca5a5;
+            font-size: 13px;
+            line-height: 1.4;
+          }
         `}</style>
         <div className="confirm-delete-modal">
           <h2>{title}</h2>
@@ -5008,6 +5043,12 @@ function ConfirmDeleteModal({ title, itemName, itemType, affectedItems, onClose,
               You are about to permanently delete <strong>{itemName}</strong> and all of its associated data.
             </p>
           </div>
+
+          {deleteError && (
+            <div className="confirm-delete-error">
+              {deleteError}
+            </div>
+          )}
 
           {affectedItems && affectedItems.length > 0 && (
             <div className="confirm-delete-affected">
