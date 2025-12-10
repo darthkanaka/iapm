@@ -3885,9 +3885,11 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           inset: 0;
           background: rgba(0, 0, 0, 0.7);
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 40px 20px;
         }
 
         .webhook-modal {
@@ -3897,6 +3899,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           padding: 24px;
           width: 90%;
           max-width: 500px;
+          margin: auto 0;
         }
 
         .webhook-modal h3 {
@@ -5346,10 +5349,12 @@ function ClientModal({ client, onClose, onSave, onUpdate, onDelete }) {
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .client-modal {
             background: #18181b;
@@ -5357,11 +5362,10 @@ function ClientModal({ client, onClose, onSave, onUpdate, onDelete }) {
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .client-modal-header {
             display: flex;
@@ -5726,10 +5730,12 @@ function ProjectModal({ project, client, onClose, onSave, onUpdate, onDelete }) 
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .project-modal {
             background: #18181b;
@@ -5737,11 +5743,10 @@ function ProjectModal({ project, client, onClose, onSave, onUpdate, onDelete }) 
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .project-modal-header {
             display: flex;
@@ -8725,9 +8730,11 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(4px);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .list-modal {
             background: #18181b;
@@ -8735,10 +8742,10 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             border-radius: 2px;
             width: 520px;
             max-width: 95vw;
-            max-height: 90vh;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .list-modal-header {
             display: flex;
@@ -10903,11 +10910,13 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           bottom: 0;
           background: rgba(0, 0, 0, 0.6);
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 40px 20px;
         }
-        
+
         .tl-add-modal {
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -10915,6 +10924,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           width: 480px;
           max-width: 90vw;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          margin: auto 0;
         }
 
         .tl-add-modal-header {
@@ -13055,11 +13065,13 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           bottom: 0;
           background: rgba(0, 0, 0, 0.6);
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 40px 20px;
         }
-        
+
         .cal-add-modal {
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -13067,6 +13079,7 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           width: 480px;
           max-width: 90vw;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          margin: auto 0;
         }
 
         .cal-add-modal-header {
