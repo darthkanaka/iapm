@@ -12168,22 +12168,19 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
         <div className="tl-toggle">
           <button className={`tl-toggle-btn ${viewMode === '6month' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== '6month') {
-              setTargetDate(new Date(visibleDateRef.current));
-              setScrollTrigger(prev => prev + 1);
+              setTargetDate(new Date());
               setViewMode('6month');
             }
           }}>6-Month</button>
           <button className={`tl-toggle-btn ${viewMode === '2month' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== '2month') {
-              setTargetDate(new Date(visibleDateRef.current));
-              setScrollTrigger(prev => prev + 1);
+              setTargetDate(new Date());
               setViewMode('2month');
             }
           }}>2-Month</button>
           <button className={`tl-toggle-btn ${viewMode === '2week' ? 'active' : ''}`} onClick={() => {
             if (viewMode !== '2week') {
-              setTargetDate(new Date(visibleDateRef.current));
-              setScrollTrigger(prev => prev + 1);
+              setTargetDate(new Date());
               setViewMode('2week');
             }
           }}>2-Week</button>
