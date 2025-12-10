@@ -6650,10 +6650,12 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .event-modal {
             background: #18181b;
@@ -6661,11 +6663,10 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .event-modal-header {
             display: flex;
@@ -6731,7 +6732,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             display: flex;
             flex-direction: column;
             gap: 14px;
-            overflow-y: auto;
+            overflow: visible;
           }
           .event-modal-field {
             display: flex;
@@ -7814,10 +7815,12 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .task-modal {
             background: #18181b;
@@ -7825,11 +7828,10 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .task-modal-header {
             display: flex;
@@ -7895,7 +7897,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             display: flex;
             flex-direction: column;
             gap: 14px;
-            overflow-y: auto;
+            overflow: visible;
           }
           .task-modal-field {
             display: flex;
