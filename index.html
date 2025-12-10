@@ -13786,7 +13786,7 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
                   setViewMode('week');
                 }
               }}
-            >7-Day</button>
+            >Week</button>
           </div>
         </div>
       </div>
@@ -14103,9 +14103,9 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
       {/* 7-Day View */}
       {viewMode === 'week' && (
         <WeeklyCalendarView
-          events={events}
-          tasks={tasks}
-          lists={lists}
+          events={events.filter(matchesFilter)}
+          tasks={tasks.filter(matchesFilter)}
+          lists={lists.filter(matchesFilter)}
           clients={clients}
           internal={internal}
           currentTime={currentTime}
