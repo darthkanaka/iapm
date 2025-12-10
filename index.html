@@ -10473,8 +10473,8 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
 function Timeline({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress, currentUser }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [collapsedClients, setCollapsedClients] = React.useState({});
-  const [viewMode, setViewMode] = React.useState('2month'); // '6month', '2month', or '2week'
-  const [rowMode, setRowMode] = React.useState('clients'); // 'clients' or 'attendees'
+  const [viewMode, setViewMode] = React.useState('2week'); // '6month', '2month', or '2week'
+  const [rowMode, setRowMode] = React.useState('attendees'); // 'clients' or 'attendees'
   const scrollContainerRef = React.useRef(null);
   const rulerScrollRef = React.useRef(null); // Synced header scroll for ruler
   const scrollingRef = React.useRef(null); // Track which element is scrolling to prevent feedback
@@ -12762,6 +12762,19 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           gap: 8px;
         }
 
+        .cal-btn-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .cal-divider {
+          width: 1px;
+          height: 24px;
+          background: rgba(255, 255, 255, 0.12);
+          margin: 0 4px;
+        }
+
         .cal-toggle {
           display: flex;
           background: rgba(255, 255, 255, 0.03);
@@ -13721,16 +13734,20 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         </div>
 
         <div className="cal-header-right">
-          <button className="cal-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
-            <Plus size={14} /> <span className="btn-text">Event</span>
-          </button>
-          <button className="cal-add-btn" onClick={() => setShowAddTaskModal(true)} title="Add Task">
-            <Plus size={14} /> <span className="btn-text">Task</span>
-          </button>
-          <button className="cal-add-btn" onClick={() => setShowAddListModal(true)} title="Add List" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
-            <Plus size={14} /> <span className="btn-text">List</span>
-          </button>
+          <div className="cal-btn-group">
+            <button className="cal-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
+              <Plus size={14} /> <span className="btn-text">Event</span>
+            </button>
+            <button className="cal-add-btn" onClick={() => setShowAddTaskModal(true)} title="Add Task">
+              <Plus size={14} /> <span className="btn-text">Task</span>
+            </button>
+            <button className="cal-add-btn" onClick={() => setShowAddListModal(true)} title="Add List" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
+              <Plus size={14} /> <span className="btn-text">List</span>
+            </button>
+          </div>
+          <div className="cal-divider"></div>
           <button className="cal-today-btn" onClick={goToToday}>Today</button>
+          <div className="cal-divider"></div>
           <div className="cal-toggle">
             <button
               className={`cal-toggle-btn ${viewMode === 'month' ? 'active' : ''}`}
