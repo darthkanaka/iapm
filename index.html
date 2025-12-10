@@ -3885,9 +3885,11 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           inset: 0;
           background: rgba(0, 0, 0, 0.7);
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 40px 20px;
         }
 
         .webhook-modal {
@@ -3897,6 +3899,7 @@ function ProjectManagementApp({ currentTeamMember, onSignOut }) {
           padding: 24px;
           width: 90%;
           max-width: 500px;
+          margin: auto 0;
         }
 
         .webhook-modal h3 {
@@ -5346,10 +5349,12 @@ function ClientModal({ client, onClose, onSave, onUpdate, onDelete }) {
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .client-modal {
             background: #18181b;
@@ -5357,11 +5362,10 @@ function ClientModal({ client, onClose, onSave, onUpdate, onDelete }) {
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .client-modal-header {
             display: flex;
@@ -5726,10 +5730,12 @@ function ProjectModal({ project, client, onClose, onSave, onUpdate, onDelete }) 
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .project-modal {
             background: #18181b;
@@ -5737,11 +5743,10 @@ function ProjectModal({ project, client, onClose, onSave, onUpdate, onDelete }) 
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .project-modal-header {
             display: flex;
@@ -6650,10 +6655,12 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .event-modal {
             background: #18181b;
@@ -6661,11 +6668,10 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .event-modal-header {
             display: flex;
@@ -6731,7 +6737,7 @@ function EventModal({ event, onClose, onSave, onUpdate, onDelete, clients, inter
             display: flex;
             flex-direction: column;
             gap: 14px;
-            overflow-y: auto;
+            overflow: visible;
           }
           .event-modal-field {
             display: flex;
@@ -7814,10 +7820,12 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .task-modal {
             background: #18181b;
@@ -7825,11 +7833,10 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             border-radius: 2px;
             width: 440px;
             max-width: 95vw;
-            max-height: 90vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .task-modal-header {
             display: flex;
@@ -7895,7 +7902,7 @@ function TaskModal({ task, onClose, onSave, onUpdate, onDelete, onToggleComplete
             display: flex;
             flex-direction: column;
             gap: 14px;
-            overflow-y: auto;
+            overflow: visible;
           }
           .task-modal-field {
             display: flex;
@@ -8723,9 +8730,11 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(4px);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 1000;
+            overflow-y: auto;
+            padding: 40px 20px;
           }
           .list-modal {
             background: #18181b;
@@ -8733,10 +8742,10 @@ function ListModal({ list, onClose, onSave, onUpdate, onDelete, clients, interna
             border-radius: 2px;
             width: 520px;
             max-width: 95vw;
-            max-height: 90vh;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin: auto 0;
           }
           .list-modal-header {
             display: flex;
@@ -10473,31 +10482,34 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
 function Timeline({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress, currentUser }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [collapsedClients, setCollapsedClients] = React.useState({});
-  const [viewMode, setViewMode] = React.useState('day'); // 'day' or 'week'
+  const [viewMode, setViewMode] = React.useState('2week'); // '6month', '2month', or '2week'
+  const [rowMode, setRowMode] = React.useState('attendees'); // 'clients' or 'attendees'
   const scrollContainerRef = React.useRef(null);
   const rulerScrollRef = React.useRef(null); // Synced header scroll for ruler
   const scrollingRef = React.useRef(null); // Track which element is scrolling to prevent feedback
   const dateIndicatorRef = React.useRef(null); // Direct DOM ref for date indicator
   const [containerWidth, setContainerWidth] = React.useState(800);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for both views
+  const [targetDate, setTargetDate] = React.useState(new Date()); // Shared target date for views
   const [scrollTrigger, setScrollTrigger] = React.useState(0); // Increment to force scroll
-  const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date in 8-hour view
+  const [visibleDate, setVisibleDate] = React.useState(new Date()); // Currently visible date
   const visibleDateRef = React.useRef(new Date()); // Track visible date during scroll without re-renders
-  const weekVisibleDateRef = React.useRef(new Date()); // Track week view's visible date
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
-  const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
-  const [showAddListModal, setShowAddListModal] = React.useState(false);
-  const [itemsPopover, setItemsPopover] = React.useState(null); // { x, y, tasks, lists, color }
-  
+
   // Combine clients with internal spaces for unified handling
   const allSpaces = [
     internal.personal,
     internal.team,
     ...clients
   ];
-  
-  const HOURS_VISIBLE = 8;
+
+  // View mode configuration - days visible per mode
+  const DAYS_CONFIG = {
+    '6month': 180,
+    '2month': 60,
+    '2week': 14
+  };
+  const DAYS_VISIBLE = DAYS_CONFIG[viewMode];
   const LABEL_WIDTH = 200;
   const ROW_HEIGHT = 60;
   const RULER_HEIGHT = 44;
@@ -10530,53 +10542,45 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     setCollapsedClients(prev => ({ ...prev, [clientId]: !prev[clientId] }));
   };
 
-  // Calculate timeline dimensions - round to avoid floating point drift
-  const pixelsPerHour = Math.round(containerWidth / HOURS_VISIBLE);
-  
-  // Time range - start 12 hours ago
-  const rangeStart = new Date(currentTime.getTime() - 12 * 60 * 60 * 1000);
-  rangeStart.setMinutes(0, 0, 0);
-  
-  // Calculate dynamic end based on furthest event/task
-  const MIN_HOURS = 720; // Minimum 30 days forward
-  let furthestTime = new Date(rangeStart.getTime() + MIN_HOURS * 60 * 60 * 1000);
-  
+  // Calculate timeline dimensions - day-based for all views
+  const pixelsPerDay = Math.round(containerWidth / DAYS_VISIBLE);
+
+  // Time range - start from beginning of current day, go back based on view
+  const today = new Date(currentTime);
+  today.setHours(0, 0, 0, 0);
+
+  // Start range: go back a portion of the visible range
+  const daysBack = Math.floor(DAYS_VISIBLE * 0.1); // 10% of visible range in the past
+  const rangeStart = new Date(today);
+  rangeStart.setDate(rangeStart.getDate() - daysBack);
+
+  // Calculate dynamic end based on furthest event
+  const minDaysForward = DAYS_VISIBLE * 2; // At least 2x the visible range
+  let furthestTime = new Date(rangeStart);
+  furthestTime.setDate(furthestTime.getDate() + minDaysForward);
+
   // Check all events for furthest end time
   events.forEach(event => {
     if (event.endTime > furthestTime) {
       furthestTime = new Date(event.endTime);
     }
   });
-  
-  // Check all tasks for furthest due date
-  tasks.forEach(task => {
-    if (task.dueDate > furthestTime) {
-      furthestTime = new Date(task.dueDate);
-    }
-  });
-  
-  // Check all lists for furthest due date
-  (lists || []).forEach(list => {
-    if (list.dueDate > furthestTime) {
-      furthestTime = new Date(list.dueDate);
-    }
-  });
-  
-  // Add 24 hour buffer after the furthest item
-  furthestTime = new Date(furthestTime.getTime() + 24 * 60 * 60 * 1000);
-  
-  // Calculate total hours needed
-  const TOTAL_HOURS = Math.ceil((furthestTime.getTime() - rangeStart.getTime()) / (1000 * 60 * 60));
-  const totalWidth = TOTAL_HOURS * pixelsPerHour;
+
+  // Add buffer after the furthest item
+  furthestTime.setDate(furthestTime.getDate() + 14);
+
+  // Calculate total days needed
+  const TOTAL_DAYS = Math.ceil((furthestTime.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
+  const totalWidth = TOTAL_DAYS * pixelsPerDay;
   
   const getPosition = (time) => {
-    const hours = (time.getTime() - rangeStart.getTime()) / (1000 * 60 * 60);
-    return hours * pixelsPerHour;
+    const days = (time.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24);
+    return days * pixelsPerDay;
   };
-  
+
   const nowPosition = getPosition(currentTime);
-  
-  // Handle scroll with sync between ruler and content (like WeeklyCalendarView pattern)
+
+  // Handle scroll with sync between ruler and content
   const handleTimelineScroll = (e) => {
     const source = e.target;
 
@@ -10598,23 +10602,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     // Calculate visible date from center of viewport
     const scrollLeft = scrollContainerRef.current ? scrollContainerRef.current.scrollLeft : source.scrollLeft;
     const centerScrollLeft = scrollLeft + (containerWidth / 2);
-    const hoursFromStart = centerScrollLeft / pixelsPerHour;
-    const viewportDate = new Date(rangeStart.getTime() + hoursFromStart * 60 * 60 * 1000);
-
-    // Check if we've crossed into a new day BEFORE updating ref
-    const dayChanged = viewportDate.toDateString() !== visibleDateRef.current.toDateString();
+    const daysFromStart = centerScrollLeft / pixelsPerDay;
+    const viewportDate = new Date(rangeStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000);
 
     // Update ref immediately (no re-render)
     visibleDateRef.current = viewportDate;
 
-    // Update date indicator directly via textContent (very fast, no layout)
+    // Update date indicator directly via textContent
     if (dateIndicatorRef.current) {
-      dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    }
-
-    // Update visibleDate state only when day actually changes (triggers re-render for badges)
-    if (dayChanged) {
-      setVisibleDate(viewportDate);
+      dateIndicatorRef.current.textContent = viewportDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     // Clear scroll source after sync completes
@@ -10624,21 +10620,41 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     }, 50);
   };
 
-  // Generate hour markers - memoized to prevent recalculation on visibleDate changes
-  const hourMarkers = React.useMemo(() => {
+  // Generate day markers - memoized for performance
+  const dayMarkers = React.useMemo(() => {
     const markers = [];
-    for (let h = 0; h < TOTAL_HOURS; h++) {
-      const time = new Date(rangeStart.getTime() + h * 60 * 60 * 1000);
+    for (let d = 0; d < TOTAL_DAYS; d++) {
+      const time = new Date(rangeStart.getTime() + d * 24 * 60 * 60 * 1000);
+      const isFirstOfMonth = time.getDate() === 1;
+      const isMonday = time.getDay() === 1;
+
+      // For 6-month view: show monthly labels
+      // For 2-month view: show weekly labels
+      // For 2-week view: show daily labels
+      let showLabel = false;
+      if (viewMode === '6month') {
+        showLabel = isFirstOfMonth;
+      } else if (viewMode === '2month') {
+        showLabel = isMonday || isFirstOfMonth;
+      } else {
+        showLabel = true; // 2-week shows all days
+      }
+
       markers.push({
         time,
-        label: time.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
-        isNewDay: time.getHours() === 0,
-        date: time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        left: h * pixelsPerHour
+        label: viewMode === '6month'
+          ? time.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          : viewMode === '2month'
+            ? time.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : time.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }),
+        isNewMonth: isFirstOfMonth,
+        isMonday,
+        showLabel,
+        left: d * pixelsPerDay
       });
     }
     return markers;
-  }, [TOTAL_HOURS, rangeStart.getTime(), pixelsPerHour]);
+  }, [TOTAL_DAYS, rangeStart.getTime(), pixelsPerDay, viewMode]);
   
   // Check if event spans multiple days
   const isMultiDayEvent = (event) => {
@@ -10651,112 +10667,15 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     return startDate.getTime() !== endDate.getTime();
   };
 
-  // Get events for a project (excludes all-day events - they show in badges)
-  const getProjectEvents = (projectId) => {
-    return events.filter(e => e.projectId === projectId && !e.allDay);
-  };
-
-  // Get all-day events for a project
-  const getProjectAllDayEvents = (projectId) => {
-    return events.filter(e => e.projectId === projectId && e.allDay);
-  };
-
-  // Get tasks for a project (includes list tasks with due dates)
-  const getProjectTasks = (projectId) => {
-    return tasks.filter(t => t.projectId === projectId && t.dueDate);
-  };
-
-  // Get all events for a client (all projects combined + client-level events, excludes all-day)
-  const getClientEvents = (client) => {
-    const projectIds = client.projects.map(p => p.id);
-    return events.filter(e => (projectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)) && !e.allDay);
-  };
-
-  // Get all all-day events for a client
-  const getClientAllDayEvents = (client) => {
-    const projectIds = client.projects.map(p => p.id);
-    return events.filter(e => (projectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)) && e.allDay);
-  };
-
-  // Get client-level events (no project, excludes all-day)
-  const getClientLevelEvents = (clientId) => {
-    return events.filter(e => e.clientId === clientId && !e.projectId && !e.allDay);
-  };
-
-  // Get client-level all-day events
-  const getClientLevelAllDayEvents = (clientId) => {
-    return events.filter(e => e.clientId === clientId && !e.projectId && e.allDay);
-  };
-  
-  // Get all tasks for a client (includes list tasks with due dates)
-  const getClientTasks = (client) => {
-    return tasks.filter(t => t.clientId === client.id && t.dueDate);
-  };
-  
-  // Get lists for a project
-  const getProjectLists = (projectId) => {
-    return (lists || []).filter(l => l.projectId === projectId && l.dueDate);
-  };
-  
-  // Get all lists for a client
-  const getClientLists = (client) => {
-    return (lists || []).filter(l => l.clientId === client.id && l.dueDate);
-  };
-  
-  // Get client-level lists (no project)
-  const getClientLevelLists = (clientId) => {
-    return (lists || []).filter(l => l.clientId === clientId && !l.projectId && l.dueDate);
-  };
-  
-  // Group tasks and lists by day
-  const groupItemsByDay = (rowTasks, rowLists) => {
-    const groups = {};
-    
-    // Add tasks to groups
-    rowTasks.forEach(task => {
-      const dayKey = new Date(task.dueDate).toDateString();
-      if (!groups[dayKey]) {
-        groups[dayKey] = { tasks: [], lists: [], date: new Date(task.dueDate) };
-      }
-      groups[dayKey].tasks.push(task);
-    });
-    
-    // Add lists to groups
-    rowLists.forEach(list => {
-      const dayKey = new Date(list.dueDate).toDateString();
-      if (!groups[dayKey]) {
-        groups[dayKey] = { tasks: [], lists: [], date: new Date(list.dueDate) };
-      }
-      groups[dayKey].lists.push(list);
-    });
-    
-    // Convert to array and calculate positions
-    return Object.values(groups).map(group => {
-      const totalItems = group.tasks.length + group.lists.length;
-      // Use noon of that day as the position for grouped items
-      const displayDate = new Date(group.date);
-      displayDate.setHours(12, 0, 0, 0);
-      return {
-        ...group,
-        totalItems,
-        isGrouped: totalItems >= 2,
-        position: getPosition(displayDate),
-        dayKey: group.date.toDateString()
-      };
-    });
-  };
-
   // Auto-scroll when targetDate changes or switching views
   React.useEffect(() => {
-    if (viewMode === 'day' && scrollContainerRef.current && containerWidth > 0) {
+    if (scrollContainerRef.current && containerWidth > 0) {
       const targetPosition = getPosition(targetDate);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollLeft = scrollPos;
       if (rulerScrollRef.current) {
         rulerScrollRef.current.scrollLeft = scrollPos;
       }
-      // Sync visibleDate with targetDate for proper badge rendering
-      setVisibleDate(targetDate);
       visibleDateRef.current = targetDate;
     }
   }, [containerWidth, viewMode, targetDate]);
@@ -10764,9 +10683,8 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const scrollToNow = () => {
     const now = new Date();
     setTargetDate(now);
-    setVisibleDate(now);
     setScrollTrigger(prev => prev + 1);
-    if (viewMode === 'day' && scrollContainerRef.current) {
+    if (scrollContainerRef.current) {
       const scrollPos = Math.max(0, nowPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
       if (rulerScrollRef.current) {
@@ -10777,12 +10695,11 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
   const scrollToDate = (date) => {
     const newTarget = new Date(date);
-    newTarget.setHours(8, 0, 0, 0);
+    newTarget.setHours(0, 0, 0, 0);
     setTargetDate(newTarget);
-    setVisibleDate(newTarget);
     setScrollTrigger(prev => prev + 1);
 
-    if (viewMode === 'day' && scrollContainerRef.current) {
+    if (scrollContainerRef.current) {
       const targetPosition = getPosition(newTarget);
       const scrollPos = Math.max(0, targetPosition - containerWidth * 0.15);
       scrollContainerRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
@@ -10793,50 +10710,89 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
     setShowDatePicker(false);
   };
 
-  // Build rows - memoized to prevent recalculation on visibleDate changes
+  // Filter events based on view mode
+  // 6-month and 2-month: only all-day and multi-day events
+  // 2-week: all events
+  const getFilteredEvents = (eventList) => {
+    if (viewMode === '2week') {
+      return eventList; // Show all events in 2-week view
+    }
+    // For 6-month and 2-month, only show all-day or multi-day events
+    return eventList.filter(e => e.allDay || isMultiDayEvent(e));
+  };
+
+  // Build rows - events only, no tasks or lists
   const rows = React.useMemo(() => {
     const result = [];
-    allSpaces.forEach(client => {
-      const isCollapsed = collapsedClients[client.id];
 
-      // Get tasks and lists for client row (includes list tasks with due dates)
-      const clientRowTasks = isCollapsed ? getClientTasks(client) : tasks.filter(t => t.clientId === client.id && !t.projectId && t.dueDate);
-      const clientRowLists = isCollapsed ? getClientLists(client) : getClientLevelLists(client.id);
-      const clientRowAllDayEvents = isCollapsed ? getClientAllDayEvents(client) : getClientLevelAllDayEvents(client.id);
+    if (rowMode === 'attendees') {
+      // Attendee mode: one row per team member who has events
+      const attendeeEvents = {};
 
-      // Client header row - when collapsed shows all, when expanded shows only client-level (no project)
-      result.push({
-        type: 'client',
-        client,
-        isCollapsed,
-        events: isCollapsed ? getClientEvents(client) : getClientLevelEvents(client.id),
-        allDayEvents: clientRowAllDayEvents,
-        tasks: clientRowTasks,
-        lists: clientRowLists,
-        groupedItems: groupItemsByDay(clientRowTasks, clientRowLists)
+      // Collect events by attendee
+      events.forEach(event => {
+        if (event.attendees && event.attendees.length > 0) {
+          event.attendees.forEach(attendeeId => {
+            if (!attendeeEvents[attendeeId]) {
+              attendeeEvents[attendeeId] = [];
+            }
+            attendeeEvents[attendeeId].push(event);
+          });
+        }
       });
 
-      // Project rows (if not collapsed)
-      if (!isCollapsed) {
-        client.projects.forEach(project => {
-          const projectTasks = getProjectTasks(project.id);
-          const projectLists = getProjectLists(project.id);
-          const projectAllDayEvents = getProjectAllDayEvents(project.id);
+      // Create rows for each attendee with events
+      Object.keys(attendeeEvents).forEach(attendeeId => {
+        const member = teamMembers.find(m => m.id === attendeeId);
+        if (member) {
           result.push({
-            type: 'project',
-            client,
-            project,
-            events: getProjectEvents(project.id),
-            allDayEvents: projectAllDayEvents,
-            tasks: projectTasks,
-            lists: projectLists,
-            groupedItems: groupItemsByDay(projectTasks, projectLists)
+            type: 'attendee',
+            member,
+            events: getFilteredEvents(attendeeEvents[attendeeId])
           });
+        }
+      });
+
+      // Sort by member name
+      result.sort((a, b) => (a.member?.name || '').localeCompare(b.member?.name || ''));
+    } else {
+      // Clients/Projects mode (default)
+      allSpaces.forEach(client => {
+        const isCollapsed = collapsedClients[client.id];
+
+        // Get all events for client (filtered by view mode)
+        const clientProjectIds = client.projects.map(p => p.id);
+        const allClientEvents = events.filter(e =>
+          clientProjectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)
+        );
+        const clientLevelEvents = events.filter(e =>
+          e.clientId === client.id && !e.projectId
+        );
+
+        // Client header row - when collapsed shows all client events, when expanded shows only client-level
+        result.push({
+          type: 'client',
+          client,
+          isCollapsed,
+          events: getFilteredEvents(isCollapsed ? allClientEvents : clientLevelEvents)
         });
-      }
-    });
+
+        // Project rows (if not collapsed)
+        if (!isCollapsed) {
+          client.projects.forEach(project => {
+            const projectEvents = events.filter(e => e.projectId === project.id);
+            result.push({
+              type: 'project',
+              client,
+              project,
+              events: getFilteredEvents(projectEvents)
+            });
+          });
+        }
+      });
+    }
     return result;
-  }, [allSpaces, collapsedClients, events, tasks, lists]);
+  }, [allSpaces, collapsedClients, events, viewMode, rowMode, teamMembers]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -10954,11 +10910,13 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           bottom: 0;
           background: rgba(0, 0, 0, 0.6);
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 40px 20px;
         }
-        
+
         .tl-add-modal {
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -10966,6 +10924,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           width: 480px;
           max-width: 90vw;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          margin: auto 0;
         }
 
         .tl-add-modal-header {
@@ -11318,7 +11277,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-toggle-btn:hover { color: #a1a1aa; }
         .tl-toggle-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
-        
+
+        .tl-row-toggle {
+          margin-left: 8px;
+          border-color: rgba(139, 92, 246, 0.2);
+        }
+
+        .tl-row-toggle .tl-toggle-btn {
+          display: flex;
+          align-items: center;
+          padding: 7px 12px;
+        }
+
+        .tl-row-toggle .tl-toggle-btn.active {
+          background: rgba(139, 92, 246, 0.2);
+          color: #a78bfa;
+        }
+
+        @media (max-width: 900px) {
+          .tl-row-toggle .btn-text {
+            display: none;
+          }
+          .tl-row-toggle .tl-toggle-btn {
+            padding: 7px 10px;
+          }
+        }
+
         .tl-container {
           flex: 1;
           display: flex;
@@ -11416,7 +11400,29 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           border-radius: 50%;
           flex-shrink: 0;
         }
-        
+
+        .tl-label-avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 600;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        .tl-label-row.attendee {
+          padding-left: 12px;
+        }
+
+        .tl-track.attendee {
+          background: rgba(99, 102, 241, 0.02);
+        }
+
         .tl-label-text {
           font-size: 13px;
           font-weight: 500;
@@ -11515,7 +11521,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           flex-shrink: 0;
         }
         
-        .tl-hour {
+        .tl-day-marker {
           position: absolute;
           top: 0;
           height: 100%;
@@ -11523,24 +11529,28 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           display: flex;
           flex-direction: column;
           justify-content: center;
-          border-left: 1px solid rgba(255, 255, 255, 0.06);
+          border-left: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
-        .tl-hour.new-day {
+
+        .tl-day-marker.new-month {
           border-left: 2px solid rgba(99, 102, 241, 0.5);
-          background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 60px);
+          background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, transparent 80px);
         }
-        
-        .tl-hour-time {
+
+        .tl-day-marker.monday {
+          border-left: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .tl-day-label {
           font-size: 10px;
           font-family: 'JetBrains Mono', monospace;
-          color: #71717a;
+          color: #a1a1aa;
+          white-space: nowrap;
         }
-        
-        .tl-hour-date {
-          font-size: 9px;
+
+        .tl-day-marker.new-month .tl-day-label {
           color: #a78bfa;
-          font-weight: 500;
+          font-weight: 600;
         }
         
         .tl-now-marker {
@@ -11582,7 +11592,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           z-index: 50;
         }
 
-        .tl-hour-grid {
+        .tl-day-grid {
           position: absolute;
           top: 0;
           left: 0;
@@ -11592,17 +11602,21 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           z-index: 1;
         }
 
-        .tl-hour-line {
+        .tl-day-line {
           position: absolute;
           top: 0;
           bottom: 0;
           width: 1px;
-          background: rgba(255, 255, 255, 0.04);
+          background: rgba(255, 255, 255, 0.03);
         }
 
-        .tl-hour-line.new-day {
+        .tl-day-line.monday {
+          background: rgba(99, 102, 241, 0.15);
+        }
+
+        .tl-day-line.new-month {
           width: 2px;
-          background: rgba(99, 102, 241, 0.2);
+          background: rgba(99, 102, 241, 0.3);
         }
         
         .tl-track {
@@ -11630,15 +11644,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           position: absolute;
           top: 8px;
           bottom: 8px;
-          border-radius: 6px;
-          padding: 0 10px;
+          border-radius: 2px;
+          padding: 0 6px;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
           cursor: pointer;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           z-index: 10;
+        }
+
+        .tl-track.attendee .tl-event {
+          top: 12px;
+          bottom: 12px;
+          border-radius: 2px;
+          padding: 0 4px;
         }
 
         .tl-event:hover {
@@ -11681,6 +11702,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-event.multiday {
           border: 1px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .tl-overlap {
+          position: absolute;
+          top: 4px;
+          bottom: 4px;
+          background: rgba(239, 68, 68, 0.35);
+          border: 1px solid rgba(239, 68, 68, 0.6);
+          border-radius: 2px;
+          z-index: 5;
+          pointer-events: none;
+        }
+
+        .tl-overlap::before {
+          content: '⚠';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 10px;
+          color: rgba(239, 68, 68, 0.9);
+          display: none;
+        }
+
+        .tl-overlap.wide::before {
+          display: block;
         }
 
         /* Sticky badges container within each track */
@@ -12129,31 +12176,44 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           <button className="tl-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
             <Plus size={14} /> <span className="btn-text">Event</span>
           </button>
-          <button className="tl-add-btn" onClick={() => setShowAddTaskModal(true)} title="Add Task">
-            <Plus size={14} /> <span className="btn-text">Task</span>
-          </button>
-          <button className="tl-add-btn" onClick={() => setShowAddListModal(true)} title="Add List" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
-            <Plus size={14} /> <span className="btn-text">List</span>
-          </button>
         </div>
         <div className="tl-toggle">
-          <button className={`tl-toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => {
-            if (viewMode !== 'day') {
-              // When switching from week to day, use the ref but set time to 8am for sensible view
-              const targetDay = new Date(weekVisibleDateRef.current);
-              targetDay.setHours(8, 0, 0, 0);
-              setTargetDate(targetDay);
-              setViewMode('day');
+          <button className={`tl-toggle-btn ${viewMode === '6month' ? 'active' : ''}`} onClick={() => {
+            if (viewMode !== '6month') {
+              setTargetDate(new Date());
+              setViewMode('6month');
             }
-          }}>8-Hour</button>
-          <button className={`tl-toggle-btn ${viewMode === 'week' ? 'active' : ''}`} onClick={() => {
-            if (viewMode !== 'week') {
-              // When switching from day to week, use ref (snap to current position)
-              setTargetDate(new Date(visibleDateRef.current));
-              setScrollTrigger(prev => prev + 1);
-              setViewMode('week');
+          }}>6-Month</button>
+          <button className={`tl-toggle-btn ${viewMode === '2month' ? 'active' : ''}`} onClick={() => {
+            if (viewMode !== '2month') {
+              setTargetDate(new Date());
+              setViewMode('2month');
             }
-          }}>7-Day</button>
+          }}>2-Month</button>
+          <button className={`tl-toggle-btn ${viewMode === '2week' ? 'active' : ''}`} onClick={() => {
+            if (viewMode !== '2week') {
+              setTargetDate(new Date());
+              setViewMode('2week');
+            }
+          }}>2-Week</button>
+        </div>
+        <div className="tl-toggle tl-row-toggle">
+          <button
+            className={`tl-toggle-btn ${rowMode === 'clients' ? 'active' : ''}`}
+            onClick={() => setRowMode('clients')}
+            title="View by Clients & Projects"
+          >
+            <FolderOpen size={12} style={{ marginRight: 4 }} />
+            <span className="btn-text">Projects</span>
+          </button>
+          <button
+            className={`tl-toggle-btn ${rowMode === 'attendees' ? 'active' : ''}`}
+            onClick={() => setRowMode('attendees')}
+            title="View by Attendees"
+          >
+            <Users size={12} style={{ marginRight: 4 }} />
+            <span className="btn-text">People</span>
+          </button>
         </div>
       </div>
       
@@ -12168,130 +12228,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           currentUserId={currentUser?.id}
         />
       )}
-      
-      {/* Add Task Modal */}
-      {showAddTaskModal && (
-        <TaskModal
-          onClose={() => setShowAddTaskModal(false)}
-          onSave={addTask}
-          clients={clients}
-          internal={internal}
-          teamMembers={teamMembers}
-        />
-      )}
-      
-      {/* Add List Modal */}
-      {showAddListModal && (
-        <ListModal
-          onClose={() => setShowAddListModal(false)}
-          onSave={addList}
-          clients={clients}
-          internal={internal}
-          teamMembers={teamMembers}
-          tasks={[]}
-        />
-      )}
-      
-      {/* Items Popover */}
-      {itemsPopover && (
-        <>
-          <div className="tl-popover-overlay" onClick={() => setItemsPopover(null)} />
-          <div 
-            className="tl-popover"
-            style={{ 
-              left: Math.min(itemsPopover.x - 140, window.innerWidth - 300),
-              top: Math.min(itemsPopover.y, window.innerHeight - 420)
-            }}
-          >
-            <div className="tl-popover-header">
-              <span>
-                {new Date(itemsPopover.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-              </span>
-              <button className="tl-popover-close" onClick={() => setItemsPopover(null)}>
-                <X size={14} />
-              </button>
-            </div>
-            <div className="tl-popover-content">
-              {/* Lists */}
-              {itemsPopover.lists.length > 0 && (
-                <div className="tl-popover-section">
-                  <div className="tl-popover-section-title">Lists</div>
-                  {itemsPopover.lists.map(list => {
-                    const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                    const progressPercent = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
-                    return (
-                      <div 
-                        key={list.id}
-                        className="tl-popover-item"
-                        onClick={() => { setItemsPopover(null); onListClick && onListClick(list); }}
-                      >
-                        <span className="tl-popover-list-icon">📋</span>
-                        <div className="tl-popover-item-info">
-                          <div className="tl-popover-item-title">{list.title}</div>
-                        </div>
-                        <div className="tl-popover-list-progress">
-                          <div className="tl-popover-list-bar">
-                            <div className="tl-popover-list-bar-fill" style={{ width: `${progressPercent}%` }} />
-                          </div>
-                          <span className="tl-popover-list-count">{progress.completed}/{progress.total}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              
-              {/* Tasks */}
-              {itemsPopover.tasks.length > 0 && (
-                <div className="tl-popover-section">
-                  <div className="tl-popover-section-title">Tasks</div>
-                  {itemsPopover.tasks.map(task => {
-                    const assignee = teamMembers.find(m => m.id === task.assignedTo);
-                    return (
-                      <div 
-                        key={task.id}
-                        className={`tl-popover-item ${task.isCompleted ? 'completed' : ''}`}
-                        onClick={() => {
-                          setItemsPopover(null);
-                          if (task.listId && lists) {
-                            const list = lists.find(l => l.id === task.listId);
-                            if (list && onListClick) {
-                              onListClick(list);
-                              return;
-                            }
-                          }
-                          onTaskClick && onTaskClick(task);
-                        }}
-                      >
-                        <div 
-                          className={`tl-popover-task-check ${task.isCompleted ? 'checked' : ''}`}
-                          style={{ borderColor: itemsPopover.color, color: itemsPopover.color }}
-                        >
-                          {task.isCompleted && <Check size={10} color="#fff" />}
-                        </div>
-                        <div className="tl-popover-item-info">
-                          <div className="tl-popover-item-title" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {task.title}
-                            {task.listId && <List size={12} style={{ opacity: 0.6, flexShrink: 0 }} />}
-                          </div>
-                          {assignee && <div className="tl-popover-item-meta">{assignee.name}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-      
-      {/* 6-Hour Timeline View */}
-      {viewMode === 'day' && (
+
+      {/* Timeline Container */}
       <div className="tl-container">
         {/* Labels */}
         <div className="tl-labels">
-          <div className="tl-label-header">Clients / Projects</div>
+          <div className="tl-label-header">{rowMode === 'attendees' ? 'Attendees' : 'Clients / Projects'}</div>
           {rows.map((row, i) => (
             <div
               key={i}
@@ -12313,6 +12255,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   <span className="tl-label-text">{row.project.name}</span>
                 </>
               )}
+              {row.type === 'attendee' && (
+                <>
+                  <div className="tl-label-avatar">
+                    {row.member.name?.charAt(0).toUpperCase() || '?'}
+                  </div>
+                  <span className="tl-label-text">{row.member.name}</span>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -12326,14 +12276,13 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
             </div>
             <div className="tl-ruler-scroll" ref={rulerScrollRef} onScroll={handleTimelineScroll}>
               <div className="tl-ruler" style={{ width: totalWidth }}>
-                {hourMarkers.map((m, i) => (
-                  <div key={i} className={`tl-hour ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }}>
-                    <span className="tl-hour-time">{m.label}</span>
-                    {m.isNewDay && <span className="tl-hour-date">{m.date}</span>}
+                {dayMarkers.filter(m => m.showLabel).map((m, i) => (
+                  <div key={i} className={`tl-day-marker ${m.isNewMonth ? 'new-month' : ''} ${m.isMonday ? 'monday' : ''}`} style={{ left: m.left }}>
+                    <span className="tl-day-label">{m.label}</span>
                   </div>
                 ))}
                 <div className="tl-now-marker" style={{ left: nowPosition }}>
-                  <span className="tl-now-label">NOW</span>
+                  <span className="tl-now-label">TODAY</span>
                 </div>
               </div>
             </div>
@@ -12345,187 +12294,131 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
               <div className="tl-content" style={{ width: totalWidth }}>
                 {/* Tracks */}
                 <div className="tl-tracks">
-                  {/* Hour grid lines - single overlay for performance */}
-                  <div className="tl-hour-grid">
-                    {hourMarkers.map((m, i) => (
-                      <div key={i} className={`tl-hour-line ${m.isNewDay ? 'new-day' : ''}`} style={{ left: m.left }} />
+                  {/* Day grid lines - single overlay for performance */}
+                  <div className="tl-day-grid">
+                    {dayMarkers.map((m, i) => (
+                      <div key={i} className={`tl-day-line ${m.isNewMonth ? 'new-month' : ''} ${m.isMonday ? 'monday' : ''}`} style={{ left: m.left }} />
                     ))}
                   </div>
                   <div className="tl-now-line" style={{ left: nowPosition }} />
                   {rows.map((row, i) => {
-                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+                    // Get color based on row type
+                    const getRowColor = () => {
+                      if (row.type === 'client') return row.client.color;
+                      if (row.type === 'project') return row.project?.color || row.client.color;
+                      return null; // For attendees, we'll use event-specific colors
+                    };
+                    const rowColor = getRowColor();
+                    const isAttendeeRow = row.type === 'attendee';
 
-                    // Get items for current visible date for sticky badges
-                    const visibleDateStr = visibleDate.toDateString();
-                    const visibleDateStart = new Date(visibleDate);
-                    visibleDateStart.setHours(0, 0, 0, 0);
-
-                    // All-day events that span the visible date (including multi-day all-day events)
-                    const visibleAllDayEvents = (row.allDayEvents || []).filter(e => {
-                      if (!e.startTime) return false;
-                      const eventStart = new Date(e.startTime);
-                      const eventEnd = e.endTime ? new Date(e.endTime) : eventStart;
-                      eventStart.setHours(0, 0, 0, 0);
-                      const eventEndNorm = new Date(eventEnd);
-                      eventEndNorm.setHours(0, 0, 0, 0);
-                      // Include if visible date is between start and end (inclusive)
-                      return visibleDateStart.getTime() >= eventStart.getTime() &&
-                             visibleDateStart.getTime() <= eventEndNorm.getTime();
-                    }).map(e => {
-                      const eventStart = new Date(e.startTime);
-                      const eventEnd = e.endTime ? new Date(e.endTime) : eventStart;
-                      eventStart.setHours(0, 0, 0, 0);
-                      const eventEndNorm = new Date(eventEnd);
-                      eventEndNorm.setHours(0, 0, 0, 0);
-                      const isStartDay = visibleDateStart.getTime() === eventStart.getTime();
-                      const isEndDay = visibleDateStart.getTime() === eventEndNorm.getTime();
-                      const isMultiDay = eventStart.getTime() !== eventEndNorm.getTime();
-                      let dayPosition = 'single';
-                      if (isMultiDay) {
-                        dayPosition = isStartDay ? 'starts' : isEndDay ? 'ends' : 'continues';
+                    // Helper to get event color (for attendee mode, looks up project/client)
+                    const getEventColor = (event) => {
+                      if (rowColor) return rowColor;
+                      // For attendee mode, get color from project or client
+                      if (event.projectId) {
+                        for (const space of allSpaces) {
+                          const project = space.projects?.find(p => p.id === event.projectId);
+                          if (project) return project.color;
+                        }
                       }
-                      return { ...e, dayPosition, isMultiDay };
-                    });
+                      if (event.clientId) {
+                        const client = allSpaces.find(c => c.id === event.clientId);
+                        if (client) return client.color;
+                      }
+                      return '#6366f1'; // Default indigo
+                    };
 
-                    // Multi-day NON-all-day timed events that span the visible date
-                    const visibleMultiDayEvents = row.events.filter(e => {
-                      if (!e.startTime || !e.endTime) return false;
-                      if (!isMultiDayEvent(e)) return false;
-                      const eventStart = new Date(e.startTime);
-                      const eventEnd = new Date(e.endTime);
-                      eventStart.setHours(0, 0, 0, 0);
-                      eventEnd.setHours(0, 0, 0, 0);
-                      return visibleDateStart.getTime() >= eventStart.getTime() &&
-                             visibleDateStart.getTime() <= eventEnd.getTime();
-                    }).map(e => {
-                      const eventStart = new Date(e.startTime);
-                      const eventEnd = new Date(e.endTime);
-                      eventStart.setHours(0, 0, 0, 0);
-                      eventEnd.setHours(0, 0, 0, 0);
-                      const isStartDay = visibleDateStart.getTime() === eventStart.getTime();
-                      const isEndDay = visibleDateStart.getTime() === eventEnd.getTime();
-                      const position = isStartDay ? 'starts' : isEndDay ? 'ends' : 'continues';
-                      return { ...e, dayPosition: position };
-                    });
+                    // Calculate overlaps for attendee rows
+                    const overlaps = [];
+                    if (isAttendeeRow && row.events.length > 1) {
+                      // Sort events by start time
+                      const sortedEvents = [...row.events].sort((a, b) =>
+                        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+                      );
 
-                    const visibleTasks = row.tasks.filter(t =>
-                      t.dueDate && new Date(t.dueDate).toDateString() === visibleDateStr
-                    );
-                    const visibleLists = (row.lists || []).filter(l =>
-                      l.dueDate && new Date(l.dueDate).toDateString() === visibleDateStr
-                    );
-                    const hasBadges = visibleAllDayEvents.length > 0 || visibleMultiDayEvents.length > 0 || visibleTasks.length > 0 || visibleLists.length > 0;
+                      // Find overlapping regions
+                      for (let j = 0; j < sortedEvents.length; j++) {
+                        for (let k = j + 1; k < sortedEvents.length; k++) {
+                          const eventA = sortedEvents[j];
+                          const eventB = sortedEvents[k];
+
+                          const startA = new Date(eventA.startTime).getTime();
+                          const endA = eventA.endTime ? new Date(eventA.endTime).getTime() : startA + 24 * 60 * 60 * 1000;
+                          const startB = new Date(eventB.startTime).getTime();
+                          const endB = eventB.endTime ? new Date(eventB.endTime).getTime() : startB + 24 * 60 * 60 * 1000;
+
+                          // Check for overlap
+                          const overlapStart = Math.max(startA, startB);
+                          const overlapEnd = Math.min(endA, endB);
+
+                          if (overlapStart < overlapEnd) {
+                            overlaps.push({
+                              start: new Date(overlapStart),
+                              end: new Date(overlapEnd),
+                              id: `${eventA.id}-${eventB.id}`
+                            });
+                          }
+                        }
+                      }
+                    }
 
                     return (
                       <div key={i} className={`tl-track ${row.type}`}>
                         <div className="tl-past" style={{ width: nowPosition }} />
 
-                        {/* Sticky badges container */}
-                        {hasBadges && (
-                          <div className="tl-track-badges">
-                            {/* All-day events (with multi-day indicators) */}
-                            {visibleAllDayEvents.map(event => {
-                              const posIcon = event.isMultiDay ? (event.dayPosition === 'starts' ? '→' : event.dayPosition === 'ends' ? '←' : '↔') : null;
-                              const posLabel = event.isMultiDay ? (event.dayPosition === 'starts' ? 'Starts' : event.dayPosition === 'ends' ? 'Ends' : 'Continues') : null;
-                              return (
-                                <div
-                                  key={`badge-allday-${event.id}`}
-                                  className={`tl-badge tl-badge-allday ${event.isMultiDay ? event.dayPosition : ''}`}
-                                  style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
-                                  title={posLabel ? `${event.title} (${posLabel})` : event.title}
-                                  onClick={() => onEventClick && onEventClick(event)}
-                                >
-                                  {posIcon && <span className="tl-badge-pos">{posIcon}</span>}
-                                  {!posIcon && <Calendar size={10} />}
-                                  <span className="tl-badge-title">{event.title}</span>
-                                </div>
-                              );
-                            })}
-                            {/* Multi-day events (starts/continues/ends) */}
-                            {visibleMultiDayEvents.map(event => {
-                              const posIcon = event.dayPosition === 'starts' ? '→' : event.dayPosition === 'ends' ? '←' : '↔';
-                              const posLabel = event.dayPosition === 'starts' ? 'Starts' : event.dayPosition === 'ends' ? 'Ends' : 'Continues';
-                              return (
-                                <div
-                                  key={`badge-multiday-${event.id}`}
-                                  className={`tl-badge tl-badge-multiday ${event.dayPosition}`}
-                                  style={{ background: `linear-gradient(135deg, ${color}dd, ${color}99)` }}
-                                  title={`${event.title} (${posLabel})`}
-                                  onClick={() => onEventClick && onEventClick(event)}
-                                >
-                                  <span className="tl-badge-pos">{posIcon}</span>
-                                  <span className="tl-badge-title">{event.title}</span>
-                                </div>
-                              );
-                            })}
-                            {/* Tasks */}
-                            {visibleTasks.map(task => (
-                              <div
-                                key={`badge-task-${task.id}`}
-                                className={`tl-badge tl-badge-task ${task.isCompleted ? 'completed' : ''}`}
-                                style={{ borderColor: color }}
-                                title={task.title}
-                                onClick={() => {
-                                  if (task.listId && lists) {
-                                    const list = lists.find(l => l.id === task.listId);
-                                    if (list && onListClick) {
-                                      onListClick(list);
-                                      return;
-                                    }
-                                  }
-                                  onTaskClick && onTaskClick(task);
-                                }}
-                              >
-                                <div
-                                  className="tl-badge-check"
-                                  style={{ borderColor: color, background: task.isCompleted ? color : 'transparent' }}
-                                  onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
-                                >
-                                  {task.isCompleted && <Check size={8} color="#fff" />}
-                                </div>
-                                <span className="tl-badge-title">{task.title}</span>
-                                {task.listId && <List size={10} style={{ opacity: 0.6, marginLeft: 2, flexShrink: 0 }} />}
-                              </div>
-                            ))}
-                            {/* Lists */}
-                            {visibleLists.map(list => {
-                              const progress = getListProgress ? getListProgress(list.id) : { completed: 0, total: 0 };
-                              return (
-                                <div
-                                  key={`badge-list-${list.id}`}
-                                  className="tl-badge tl-badge-list"
-                                  style={{ borderColor: color, background: `${color}15` }}
-                                  title={`${list.title}\n${progress.completed}/${progress.total} completed`}
-                                  onClick={() => onListClick && onListClick(list)}
-                                >
-                                  <List size={12} />
-                                  <span className="tl-badge-fraction">{progress.completed}/{progress.total}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                        {/* Overlap indicators for attendee rows */}
+                        {overlaps.map(overlap => {
+                          const left = getPosition(overlap.start);
+                          const width = getPosition(overlap.end) - left;
+                          return (
+                            <div
+                              key={overlap.id}
+                              className={`tl-overlap ${width > 20 ? 'wide' : ''}`}
+                              style={{ left, width: Math.max(width, 3) }}
+                              title="Schedule conflict - double booked"
+                            />
+                          );
+                        })}
 
-                        {/* Events - exclude multi-day events (they show as badges only) */}
-                        {row.events.filter(event => !isMultiDayEvent(event)).map(event => {
-                          const left = getPosition(event.startTime);
-                          const width = Math.max(getPosition(event.endTime) - left, 30);
-                          const isPast = event.endTime < currentTime;
+                        {/* All events rendered as bars */}
+                        {row.events.map(event => {
+                          // For all-day events, use full day width
+                          const eventStart = new Date(event.startTime);
+                          const eventEnd = event.endTime ? new Date(event.endTime) : new Date(eventStart.getTime() + 24 * 60 * 60 * 1000);
+
+                          // For all-day events, normalize to day boundaries
+                          let left, width;
+                          if (event.allDay) {
+                            const startDay = new Date(eventStart);
+                            startDay.setHours(0, 0, 0, 0);
+                            const endDay = new Date(eventEnd);
+                            endDay.setHours(23, 59, 59, 999);
+                            left = getPosition(startDay);
+                            // More precise sizing for attendee mode
+                            width = Math.max(getPosition(endDay) - left, isAttendeeRow ? 2 : pixelsPerDay * 0.9);
+                          } else {
+                            left = getPosition(eventStart);
+                            // More precise sizing for attendee mode (minimal minimum width)
+                            width = Math.max(getPosition(eventEnd) - left, isAttendeeRow ? 2 : pixelsPerDay * 0.1);
+                          }
+
+                          const isPast = eventEnd < currentTime;
+                          const isMultiDay = isMultiDayEvent(event) || event.allDay;
+                          const eventColor = getEventColor(event);
 
                           return (
                             <div
                               key={event.id}
-                              className={`tl-event ${isPast ? 'past' : ''}`}
+                              className={`tl-event ${isPast ? 'past' : ''} ${isMultiDay ? 'multiday' : ''}`}
                               style={{
                                 left,
                                 width,
-                                background: `linear-gradient(135deg, ${color}dd, ${color}99)`
+                                background: `linear-gradient(135deg, ${eventColor}dd, ${eventColor}99)`
                               }}
-                              title={`${event.title}\n${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
+                              title={event.allDay ? event.title : `${event.title}\n${formatTime(eventStart)} - ${formatTime(eventEnd)}`}
                               onClick={() => onEventClick && onEventClick(event)}
                             >
-                              {width > 60 && <span className="tl-event-title">{event.title}</span>}
-                              {width > 120 && <span className="tl-event-time">{formatTime(event.startTime)}</span>}
+                              {width > 40 && <span className="tl-event-title">{event.title}</span>}
                             </div>
                           );
                         })}
@@ -12538,27 +12431,6 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           </div>
         </div>
       </div>
-      )}
-      
-      {/* Weekly Calendar View */}
-      {viewMode === 'week' && (
-        <WeeklyCalendarView
-          events={events}
-          tasks={tasks}
-          lists={lists}
-          clients={clients}
-          internal={internal}
-          currentTime={currentTime}
-          targetDate={targetDate}
-          scrollTrigger={scrollTrigger}
-          onEventClick={onEventClick}
-          onTaskClick={onTaskClick}
-          onListClick={onListClick}
-          toggleTaskComplete={toggleTaskComplete}
-          getListProgress={getListProgress}
-          visibleDateRef={weekVisibleDateRef}
-        />
-      )}
     </div>
   );
 }
@@ -12570,6 +12442,21 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   const [showAddEventModal, setShowAddEventModal] = React.useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
+
+  // View mode state - 'month' or 'week'
+  const [viewMode, setViewMode] = React.useState('month');
+
+  // State for 7-Day view (WeeklyCalendarView)
+  const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [targetDate, setTargetDate] = React.useState(new Date());
+  const [scrollTrigger, setScrollTrigger] = React.useState(0);
+  const weekVisibleDateRef = React.useRef(new Date());
+
+  // Update time every minute (for 7-day view)
+  React.useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Multi-select filter state (matches ListView pattern)
   const [selectedClients, setSelectedClients] = React.useState({});
@@ -12887,6 +12774,46 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           gap: 8px;
         }
 
+        .cal-btn-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .cal-divider {
+          width: 1px;
+          height: 24px;
+          background: rgba(255, 255, 255, 0.12);
+          margin: 0 4px;
+        }
+
+        .cal-toggle {
+          display: flex;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 2px;
+          padding: 3px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          margin-left: 8px;
+        }
+
+        .cal-toggle-btn {
+          padding: 7px 18px;
+          border: none;
+          background: transparent;
+          color: #71717a;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          border-radius: 2px;
+          transition: all 0.1s;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-family: inherit;
+        }
+
+        .cal-toggle-btn:hover { color: #a1a1aa; }
+        .cal-toggle-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
         .cal-add-btn {
           display: flex;
           align-items: center;
@@ -12930,6 +12857,10 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           }
           .cal-today-btn {
             padding: 8px 12px;
+            font-size: 10px;
+          }
+          .cal-toggle-btn {
+            padding: 6px 12px;
             font-size: 10px;
           }
         }
@@ -13134,11 +13065,13 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           bottom: 0;
           background: rgba(0, 0, 0, 0.6);
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 40px 20px;
         }
-        
+
         .cal-add-modal {
           background: #18181b;
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -13146,6 +13079,7 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           width: 480px;
           max-width: 90vw;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          margin: auto 0;
         }
 
         .cal-add-modal-header {
@@ -13815,16 +13749,45 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         </div>
 
         <div className="cal-header-right">
-          <button className="cal-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
-            <Plus size={14} /> <span className="btn-text">Event</span>
-          </button>
-          <button className="cal-add-btn" onClick={() => setShowAddTaskModal(true)} title="Add Task">
-            <Plus size={14} /> <span className="btn-text">Task</span>
-          </button>
-          <button className="cal-add-btn" onClick={() => setShowAddListModal(true)} title="Add List" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
-            <Plus size={14} /> <span className="btn-text">List</span>
-          </button>
+          <div className="cal-btn-group">
+            <button className="cal-add-btn" onClick={() => setShowAddEventModal(true)} title="Add Event">
+              <Plus size={14} /> <span className="btn-text">Event</span>
+            </button>
+            <button className="cal-add-btn" onClick={() => setShowAddTaskModal(true)} title="Add Task">
+              <Plus size={14} /> <span className="btn-text">Task</span>
+            </button>
+            <button className="cal-add-btn" onClick={() => setShowAddListModal(true)} title="Add List" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
+              <Plus size={14} /> <span className="btn-text">List</span>
+            </button>
+          </div>
+          <div className="cal-divider"></div>
           <button className="cal-today-btn" onClick={goToToday}>Today</button>
+          <div className="cal-divider"></div>
+          <div className="cal-toggle">
+            <button
+              className={`cal-toggle-btn ${viewMode === 'month' ? 'active' : ''}`}
+              onClick={() => {
+                if (viewMode !== 'month') {
+                  // When switching from week to month, use the weekVisibleDateRef to set currentDate
+                  const visibleDate = new Date(weekVisibleDateRef.current);
+                  setCurrentDate(visibleDate);
+                  setSelectedDate(visibleDate);
+                  setViewMode('month');
+                }
+              }}
+            >Month</button>
+            <button
+              className={`cal-toggle-btn ${viewMode === 'week' ? 'active' : ''}`}
+              onClick={() => {
+                if (viewMode !== 'week') {
+                  // When switching from month to week, use selectedDate or currentDate
+                  setTargetDate(selectedDate || currentDate);
+                  setScrollTrigger(prev => prev + 1);
+                  setViewMode('week');
+                }
+              }}
+            >Week</button>
+          </div>
         </div>
       </div>
       
@@ -13863,7 +13826,8 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         />
       )}
       
-      {/* Body */}
+      {/* Month View */}
+      {viewMode === 'month' && (
       <div className="cal-body">
         {/* Calendar Grid */}
         <div className="cal-grid-container">
@@ -14134,6 +14098,27 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           </div>
         </div>
       </div>
+      )}
+
+      {/* 7-Day View */}
+      {viewMode === 'week' && (
+        <WeeklyCalendarView
+          events={events.filter(matchesFilter)}
+          tasks={tasks.filter(matchesFilter)}
+          lists={lists.filter(matchesFilter)}
+          clients={clients}
+          internal={internal}
+          currentTime={currentTime}
+          targetDate={targetDate}
+          scrollTrigger={scrollTrigger}
+          onEventClick={onEventClick}
+          onTaskClick={onTaskClick}
+          onListClick={onListClick}
+          toggleTaskComplete={toggleTaskComplete}
+          getListProgress={getListProgress}
+          visibleDateRef={weekVisibleDateRef}
+        />
+      )}
     </div>
   );
 }
