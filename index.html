@@ -11632,15 +11632,22 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           position: absolute;
           top: 8px;
           bottom: 8px;
-          border-radius: 6px;
-          padding: 0 10px;
+          border-radius: 2px;
+          padding: 0 6px;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
           cursor: pointer;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           z-index: 10;
+        }
+
+        .tl-track.attendee .tl-event {
+          top: 12px;
+          bottom: 12px;
+          border-radius: 2px;
+          padding: 0 4px;
         }
 
         .tl-event:hover {
@@ -11683,6 +11690,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-event.multiday {
           border: 1px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .tl-overlap {
+          position: absolute;
+          top: 4px;
+          bottom: 4px;
+          background: rgba(239, 68, 68, 0.35);
+          border: 1px solid rgba(239, 68, 68, 0.6);
+          border-radius: 2px;
+          z-index: 5;
+          pointer-events: none;
+        }
+
+        .tl-overlap::before {
+          content: '⚠';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 10px;
+          color: rgba(239, 68, 68, 0.9);
+          display: none;
+        }
+
+        .tl-overlap.wide::before {
+          display: block;
         }
 
         /* Sticky badges container within each track */
@@ -12267,6 +12300,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                       return null; // For attendees, we'll use event-specific colors
                     };
                     const rowColor = getRowColor();
+                    const isAttendeeRow = row.type === 'attendee';
 
                     // Helper to get event color (for attendee mode, looks up project/client)
                     const getEventColor = (event) => {
@@ -12285,9 +12319,57 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                       return '#6366f1'; // Default indigo
                     };
 
+                    // Calculate overlaps for attendee rows
+                    const overlaps = [];
+                    if (isAttendeeRow && row.events.length > 1) {
+                      // Sort events by start time
+                      const sortedEvents = [...row.events].sort((a, b) =>
+                        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+                      );
+
+                      // Find overlapping regions
+                      for (let j = 0; j < sortedEvents.length; j++) {
+                        for (let k = j + 1; k < sortedEvents.length; k++) {
+                          const eventA = sortedEvents[j];
+                          const eventB = sortedEvents[k];
+
+                          const startA = new Date(eventA.startTime).getTime();
+                          const endA = eventA.endTime ? new Date(eventA.endTime).getTime() : startA + 24 * 60 * 60 * 1000;
+                          const startB = new Date(eventB.startTime).getTime();
+                          const endB = eventB.endTime ? new Date(eventB.endTime).getTime() : startB + 24 * 60 * 60 * 1000;
+
+                          // Check for overlap
+                          const overlapStart = Math.max(startA, startB);
+                          const overlapEnd = Math.min(endA, endB);
+
+                          if (overlapStart < overlapEnd) {
+                            overlaps.push({
+                              start: new Date(overlapStart),
+                              end: new Date(overlapEnd),
+                              id: `${eventA.id}-${eventB.id}`
+                            });
+                          }
+                        }
+                      }
+                    }
+
                     return (
                       <div key={i} className={`tl-track ${row.type}`}>
                         <div className="tl-past" style={{ width: nowPosition }} />
+
+                        {/* Overlap indicators for attendee rows */}
+                        {overlaps.map(overlap => {
+                          const left = getPosition(overlap.start);
+                          const width = getPosition(overlap.end) - left;
+                          return (
+                            <div
+                              key={overlap.id}
+                              className={`tl-overlap ${width > 20 ? 'wide' : ''}`}
+                              style={{ left, width: Math.max(width, 3) }}
+                              title="Schedule conflict - double booked"
+                            />
+                          );
+                        })}
 
                         {/* All events rendered as bars */}
                         {row.events.map(event => {
@@ -12303,10 +12385,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                             const endDay = new Date(eventEnd);
                             endDay.setHours(23, 59, 59, 999);
                             left = getPosition(startDay);
-                            width = Math.max(getPosition(endDay) - left, pixelsPerDay * 0.9);
+                            // More precise sizing for attendee mode
+                            width = Math.max(getPosition(endDay) - left, isAttendeeRow ? 2 : pixelsPerDay * 0.9);
                           } else {
                             left = getPosition(eventStart);
-                            width = Math.max(getPosition(eventEnd) - left, pixelsPerDay * 0.1);
+                            // More precise sizing for attendee mode (minimal minimum width)
+                            width = Math.max(getPosition(eventEnd) - left, isAttendeeRow ? 2 : pixelsPerDay * 0.1);
                           }
 
                           const isPast = eventEnd < currentTime;
