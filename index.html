@@ -12571,6 +12571,21 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
   const [showAddTaskModal, setShowAddTaskModal] = React.useState(false);
   const [showAddListModal, setShowAddListModal] = React.useState(false);
 
+  // View mode state - 'month' or 'week'
+  const [viewMode, setViewMode] = React.useState('month');
+
+  // State for 7-Day view (WeeklyCalendarView)
+  const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [targetDate, setTargetDate] = React.useState(new Date());
+  const [scrollTrigger, setScrollTrigger] = React.useState(0);
+  const weekVisibleDateRef = React.useRef(new Date());
+
+  // Update time every minute (for 7-day view)
+  React.useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Multi-select filter state (matches ListView pattern)
   const [selectedClients, setSelectedClients] = React.useState({});
   const [selectedProjects, setSelectedProjects] = React.useState({});
@@ -12887,6 +12902,33 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           gap: 8px;
         }
 
+        .cal-toggle {
+          display: flex;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 2px;
+          padding: 3px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          margin-left: 8px;
+        }
+
+        .cal-toggle-btn {
+          padding: 7px 18px;
+          border: none;
+          background: transparent;
+          color: #71717a;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          border-radius: 2px;
+          transition: all 0.1s;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-family: inherit;
+        }
+
+        .cal-toggle-btn:hover { color: #a1a1aa; }
+        .cal-toggle-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
         .cal-add-btn {
           display: flex;
           align-items: center;
@@ -12930,6 +12972,10 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           }
           .cal-today-btn {
             padding: 8px 12px;
+            font-size: 10px;
+          }
+          .cal-toggle-btn {
+            padding: 6px 12px;
             font-size: 10px;
           }
         }
@@ -13825,6 +13871,31 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
             <Plus size={14} /> <span className="btn-text">List</span>
           </button>
           <button className="cal-today-btn" onClick={goToToday}>Today</button>
+          <div className="cal-toggle">
+            <button
+              className={`cal-toggle-btn ${viewMode === 'month' ? 'active' : ''}`}
+              onClick={() => {
+                if (viewMode !== 'month') {
+                  // When switching from week to month, use the weekVisibleDateRef to set currentDate
+                  const visibleDate = new Date(weekVisibleDateRef.current);
+                  setCurrentDate(visibleDate);
+                  setSelectedDate(visibleDate);
+                  setViewMode('month');
+                }
+              }}
+            >Month</button>
+            <button
+              className={`cal-toggle-btn ${viewMode === 'week' ? 'active' : ''}`}
+              onClick={() => {
+                if (viewMode !== 'week') {
+                  // When switching from month to week, use selectedDate or currentDate
+                  setTargetDate(selectedDate || currentDate);
+                  setScrollTrigger(prev => prev + 1);
+                  setViewMode('week');
+                }
+              }}
+            >7-Day</button>
+          </div>
         </div>
       </div>
       
@@ -13863,7 +13934,8 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
         />
       )}
       
-      {/* Body */}
+      {/* Month View */}
+      {viewMode === 'month' && (
       <div className="cal-body">
         {/* Calendar Grid */}
         <div className="cal-grid-container">
@@ -14134,6 +14206,27 @@ function MonthlyCalendar({ clients, internal, events, tasks, lists, teamMembers,
           </div>
         </div>
       </div>
+      )}
+
+      {/* 7-Day View */}
+      {viewMode === 'week' && (
+        <WeeklyCalendarView
+          events={events}
+          tasks={tasks}
+          lists={lists}
+          clients={clients}
+          internal={internal}
+          currentTime={currentTime}
+          targetDate={targetDate}
+          scrollTrigger={scrollTrigger}
+          onEventClick={onEventClick}
+          onTaskClick={onTaskClick}
+          onListClick={onListClick}
+          toggleTaskComplete={toggleTaskComplete}
+          getListProgress={getListProgress}
+          visibleDateRef={weekVisibleDateRef}
+        />
+      )}
     </div>
   );
 }
