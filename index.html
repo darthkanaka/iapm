@@ -10474,6 +10474,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [collapsedClients, setCollapsedClients] = React.useState({});
   const [viewMode, setViewMode] = React.useState('2month'); // '6month', '2month', or '2week'
+  const [rowMode, setRowMode] = React.useState('clients'); // 'clients' or 'attendees'
   const scrollContainerRef = React.useRef(null);
   const rulerScrollRef = React.useRef(null); // Synced header scroll for ruler
   const scrollingRef = React.useRef(null); // Track which element is scrolling to prevent feedback
@@ -10714,41 +10715,75 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   // Build rows - events only, no tasks or lists
   const rows = React.useMemo(() => {
     const result = [];
-    allSpaces.forEach(client => {
-      const isCollapsed = collapsedClients[client.id];
 
-      // Get all events for client (filtered by view mode)
-      const clientProjectIds = client.projects.map(p => p.id);
-      const allClientEvents = events.filter(e =>
-        clientProjectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)
-      );
-      const clientLevelEvents = events.filter(e =>
-        e.clientId === client.id && !e.projectId
-      );
+    if (rowMode === 'attendees') {
+      // Attendee mode: one row per team member who has events
+      const attendeeEvents = {};
 
-      // Client header row - when collapsed shows all client events, when expanded shows only client-level
-      result.push({
-        type: 'client',
-        client,
-        isCollapsed,
-        events: getFilteredEvents(isCollapsed ? allClientEvents : clientLevelEvents)
+      // Collect events by attendee
+      events.forEach(event => {
+        if (event.attendees && event.attendees.length > 0) {
+          event.attendees.forEach(attendeeId => {
+            if (!attendeeEvents[attendeeId]) {
+              attendeeEvents[attendeeId] = [];
+            }
+            attendeeEvents[attendeeId].push(event);
+          });
+        }
       });
 
-      // Project rows (if not collapsed)
-      if (!isCollapsed) {
-        client.projects.forEach(project => {
-          const projectEvents = events.filter(e => e.projectId === project.id);
+      // Create rows for each attendee with events
+      Object.keys(attendeeEvents).forEach(attendeeId => {
+        const member = teamMembers.find(m => m.id === attendeeId);
+        if (member) {
           result.push({
-            type: 'project',
-            client,
-            project,
-            events: getFilteredEvents(projectEvents)
+            type: 'attendee',
+            member,
+            events: getFilteredEvents(attendeeEvents[attendeeId])
           });
+        }
+      });
+
+      // Sort by member name
+      result.sort((a, b) => (a.member?.name || '').localeCompare(b.member?.name || ''));
+    } else {
+      // Clients/Projects mode (default)
+      allSpaces.forEach(client => {
+        const isCollapsed = collapsedClients[client.id];
+
+        // Get all events for client (filtered by view mode)
+        const clientProjectIds = client.projects.map(p => p.id);
+        const allClientEvents = events.filter(e =>
+          clientProjectIds.includes(e.projectId) || (e.clientId === client.id && !e.projectId)
+        );
+        const clientLevelEvents = events.filter(e =>
+          e.clientId === client.id && !e.projectId
+        );
+
+        // Client header row - when collapsed shows all client events, when expanded shows only client-level
+        result.push({
+          type: 'client',
+          client,
+          isCollapsed,
+          events: getFilteredEvents(isCollapsed ? allClientEvents : clientLevelEvents)
         });
-      }
-    });
+
+        // Project rows (if not collapsed)
+        if (!isCollapsed) {
+          client.projects.forEach(project => {
+            const projectEvents = events.filter(e => e.projectId === project.id);
+            result.push({
+              type: 'project',
+              client,
+              project,
+              events: getFilteredEvents(projectEvents)
+            });
+          });
+        }
+      });
+    }
     return result;
-  }, [allSpaces, collapsedClients, events, viewMode]);
+  }, [allSpaces, collapsedClients, events, viewMode, rowMode, teamMembers]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -11230,7 +11265,32 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
         .tl-toggle-btn:hover { color: #a1a1aa; }
         .tl-toggle-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
-        
+
+        .tl-row-toggle {
+          margin-left: 8px;
+          border-color: rgba(139, 92, 246, 0.2);
+        }
+
+        .tl-row-toggle .tl-toggle-btn {
+          display: flex;
+          align-items: center;
+          padding: 7px 12px;
+        }
+
+        .tl-row-toggle .tl-toggle-btn.active {
+          background: rgba(139, 92, 246, 0.2);
+          color: #a78bfa;
+        }
+
+        @media (max-width: 900px) {
+          .tl-row-toggle .btn-text {
+            display: none;
+          }
+          .tl-row-toggle .tl-toggle-btn {
+            padding: 7px 10px;
+          }
+        }
+
         .tl-container {
           flex: 1;
           display: flex;
@@ -11328,7 +11388,29 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
           border-radius: 50%;
           flex-shrink: 0;
         }
-        
+
+        .tl-label-avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 600;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        .tl-label-row.attendee {
+          padding-left: 12px;
+        }
+
+        .tl-track.attendee {
+          background: rgba(99, 102, 241, 0.02);
+        }
+
         .tl-label-text {
           font-size: 13px;
           font-weight: 500;
@@ -12073,6 +12155,24 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
             }
           }}>2-Week</button>
         </div>
+        <div className="tl-toggle tl-row-toggle">
+          <button
+            className={`tl-toggle-btn ${rowMode === 'clients' ? 'active' : ''}`}
+            onClick={() => setRowMode('clients')}
+            title="View by Clients & Projects"
+          >
+            <Briefcase size={12} style={{ marginRight: 4 }} />
+            <span className="btn-text">Projects</span>
+          </button>
+          <button
+            className={`tl-toggle-btn ${rowMode === 'attendees' ? 'active' : ''}`}
+            onClick={() => setRowMode('attendees')}
+            title="View by Attendees"
+          >
+            <Users size={12} style={{ marginRight: 4 }} />
+            <span className="btn-text">People</span>
+          </button>
+        </div>
       </div>
       
       {/* Add Event Modal */}
@@ -12091,7 +12191,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
       <div className="tl-container">
         {/* Labels */}
         <div className="tl-labels">
-          <div className="tl-label-header">Clients / Projects</div>
+          <div className="tl-label-header">{rowMode === 'attendees' ? 'Attendees' : 'Clients / Projects'}</div>
           {rows.map((row, i) => (
             <div
               key={i}
@@ -12111,6 +12211,14 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                 <>
                   <div className="tl-label-dot" style={{ background: row.project.color, width: 8, height: 8 }} />
                   <span className="tl-label-text">{row.project.name}</span>
+                </>
+              )}
+              {row.type === 'attendee' && (
+                <>
+                  <div className="tl-label-avatar">
+                    {row.member.name?.charAt(0).toUpperCase() || '?'}
+                  </div>
+                  <span className="tl-label-text">{row.member.name}</span>
                 </>
               )}
             </div>
@@ -12152,7 +12260,30 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                   </div>
                   <div className="tl-now-line" style={{ left: nowPosition }} />
                   {rows.map((row, i) => {
-                    const color = row.type === 'client' ? row.client.color : row.project?.color || row.client.color;
+                    // Get color based on row type
+                    const getRowColor = () => {
+                      if (row.type === 'client') return row.client.color;
+                      if (row.type === 'project') return row.project?.color || row.client.color;
+                      return null; // For attendees, we'll use event-specific colors
+                    };
+                    const rowColor = getRowColor();
+
+                    // Helper to get event color (for attendee mode, looks up project/client)
+                    const getEventColor = (event) => {
+                      if (rowColor) return rowColor;
+                      // For attendee mode, get color from project or client
+                      if (event.projectId) {
+                        for (const space of allSpaces) {
+                          const project = space.projects?.find(p => p.id === event.projectId);
+                          if (project) return project.color;
+                        }
+                      }
+                      if (event.clientId) {
+                        const client = allSpaces.find(c => c.id === event.clientId);
+                        if (client) return client.color;
+                      }
+                      return '#6366f1'; // Default indigo
+                    };
 
                     return (
                       <div key={i} className={`tl-track ${row.type}`}>
@@ -12180,6 +12311,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
                           const isPast = eventEnd < currentTime;
                           const isMultiDay = isMultiDayEvent(event) || event.allDay;
+                          const eventColor = getEventColor(event);
 
                           return (
                             <div
@@ -12188,7 +12320,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
                               style={{
                                 left,
                                 width,
-                                background: `linear-gradient(135deg, ${color}dd, ${color}99)`
+                                background: `linear-gradient(135deg, ${eventColor}dd, ${eventColor}99)`
                               }}
                               title={event.allDay ? event.title : `${event.title}\n${formatTime(eventStart)} - ${formatTime(eventEnd)}`}
                               onClick={() => onEventClick && onEventClick(event)}
