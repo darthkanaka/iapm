@@ -10482,7 +10482,7 @@ function WeeklyCalendarView({ events, tasks, lists, clients, internal, currentTi
 function Timeline({ clients, internal, events, tasks, lists, teamMembers, navigateToClient, toggleTaskComplete, addTask, addEvent, addList, onEventClick, onTaskClick, onListClick, getListProgress, currentUser }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [collapsedClients, setCollapsedClients] = React.useState({});
-  const [viewMode, setViewMode] = React.useState('2week'); // '6month', '2month', or '2week'
+  const [viewMode, setViewMode] = React.useState('10day'); // '6month', '2month', or '10day'
   const [rowMode, setRowMode] = React.useState('attendees'); // 'clients' or 'attendees'
   const scrollContainerRef = React.useRef(null);
   const rulerScrollRef = React.useRef(null); // Synced header scroll for ruler
@@ -10507,7 +10507,7 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
   const DAYS_CONFIG = {
     '6month': 180,
     '2month': 60,
-    '2week': 14
+    '10day': 10
   };
   const DAYS_VISIBLE = DAYS_CONFIG[viewMode];
   const LABEL_WIDTH = 200;
@@ -10712,10 +10712,10 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
 
   // Filter events based on view mode
   // 6-month and 2-month: only all-day and multi-day events
-  // 2-week: all events
+  // 10-day: all events
   const getFilteredEvents = (eventList) => {
-    if (viewMode === '2week') {
-      return eventList; // Show all events in 2-week view
+    if (viewMode === '10day') {
+      return eventList; // Show all events in 10-day view
     }
     // For 6-month and 2-month, only show all-day or multi-day events
     return eventList.filter(e => e.allDay || isMultiDayEvent(e));
@@ -12190,12 +12190,12 @@ function Timeline({ clients, internal, events, tasks, lists, teamMembers, naviga
               setViewMode('2month');
             }
           }}>2-Month</button>
-          <button className={`tl-toggle-btn ${viewMode === '2week' ? 'active' : ''}`} onClick={() => {
-            if (viewMode !== '2week') {
+          <button className={`tl-toggle-btn ${viewMode === '10day' ? 'active' : ''}`} onClick={() => {
+            if (viewMode !== '10day') {
               setTargetDate(new Date());
-              setViewMode('2week');
+              setViewMode('10day');
             }
-          }}>2-Week</button>
+          }}>10-Day</button>
         </div>
         <div className="tl-toggle tl-row-toggle">
           <button
